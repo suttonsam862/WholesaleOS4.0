@@ -819,8 +819,8 @@ export function registerManufacturingRoutes(app: Express): void {
         return res.status(404).json({ message: "Manufacturing update not found" });
       }
       
-      // Get the manufacturing record to find the order
-      const manufacturingRecord = await storage.getManufacturingRecord(update.manufacturingId);
+      // Get the manufacturing record to find the order (pass user for role-based access)
+      const manufacturingRecord = await storage.getManufacturingRecord(update.manufacturingId, user);
       if (!manufacturingRecord || !manufacturingRecord.orderId) {
         return res.status(400).json({ message: "No order associated with this manufacturing update" });
       }
