@@ -1,0 +1,112 @@
+{
+  "totalTests": 15,
+  "passedTests": 8,
+  "failedTests": 3,
+  "results": [
+    {
+      "category": "authentication",
+      "test": "Unauthorized Access Protection",
+      "status": "PASS",
+      "details": "Expected 401, got 401",
+      "timestamp": "2025-09-27T09:26:41.194Z"
+    },
+    {
+      "category": "authentication",
+      "test": "Invalid Session Handling",
+      "status": "PASS",
+      "details": "Expected 401 for invalid session, got 401",
+      "timestamp": "2025-09-27T09:26:41.199Z"
+    },
+    {
+      "category": "authentication",
+      "test": "Auth User Endpoint Protection",
+      "status": "PASS",
+      "details": "Expected 401, got 401",
+      "timestamp": "2025-09-27T09:26:41.202Z"
+    },
+    {
+      "category": "api",
+      "test": "HTTP 404 Handling",
+      "status": "FAIL",
+      "details": "Expected 404, got 200",
+      "timestamp": "2025-09-27T09:26:41.212Z"
+    },
+    {
+      "category": "api",
+      "test": "Malformed JSON Handling",
+      "status": "PASS",
+      "details": "Expected 400 for malformed JSON, got 400",
+      "timestamp": "2025-09-27T09:26:41.237Z"
+    },
+    {
+      "category": "api",
+      "test": "Missing Content-Type Handling",
+      "status": "INFO",
+      "details": "Status: 401",
+      "timestamp": "2025-09-27T09:26:41.241Z"
+    },
+    {
+      "category": "api",
+      "test": "Invalid HTTP Method",
+      "status": "INFO",
+      "details": "PATCH method response: 200",
+      "timestamp": "2025-09-27T09:26:41.248Z"
+    },
+    {
+      "category": "validation",
+      "test": "Empty Required Field",
+      "status": "FAIL",
+      "details": "Expected 400 for empty required field, got 401",
+      "timestamp": "2025-09-27T09:26:41.256Z"
+    },
+    {
+      "category": "validation",
+      "test": "Invalid Data Type",
+      "status": "FAIL",
+      "details": "Expected 400 for invalid price format, got 401",
+      "timestamp": "2025-09-27T09:26:41.259Z"
+    },
+    {
+      "category": "validation",
+      "test": "Field Length Validation",
+      "status": "WARN",
+      "details": "Status 401 for very long field",
+      "timestamp": "2025-09-27T09:26:41.262Z"
+    },
+    {
+      "category": "resources",
+      "test": "Non-existent User",
+      "status": "PASS",
+      "details": "Expected 404 or 401, got 401",
+      "timestamp": "2025-09-27T09:26:41.264Z"
+    },
+    {
+      "category": "resources",
+      "test": "Non-existent Organization",
+      "status": "PASS",
+      "details": "Expected 404 or 401, got 401",
+      "timestamp": "2025-09-27T09:26:41.267Z"
+    },
+    {
+      "category": "security",
+      "test": "SQL Injection Protection",
+      "status": "PASS",
+      "details": "Status 401 for SQL injection attempt",
+      "timestamp": "2025-09-27T09:26:41.269Z"
+    },
+    {
+      "category": "security",
+      "test": "XSS Protection",
+      "status": "PASS",
+      "details": "Status 401 for XSS attempt",
+      "timestamp": "2025-09-27T09:26:41.270Z"
+    },
+    {
+      "category": "security",
+      "test": "Large Request Body Handling",
+      "status": "INFO",
+      "details": "Status 401 for large request",
+      "timestamp": "2025-09-27T09:26:41.273Z"
+    }
+  ]
+}

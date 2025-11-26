@@ -1,0 +1,256 @@
+{
+  "summary": {
+    "total": 34,
+    "passed": 31,
+    "failed": 3,
+    "skipped": 0,
+    "successRate": "91.2%",
+    "executionTime": "2025-09-27T08:33:55.017Z"
+  },
+  "tests": [
+    {
+      "name": "Authentication Check",
+      "passed": true,
+      "details": "Expected 401 - system requires authentication",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.833Z"
+    },
+    {
+      "name": "Quotes Endpoint Security",
+      "passed": true,
+      "details": "Status: 401 (401 expected for security)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.840Z"
+    },
+    {
+      "name": "Quote Creation - Missing Required Fields",
+      "passed": true,
+      "details": "Status: 401 (401 expected due to auth requirement)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.852Z"
+    },
+    {
+      "name": "Quote Creation - Invalid Status",
+      "passed": true,
+      "details": "Status: 401 (401 expected due to auth requirement)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.856Z"
+    },
+    {
+      "name": "Quote Creation - Invalid Price Format",
+      "passed": true,
+      "details": "Status: 401 (401 expected due to auth requirement)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.861Z"
+    },
+    {
+      "name": "Quote Creation - Negative Amounts",
+      "passed": true,
+      "details": "Status: 401 (401 expected due to auth requirement)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.863Z"
+    },
+    {
+      "name": "Line Item - Invalid Quantity",
+      "passed": true,
+      "details": "Status: 401 (401 expected due to auth requirement)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.870Z"
+    },
+    {
+      "name": "Line Item - Invalid Price Format",
+      "passed": true,
+      "details": "Status: 401 (401 expected due to auth requirement)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.873Z"
+    },
+    {
+      "name": "Line Item - Zero Quantity",
+      "passed": true,
+      "details": "Status: 401 (401 expected due to auth requirement)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.879Z"
+    },
+    {
+      "name": "Quotes List Endpoint",
+      "passed": true,
+      "details": "GET /quotes - Status: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.881Z"
+    },
+    {
+      "name": "Quote Detail Endpoint",
+      "passed": true,
+      "details": "GET /quotes/1 - Status: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.886Z"
+    },
+    {
+      "name": "Quote Creation Endpoint",
+      "passed": true,
+      "details": "POST /quotes - Status: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.890Z"
+    },
+    {
+      "name": "Quote Update Endpoint",
+      "passed": true,
+      "details": "PUT /quotes/1 - Status: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.894Z"
+    },
+    {
+      "name": "Quote Delete Endpoint",
+      "passed": true,
+      "details": "DELETE /quotes/1 - Status: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.904Z"
+    },
+    {
+      "name": "Quote Line Items List",
+      "passed": true,
+      "details": "GET /quotes/1/line-items - Status: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.906Z"
+    },
+    {
+      "name": "Quote Line Item Creation",
+      "passed": true,
+      "details": "POST /quotes/1/line-items - Status: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.913Z"
+    },
+    {
+      "name": "Quote Line Item Update",
+      "passed": true,
+      "details": "PUT /quotes/1/line-items/1 - Status: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.916Z"
+    },
+    {
+      "name": "Quote Line Item Delete",
+      "passed": true,
+      "details": "DELETE /quotes/1/line-items/1 - Status: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.919Z"
+    },
+    {
+      "name": "Unauthenticated Access Protection",
+      "passed": true,
+      "details": "All endpoints properly return 401 without authentication",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.920Z"
+    },
+    {
+      "name": "SQL Injection - Quote ID",
+      "passed": true,
+      "details": "Status: 401 (Safe - no SQL injection vulnerability)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.922Z"
+    },
+    {
+      "name": "SQL Injection - Line Item ID",
+      "passed": false,
+      "details": "Status: 200 (Safe - no SQL injection vulnerability)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.933Z"
+    },
+    {
+      "name": "Concurrent Request Handling",
+      "passed": true,
+      "details": "5 concurrent requests handled in 14ms",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.948Z"
+    },
+    {
+      "name": "Currency Format Validation",
+      "passed": true,
+      "details": "Data format validation endpoint response: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.953Z"
+    },
+    {
+      "name": "Date Format Validation",
+      "passed": true,
+      "details": "Data format validation endpoint response: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.957Z"
+    },
+    {
+      "name": "Long Text Field Handling",
+      "passed": true,
+      "details": "Data format validation endpoint response: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.960Z"
+    },
+    {
+      "name": "Organizations Integration",
+      "passed": true,
+      "details": "Integration endpoint /organizations - Status: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.964Z"
+    },
+    {
+      "name": "Contacts Integration",
+      "passed": true,
+      "details": "Integration endpoint /contacts - Status: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.967Z"
+    },
+    {
+      "name": "Products Integration",
+      "passed": true,
+      "details": "Integration endpoint /products - Status: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.970Z"
+    },
+    {
+      "name": "Product Variants Integration",
+      "passed": false,
+      "details": "Integration endpoint /product-variants - Status: 200",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.983Z"
+    },
+    {
+      "name": "Users Integration",
+      "passed": true,
+      "details": "Integration endpoint /users - Status: 401",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.990Z"
+    },
+    {
+      "name": "Non-existent Quote Access",
+      "passed": true,
+      "details": "Status: 401 (Expected 4xx error)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.994Z"
+    },
+    {
+      "name": "Invalid Quote ID Format",
+      "passed": true,
+      "details": "Status: 401 (Expected 4xx error)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:54.995Z"
+    },
+    {
+      "name": "Non-existent Line Item",
+      "passed": false,
+      "details": "Status: 200 (Expected 4xx error)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:55.001Z"
+    },
+    {
+      "name": "Malformed JSON Payload",
+      "passed": true,
+      "details": "Status: 400 (Expected 4xx error)",
+      "status": null,
+      "timestamp": "2025-09-27T08:33:55.016Z"
+    }
+  ],
+  "testConfiguration": {
+    "baseUrl": "http://localhost:5000/api",
+    "authentication": "Required (OIDC)",
+    "testScope": "Finance and Quotes API Endpoints",
+    "environment": "Development"
+  }
+}

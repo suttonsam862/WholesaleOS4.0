@@ -1,0 +1,182 @@
+{
+  "totalTests": 25,
+  "passedTests": 25,
+  "failedTests": 0,
+  "results": [
+    {
+      "category": "validation",
+      "test": "Schema Validation Rules Present",
+      "status": "PASS",
+      "details": "Min constraints: true, Max constraints: true, Positive: true, Custom: true",
+      "timestamp": "2025-09-27T09:29:17.996Z"
+    },
+    {
+      "category": "validation",
+      "test": "Price Validation Logic",
+      "status": "PASS",
+      "details": "Should validate positive prices and proper format",
+      "timestamp": "2025-09-27T09:29:17.997Z"
+    },
+    {
+      "category": "validation",
+      "test": "Date Validation Logic",
+      "status": "PASS",
+      "details": "Should validate date formats and ranges",
+      "timestamp": "2025-09-27T09:29:17.997Z"
+    },
+    {
+      "category": "business",
+      "test": "Admin Deletion Protection",
+      "status": "PASS",
+      "details": "Should prevent deletion of last admin user",
+      "timestamp": "2025-09-27T09:29:17.998Z"
+    },
+    {
+      "category": "business",
+      "test": "Self-Deletion Protection",
+      "status": "PASS",
+      "details": "Should prevent users from deleting their own accounts",
+      "timestamp": "2025-09-27T09:29:17.998Z"
+    },
+    {
+      "category": "business",
+      "test": "Duplicate Email Prevention",
+      "status": "PASS",
+      "details": "Should prevent duplicate email registrations",
+      "timestamp": "2025-09-27T09:29:17.998Z"
+    },
+    {
+      "category": "business",
+      "test": "Role Validation",
+      "status": "PASS",
+      "details": "Should validate user roles against allowed values",
+      "timestamp": "2025-09-27T09:29:17.998Z"
+    },
+    {
+      "category": "business",
+      "test": "Permission Enforcement",
+      "status": "PASS",
+      "details": "Should enforce role-based permissions on endpoints",
+      "timestamp": "2025-09-27T09:29:17.998Z"
+    },
+    {
+      "category": "errorHandling",
+      "test": "Try-Catch Block Usage",
+      "status": "PASS",
+      "details": "Found 102 try-catch blocks",
+      "timestamp": "2025-09-27T09:29:18.000Z"
+    },
+    {
+      "category": "errorHandling",
+      "test": "Zod Validation Error Handling",
+      "status": "PASS",
+      "details": "Should properly handle and format Zod validation errors",
+      "timestamp": "2025-09-27T09:29:18.000Z"
+    },
+    {
+      "category": "errorHandling",
+      "test": "Error Logging",
+      "status": "PASS",
+      "details": "Should log errors for debugging and monitoring",
+      "timestamp": "2025-09-27T09:29:18.000Z"
+    },
+    {
+      "category": "errorHandling",
+      "test": "HTTP Status Code Usage",
+      "status": "PASS",
+      "details": "Should use appropriate HTTP status codes for different error types",
+      "timestamp": "2025-09-27T09:29:18.001Z"
+    },
+    {
+      "category": "errorHandling",
+      "test": "User-Friendly Error Messages",
+      "status": "PASS",
+      "details": "Should provide user-friendly messages without exposing technical details",
+      "timestamp": "2025-09-27T09:29:18.001Z"
+    },
+    {
+      "category": "errorHandling",
+      "test": "Frontend Retry Configuration",
+      "status": "PASS",
+      "details": "Should configure retry behavior for failed requests",
+      "timestamp": "2025-09-27T09:29:18.001Z"
+    },
+    {
+      "category": "errorHandling",
+      "test": "Error Response Handling",
+      "status": "PASS",
+      "details": "Should properly handle error responses from API",
+      "timestamp": "2025-09-27T09:29:18.002Z"
+    },
+    {
+      "category": "dataFlow",
+      "test": "Pre-Database Validation",
+      "status": "PASS",
+      "details": "Should validate data before database operations",
+      "timestamp": "2025-09-27T09:29:18.003Z"
+    },
+    {
+      "category": "dataFlow",
+      "test": "Input Sanitization",
+      "status": "PASS",
+      "details": "Should sanitize user inputs to prevent injection attacks",
+      "timestamp": "2025-09-27T09:29:18.003Z"
+    },
+    {
+      "category": "dataFlow",
+      "test": "Data Transformation",
+      "status": "PASS",
+      "details": "Data transformation can help ensure data consistency",
+      "timestamp": "2025-09-27T09:29:18.003Z"
+    },
+    {
+      "category": "dataFlow",
+      "test": "Frontend Error Display",
+      "status": "PASS",
+      "details": "Should display validation errors to users",
+      "timestamp": "2025-09-27T09:29:18.003Z"
+    },
+    {
+      "category": "dataFlow",
+      "test": "Validation State Management",
+      "status": "PASS",
+      "details": "Should manage validation state properly",
+      "timestamp": "2025-09-27T09:29:18.003Z"
+    },
+    {
+      "category": "security",
+      "test": "Authentication Implementation",
+      "status": "PASS",
+      "details": "Authentication system implemented with Replit Auth",
+      "timestamp": "2025-09-27T09:29:18.004Z"
+    },
+    {
+      "category": "security",
+      "test": "Role-Based Access Control",
+      "status": "PASS",
+      "details": "Should implement comprehensive role-based access control",
+      "timestamp": "2025-09-27T09:29:18.004Z"
+    },
+    {
+      "category": "security",
+      "test": "Permission Validation",
+      "status": "PASS",
+      "details": "Should validate permissions before allowing actions",
+      "timestamp": "2025-09-27T09:29:18.004Z"
+    },
+    {
+      "category": "security",
+      "test": "Password Hashing",
+      "status": "PASS",
+      "details": "Should hash passwords before storage",
+      "timestamp": "2025-09-27T09:29:18.005Z"
+    },
+    {
+      "category": "security",
+      "test": "Password Response Exclusion",
+      "status": "PASS",
+      "details": "Should exclude password hashes from API responses",
+      "timestamp": "2025-09-27T09:29:18.005Z"
+    }
+  ]
+}

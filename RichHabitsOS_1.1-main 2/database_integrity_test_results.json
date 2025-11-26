@@ -1,0 +1,91 @@
+{
+  "totalTests": 12,
+  "passedTests": 5,
+  "failedTests": 0,
+  "results": [
+    {
+      "category": "database",
+      "test": "Unique Constraint Violation",
+      "status": "PASS",
+      "details": "Database properly enforced unique constraint",
+      "timestamp": "2025-09-27T09:29:15.735Z"
+    },
+    {
+      "category": "database",
+      "test": "Foreign Key Constraint",
+      "status": "PASS",
+      "details": "Database properly enforced foreign key constraint",
+      "timestamp": "2025-09-27T09:29:15.927Z"
+    },
+    {
+      "category": "database",
+      "test": "NOT NULL Constraint",
+      "status": "PASS",
+      "details": "Database properly enforced NOT NULL constraint",
+      "timestamp": "2025-09-27T09:29:16.097Z"
+    },
+    {
+      "category": "database",
+      "test": "Data Type Constraint",
+      "status": "PASS",
+      "details": "Database properly enforced data type constraint",
+      "timestamp": "2025-09-27T09:29:16.232Z"
+    },
+    {
+      "category": "business",
+      "test": "Negative Price Prevention",
+      "status": "WARN",
+      "details": "Database allowed negative price - should be validated at application level",
+      "timestamp": "2025-09-27T09:29:16.399Z"
+    },
+    {
+      "category": "business",
+      "test": "Invalid Date Handling",
+      "status": "WARN",
+      "details": "Database allowed past date for valid_until - consider business rule validation",
+      "timestamp": "2025-09-27T09:29:16.569Z"
+    },
+    {
+      "category": "business",
+      "test": "Negative Quantity Prevention",
+      "status": "WARN",
+      "details": "Database allowed negative quantity - should validate at application level",
+      "timestamp": "2025-09-27T09:29:16.726Z"
+    },
+    {
+      "category": "boundary",
+      "test": "Long String Handling",
+      "status": "WARN",
+      "details": "Database accepted very long string - consider length limits",
+      "timestamp": "2025-09-27T09:29:16.898Z"
+    },
+    {
+      "category": "boundary",
+      "test": "Decimal Precision Handling",
+      "status": "INFO",
+      "details": "Database handled decimal precision (should check if rounded correctly)",
+      "timestamp": "2025-09-27T09:29:17.066Z"
+    },
+    {
+      "category": "boundary",
+      "test": "Large Integer Handling",
+      "status": "INFO",
+      "details": "Large integer error: ERROR:  numeric field overflow\nDETAIL:  A field with precision 10, scale 2 must round to an absolute value less than 10^8.\n",
+      "timestamp": "2025-09-27T09:29:17.228Z"
+    },
+    {
+      "category": "concurrency",
+      "test": "Transaction Rollback",
+      "status": "PASS",
+      "details": "Transaction properly rolled back on constraint violation",
+      "timestamp": "2025-09-27T09:29:17.371Z"
+    },
+    {
+      "category": "concurrency",
+      "test": "Race Condition Prevention",
+      "status": "INFO",
+      "details": "Race condition testing requires specialized concurrent test scenarios",
+      "timestamp": "2025-09-27T09:29:17.371Z"
+    }
+  ]
+}

@@ -1,0 +1,440 @@
+{
+  "totalTests": 19,
+  "totalPassed": 19,
+  "totalFailed": 0,
+  "totalErrors": 0,
+  "totalWarnings": 0,
+  "successRate": "100.0",
+  "categories": {
+    "authentication": {
+      "tests": [
+        {
+          "testNumber": 1,
+          "category": "authentication",
+          "test": "Unauthorized GET /api/users",
+          "status": "PASS",
+          "details": "User management endpoint",
+          "expectedStatus": 401,
+          "actualStatus": 401,
+          "timestamp": "2025-09-27T09:43:28.215Z"
+        },
+        {
+          "testNumber": 2,
+          "category": "authentication",
+          "test": "Unauthorized GET /api/auth/user",
+          "status": "PASS",
+          "details": "Current user endpoint",
+          "expectedStatus": 401,
+          "actualStatus": 401,
+          "timestamp": "2025-09-27T09:43:28.219Z"
+        },
+        {
+          "testNumber": 3,
+          "category": "authentication",
+          "test": "Unauthorized GET /api/organizations",
+          "status": "PASS",
+          "details": "Organizations endpoint",
+          "expectedStatus": 401,
+          "actualStatus": 401,
+          "timestamp": "2025-09-27T09:43:28.222Z"
+        },
+        {
+          "testNumber": 4,
+          "category": "authentication",
+          "test": "Unauthorized POST /api/organizations",
+          "status": "PASS",
+          "details": "Create organization endpoint",
+          "expectedStatus": 401,
+          "actualStatus": 401,
+          "timestamp": "2025-09-27T09:43:28.226Z"
+        },
+        {
+          "testNumber": 5,
+          "category": "authentication",
+          "test": "Unauthorized GET /api/dashboard/stats",
+          "status": "PASS",
+          "details": "Dashboard stats endpoint",
+          "expectedStatus": 401,
+          "actualStatus": 401,
+          "timestamp": "2025-09-27T09:43:28.228Z"
+        }
+      ],
+      "passed": 5,
+      "failed": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    "api_404": {
+      "tests": [
+        {
+          "testNumber": 6,
+          "category": "api_404",
+          "test": "GET /api/nonexistent",
+          "status": "PASS",
+          "details": "Non-existent API endpoint",
+          "expectedStatus": 404,
+          "actualStatus": 404,
+          "timestamp": "2025-09-27T09:43:28.231Z"
+        },
+        {
+          "testNumber": 7,
+          "category": "api_404",
+          "test": "POST /api/invalid/route",
+          "status": "PASS",
+          "details": "Invalid API route",
+          "expectedStatus": 404,
+          "actualStatus": 404,
+          "timestamp": "2025-09-27T09:43:28.233Z"
+        },
+        {
+          "testNumber": 8,
+          "category": "api_404",
+          "test": "PUT /api/missing/endpoint",
+          "status": "PASS",
+          "details": "Missing API endpoint",
+          "expectedStatus": 404,
+          "actualStatus": 404,
+          "timestamp": "2025-09-27T09:43:28.235Z"
+        },
+        {
+          "testNumber": 9,
+          "category": "api_404",
+          "test": "DELETE /api/not/found",
+          "status": "PASS",
+          "details": "Not found API endpoint",
+          "expectedStatus": 404,
+          "actualStatus": 404,
+          "timestamp": "2025-09-27T09:43:28.238Z"
+        }
+      ],
+      "passed": 4,
+      "failed": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    "validation": {
+      "tests": [
+        {
+          "testNumber": 10,
+          "category": "validation",
+          "test": "Malformed JSON Handling",
+          "status": "PASS",
+          "details": "JSON parsing validation",
+          "expectedStatus": "400 or 404",
+          "actualStatus": 400,
+          "timestamp": "2025-09-27T09:43:28.243Z"
+        },
+        {
+          "testNumber": 11,
+          "category": "validation",
+          "test": "Invalid Content-Type Handling",
+          "status": "PASS",
+          "details": "Content-type validation",
+          "expectedStatus": "400-499",
+          "actualStatus": 404,
+          "timestamp": "2025-09-27T09:43:28.246Z"
+        }
+      ],
+      "passed": 2,
+      "failed": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    "file_upload_security": {
+      "tests": [
+        {
+          "testNumber": 12,
+          "category": "file_upload_security",
+          "test": "Image Upload - No Auth",
+          "status": "PASS",
+          "details": "New file upload security implementation",
+          "expectedStatus": 401,
+          "actualStatus": 401,
+          "timestamp": "2025-09-27T09:43:28.248Z"
+        },
+        {
+          "testNumber": 13,
+          "category": "file_upload_security",
+          "test": "Document Upload - No Auth",
+          "status": "PASS",
+          "details": "New file upload security implementation",
+          "expectedStatus": 401,
+          "actualStatus": 401,
+          "timestamp": "2025-09-27T09:43:28.250Z"
+        },
+        {
+          "testNumber": 14,
+          "category": "file_upload_security",
+          "test": "File Validation - No Auth",
+          "status": "PASS",
+          "details": "New file upload security implementation",
+          "expectedStatus": 401,
+          "actualStatus": 401,
+          "timestamp": "2025-09-27T09:43:28.253Z"
+        }
+      ],
+      "passed": 3,
+      "failed": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    "security": {
+      "tests": [
+        {
+          "testNumber": 15,
+          "category": "security",
+          "test": "Error Response Format",
+          "status": "PASS",
+          "details": "Error responses should be in JSON format",
+          "expectedStatus": "JSON format",
+          "actualStatus": "JSON",
+          "timestamp": "2025-09-27T09:43:28.256Z"
+        },
+        {
+          "testNumber": 16,
+          "category": "security",
+          "test": "Large Request Body Handling",
+          "status": "PASS",
+          "details": "Large request body processing",
+          "expectedStatus": 404,
+          "actualStatus": 404,
+          "timestamp": "2025-09-27T09:43:28.258Z"
+        }
+      ],
+      "passed": 2,
+      "failed": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    "http_methods": {
+      "tests": [
+        {
+          "testNumber": 17,
+          "category": "http_methods",
+          "test": "PATCH Method Validation",
+          "status": "PASS",
+          "details": "PATCH on non-existent endpoint",
+          "expectedStatus": "404 or 405",
+          "actualStatus": 404,
+          "timestamp": "2025-09-27T09:43:28.261Z"
+        },
+        {
+          "testNumber": 18,
+          "category": "http_methods",
+          "test": "OPTIONS Method Validation",
+          "status": "PASS",
+          "details": "OPTIONS method handling",
+          "expectedStatus": "404 or 405",
+          "actualStatus": 404,
+          "timestamp": "2025-09-27T09:43:28.263Z"
+        },
+        {
+          "testNumber": 19,
+          "category": "http_methods",
+          "test": "HEAD Method Validation",
+          "status": "PASS",
+          "details": "HEAD method handling",
+          "expectedStatus": "404 or 405",
+          "actualStatus": 404,
+          "timestamp": "2025-09-27T09:43:28.264Z"
+        }
+      ],
+      "passed": 3,
+      "failed": 0,
+      "errors": 0,
+      "warnings": 0
+    }
+  },
+  "results": [
+    {
+      "testNumber": 1,
+      "category": "authentication",
+      "test": "Unauthorized GET /api/users",
+      "status": "PASS",
+      "details": "User management endpoint",
+      "expectedStatus": 401,
+      "actualStatus": 401,
+      "timestamp": "2025-09-27T09:43:28.215Z"
+    },
+    {
+      "testNumber": 2,
+      "category": "authentication",
+      "test": "Unauthorized GET /api/auth/user",
+      "status": "PASS",
+      "details": "Current user endpoint",
+      "expectedStatus": 401,
+      "actualStatus": 401,
+      "timestamp": "2025-09-27T09:43:28.219Z"
+    },
+    {
+      "testNumber": 3,
+      "category": "authentication",
+      "test": "Unauthorized GET /api/organizations",
+      "status": "PASS",
+      "details": "Organizations endpoint",
+      "expectedStatus": 401,
+      "actualStatus": 401,
+      "timestamp": "2025-09-27T09:43:28.222Z"
+    },
+    {
+      "testNumber": 4,
+      "category": "authentication",
+      "test": "Unauthorized POST /api/organizations",
+      "status": "PASS",
+      "details": "Create organization endpoint",
+      "expectedStatus": 401,
+      "actualStatus": 401,
+      "timestamp": "2025-09-27T09:43:28.226Z"
+    },
+    {
+      "testNumber": 5,
+      "category": "authentication",
+      "test": "Unauthorized GET /api/dashboard/stats",
+      "status": "PASS",
+      "details": "Dashboard stats endpoint",
+      "expectedStatus": 401,
+      "actualStatus": 401,
+      "timestamp": "2025-09-27T09:43:28.228Z"
+    },
+    {
+      "testNumber": 6,
+      "category": "api_404",
+      "test": "GET /api/nonexistent",
+      "status": "PASS",
+      "details": "Non-existent API endpoint",
+      "expectedStatus": 404,
+      "actualStatus": 404,
+      "timestamp": "2025-09-27T09:43:28.231Z"
+    },
+    {
+      "testNumber": 7,
+      "category": "api_404",
+      "test": "POST /api/invalid/route",
+      "status": "PASS",
+      "details": "Invalid API route",
+      "expectedStatus": 404,
+      "actualStatus": 404,
+      "timestamp": "2025-09-27T09:43:28.233Z"
+    },
+    {
+      "testNumber": 8,
+      "category": "api_404",
+      "test": "PUT /api/missing/endpoint",
+      "status": "PASS",
+      "details": "Missing API endpoint",
+      "expectedStatus": 404,
+      "actualStatus": 404,
+      "timestamp": "2025-09-27T09:43:28.235Z"
+    },
+    {
+      "testNumber": 9,
+      "category": "api_404",
+      "test": "DELETE /api/not/found",
+      "status": "PASS",
+      "details": "Not found API endpoint",
+      "expectedStatus": 404,
+      "actualStatus": 404,
+      "timestamp": "2025-09-27T09:43:28.238Z"
+    },
+    {
+      "testNumber": 10,
+      "category": "validation",
+      "test": "Malformed JSON Handling",
+      "status": "PASS",
+      "details": "JSON parsing validation",
+      "expectedStatus": "400 or 404",
+      "actualStatus": 400,
+      "timestamp": "2025-09-27T09:43:28.243Z"
+    },
+    {
+      "testNumber": 11,
+      "category": "validation",
+      "test": "Invalid Content-Type Handling",
+      "status": "PASS",
+      "details": "Content-type validation",
+      "expectedStatus": "400-499",
+      "actualStatus": 404,
+      "timestamp": "2025-09-27T09:43:28.246Z"
+    },
+    {
+      "testNumber": 12,
+      "category": "file_upload_security",
+      "test": "Image Upload - No Auth",
+      "status": "PASS",
+      "details": "New file upload security implementation",
+      "expectedStatus": 401,
+      "actualStatus": 401,
+      "timestamp": "2025-09-27T09:43:28.248Z"
+    },
+    {
+      "testNumber": 13,
+      "category": "file_upload_security",
+      "test": "Document Upload - No Auth",
+      "status": "PASS",
+      "details": "New file upload security implementation",
+      "expectedStatus": 401,
+      "actualStatus": 401,
+      "timestamp": "2025-09-27T09:43:28.250Z"
+    },
+    {
+      "testNumber": 14,
+      "category": "file_upload_security",
+      "test": "File Validation - No Auth",
+      "status": "PASS",
+      "details": "New file upload security implementation",
+      "expectedStatus": 401,
+      "actualStatus": 401,
+      "timestamp": "2025-09-27T09:43:28.253Z"
+    },
+    {
+      "testNumber": 15,
+      "category": "security",
+      "test": "Error Response Format",
+      "status": "PASS",
+      "details": "Error responses should be in JSON format",
+      "expectedStatus": "JSON format",
+      "actualStatus": "JSON",
+      "timestamp": "2025-09-27T09:43:28.256Z"
+    },
+    {
+      "testNumber": 16,
+      "category": "security",
+      "test": "Large Request Body Handling",
+      "status": "PASS",
+      "details": "Large request body processing",
+      "expectedStatus": 404,
+      "actualStatus": 404,
+      "timestamp": "2025-09-27T09:43:28.258Z"
+    },
+    {
+      "testNumber": 17,
+      "category": "http_methods",
+      "test": "PATCH Method Validation",
+      "status": "PASS",
+      "details": "PATCH on non-existent endpoint",
+      "expectedStatus": "404 or 405",
+      "actualStatus": 404,
+      "timestamp": "2025-09-27T09:43:28.261Z"
+    },
+    {
+      "testNumber": 18,
+      "category": "http_methods",
+      "test": "OPTIONS Method Validation",
+      "status": "PASS",
+      "details": "OPTIONS method handling",
+      "expectedStatus": "404 or 405",
+      "actualStatus": 404,
+      "timestamp": "2025-09-27T09:43:28.263Z"
+    },
+    {
+      "testNumber": 19,
+      "category": "http_methods",
+      "test": "HEAD Method Validation",
+      "status": "PASS",
+      "details": "HEAD method handling",
+      "expectedStatus": "404 or 405",
+      "actualStatus": 404,
+      "timestamp": "2025-09-27T09:43:28.264Z"
+    }
+  ]
+}

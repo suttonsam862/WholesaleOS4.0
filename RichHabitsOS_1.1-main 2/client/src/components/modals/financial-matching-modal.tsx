@@ -1,0 +1,778 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Plus, DollarSign, TrendingUp, TrendingDown, ArrowRight, X } from "lucide-react";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface FinancialMatchingModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  orderId: number;
+  orderName: string;
+  orderCode: string;
+}
+
+export function FinancialMatchingModal({
+  isOpen,
+  onClose,
+  orderId,
+  orderName,
+  orderCode
+}: FinancialMatchingModalProps) {
+  const { toast } = useToast();
+  const [showAssignInvoice, setShowAssignInvoice] = useState(false);
+  const [showAssignCommission, setShowAssignCommission] = useState(false);
+  const [showCreateInflow, setShowCreateInflow] = useState(false);
+  const [showCreateOutflow, setShowCreateOutflow] = useState(false);
+  
+  // Custom entry form state
+  const [customEntryForm, setCustomEntryForm] = useState({
+    description: '',
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+    category: '',
+    notes: ''
+  });
+
+  // Fetch detailed financial data for this order
+  const { data: financialData, isLoading } = useQuery<any>({
+    queryKey: ['/api/financial-matching/order', orderId],
+    enabled: isOpen,
+  });
+
+  // Fetch unassigned invoices
+  const { data: unassignedInvoices = [] } = useQuery<any[]>({
+    queryKey: ['/api/financial-matching/unassigned-invoices'],
+    enabled: showAssignInvoice,
+  });
+
+  // Fetch unassigned commissions
+  const { data: unassignedCommissions = [] } = useQuery<any[]>({
+    queryKey: ['/api/financial-matching/unassigned-commissions'],
+    enabled: showAssignCommission,
+  });
+
+  // Mutation to assign invoice
+  const assignInvoiceMutation = useMutation({
+    mutationFn: async ({ invoiceId }: { invoiceId: number }) => {
+      return await apiRequest('/api/financial-matching/assign-invoice', {
+        method: 'PUT',
+        body: { invoiceId, orderId },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/order', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/orders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/unassigned-invoices'] });
+      toast({
+        title: "Invoice Assigned",
+        description: "Invoice successfully assigned to order",
+      });
+      setShowAssignInvoice(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to assign invoice",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to assign commission
+  const assignCommissionMutation = useMutation({
+    mutationFn: async ({ commissionId }: { commissionId: number }) => {
+      return await apiRequest('/api/financial-matching/assign-commission', {
+        method: 'PUT',
+        body: { commissionId, orderId },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/order', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/orders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/unassigned-commissions'] });
+      toast({
+        title: "Commission Assigned",
+        description: "Commission successfully assigned to order",
+      });
+      setShowAssignCommission(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to assign commission",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to unassign invoice
+  const unassignInvoiceMutation = useMutation({
+    mutationFn: async ({ invoiceId }: { invoiceId: number }) => {
+      return await apiRequest('/api/financial-matching/assign-invoice', {
+        method: 'PUT',
+        body: { invoiceId, orderId: null },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/order', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/orders'] });
+      toast({
+        title: "Invoice Unassigned",
+        description: "Invoice successfully removed from order",
+      });
+    },
+  });
+
+  // Mutation to unassign commission
+  const unassignCommissionMutation = useMutation({
+    mutationFn: async ({ commissionId }: { commissionId: number }) => {
+      return await apiRequest('/api/financial-matching/assign-commission', {
+        method: 'PUT',
+        body: { commissionId, orderId: null },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/order', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/orders'] });
+      toast({
+        title: "Commission Unassigned",
+        description: "Commission successfully removed from order",
+      });
+    },
+  });
+
+  // Mutation to create custom financial entry
+  const createCustomEntryMutation = useMutation({
+    mutationFn: async ({ entryType }: { entryType: 'inflow' | 'outflow' }) => {
+      return await apiRequest('/api/financial-matching/custom-entry', {
+        method: 'POST',
+        body: {
+          orderId,
+          entryType,
+          ...customEntryForm
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/order', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/orders'] });
+      toast({
+        title: "Entry Added",
+        description: "Custom financial entry successfully added",
+      });
+      setCustomEntryForm({
+        description: '',
+        amount: '',
+        date: new Date().toISOString().split('T')[0],
+        category: '',
+        notes: ''
+      });
+      setShowCreateInflow(false);
+      setShowCreateOutflow(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create custom financial entry",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutation to delete custom financial entry
+  const deleteCustomEntryMutation = useMutation({
+    mutationFn: async ({ entryId }: { entryId: number }) => {
+      return await apiRequest(`/api/financial-matching/custom-entry/${entryId}`, {
+        method: 'DELETE',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/order', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/orders'] });
+      toast({
+        title: "Entry Deleted",
+        description: "Custom financial entry successfully deleted",
+      });
+    },
+  });
+
+  const formatCurrency = (amount: number | string) => {
+    const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(num) || num === null || num === undefined) {
+      return '$0.00';
+    }
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(num);
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  if (isLoading || !financialData) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-6xl max-h-[90vh]" data-testid="dialog-financial-matching">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-muted-foreground">Loading financial data...</div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  const { inflows, outflows, summary } = financialData;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-6xl max-h-[90vh]" data-testid="dialog-financial-matching">
+        <DialogHeader>
+          <DialogTitle data-testid="text-modal-title">Financial Matching - {orderCode}</DialogTitle>
+          <DialogDescription data-testid="text-order-name">{orderName}</DialogDescription>
+        </DialogHeader>
+
+        {/* Financial Summary Cards */}
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          <Card className="bg-green-50 dark:bg-green-950" data-testid="card-total-inflows">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Inflows</p>
+                  <p className="text-2xl font-bold text-green-700 dark:text-green-300" data-testid="text-total-inflows">
+                    {formatCurrency(summary.totalInflows)}
+                  </p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-green-600 dark:text-green-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-red-50 dark:bg-red-950" data-testid="card-total-outflows">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Outflows</p>
+                  <p className="text-2xl font-bold text-red-700 dark:text-red-300" data-testid="text-total-outflows">
+                    {formatCurrency(summary.totalOutflows)}
+                  </p>
+                </div>
+                <TrendingDown className="h-8 w-8 text-red-600 dark:text-red-400" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className={summary.netCashFlow >= 0 ? "bg-blue-50 dark:bg-blue-950" : "bg-orange-50 dark:bg-orange-950"} data-testid="card-net-cash-flow">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Net Cash Flow</p>
+                  <p className={`text-2xl font-bold ${summary.netCashFlow >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-orange-700 dark:text-orange-300'}`} data-testid="text-net-cash-flow">
+                    {formatCurrency(summary.netCashFlow)}
+                  </p>
+                </div>
+                <DollarSign className={`h-8 w-8 ${summary.netCashFlow >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400'}`} />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6">
+          {/* INFLOWS COLUMN */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-green-700 dark:text-green-300">Inflows (Money In)</h3>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowAssignInvoice(true)}
+                  className="border-green-600 text-green-700 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-950"
+                  data-testid="button-add-invoice"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Invoice
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowCreateInflow(true)}
+                  className="border-green-600 text-green-700 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-950"
+                  data-testid="button-add-custom-inflow"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Custom
+                </Button>
+              </div>
+            </div>
+
+            <ScrollArea className="h-[400px] rounded-md border p-4">
+              <div className="space-y-3">
+                {/* Invoice Opening Balances */}
+                {inflows.invoices && inflows.invoices.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Invoice Opening Balances</p>
+                    {inflows.invoices.map((invoice: any) => (
+                      <Card key={invoice.id} className="mb-2" data-testid={`card-invoice-${invoice.id}`}>
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium" data-testid={`text-invoice-number-${invoice.id}`}>{invoice.invoiceNumber}</p>
+                                <Badge variant="outline">{invoice.status}</Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">Issued: {formatDate(invoice.issueDate)}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-lg" data-testid={`text-invoice-amount-${invoice.id}`}>{formatCurrency(invoice.totalAmount)}</p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => unassignInvoiceMutation.mutate({ invoiceId: invoice.id })}
+                                data-testid={`button-remove-invoice-${invoice.id}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {/* Payments Received */}
+                {inflows.payments && inflows.payments.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Payments Received</p>
+                    {inflows.payments.map((payment: any) => (
+                      <Card key={payment.id} className="mb-2 bg-green-50 dark:bg-green-950" data-testid={`card-payment-${payment.id}`}>
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium" data-testid={`text-payment-number-${payment.id}`}>{payment.paymentNumber}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {formatDate(payment.paymentDate)} • {payment.paymentMethod}
+                              </p>
+                            </div>
+                            <p className="font-bold text-green-700 dark:text-green-300" data-testid={`text-payment-amount-${payment.id}`}>
+                              {formatCurrency(payment.amount)}
+                            </p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {/* Custom Inflows */}
+                {inflows.customEntries && inflows.customEntries.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Custom Inflows</p>
+                    {inflows.customEntries.map((entry: any) => (
+                      <Card key={entry.id} className="mb-2 bg-green-50 dark:bg-green-950" data-testid={`card-custom-inflow-${entry.id}`}>
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="font-medium">{entry.description}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {formatDate(entry.date)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-green-700 dark:text-green-300">
+                                {formatCurrency(entry.amount)}
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => deleteCustomEntryMutation.mutate({ entryId: entry.id })}
+                                data-testid={`button-remove-custom-inflow-${entry.id}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {(!inflows.invoices || inflows.invoices.length === 0) && (!inflows.payments || inflows.payments.length === 0) && (!inflows.customEntries || inflows.customEntries.length === 0) && (
+                  <div className="text-center py-8 text-muted-foreground" data-testid="text-no-inflows">
+                    No inflows recorded yet
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+
+          {/* OUTFLOWS COLUMN */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-semibold text-red-700 dark:text-red-300">Outflows (Money Out)</h3>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowAssignCommission(true)}
+                  className="border-red-600 text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
+                  data-testid="button-add-outflow"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Commission
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowCreateOutflow(true)}
+                  className="border-red-600 text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-950"
+                  data-testid="button-add-custom-outflow"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Custom
+                </Button>
+              </div>
+            </div>
+
+            <ScrollArea className="h-[400px] rounded-md border p-4">
+              <div className="space-y-3">
+                {/* Commissions */}
+                {outflows.commissions && outflows.commissions.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Sales Commissions</p>
+                    {outflows.commissions.map((commission: any) => (
+                      <Card key={commission.id} className="mb-2 bg-red-50 dark:bg-red-950" data-testid={`card-commission-${commission.id}`}>
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium" data-testid={`text-commission-type-${commission.id}`}>{commission.commissionType}</p>
+                                <Badge variant={commission.status === 'paid' ? 'default' : 'outline'}>
+                                  {commission.status}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                Rate: {parseFloat(commission.rate) * 100}% • Base: {formatCurrency(commission.baseAmount)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-red-700 dark:text-red-300" data-testid={`text-commission-amount-${commission.id}`}>
+                                {formatCurrency(commission.commissionAmount)}
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => unassignCommissionMutation.mutate({ commissionId: commission.id })}
+                                data-testid={`button-remove-commission-${commission.id}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {/* Custom Outflows */}
+                {outflows.customEntries && outflows.customEntries.length > 0 && (
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Custom Outflows</p>
+                    {outflows.customEntries.map((entry: any) => (
+                      <Card key={entry.id} className="mb-2 bg-red-50 dark:bg-red-950" data-testid={`card-custom-outflow-${entry.id}`}>
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="font-medium">{entry.description}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {formatDate(entry.date)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-red-700 dark:text-red-300">
+                                {formatCurrency(entry.amount)}
+                              </p>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => deleteCustomEntryMutation.mutate({ entryId: entry.id })}
+                                data-testid={`button-remove-custom-outflow-${entry.id}`}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {(!outflows.commissions || outflows.commissions.length === 0) && (!outflows.customEntries || outflows.customEntries.length === 0) && (
+                  <div className="text-center py-8 text-muted-foreground" data-testid="text-no-outflows">
+                    No outflows recorded yet
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        </div>
+
+        {/* Assignment Dialogs */}
+        {showAssignInvoice && (
+          <Dialog open={showAssignInvoice} onOpenChange={setShowAssignInvoice}>
+            <DialogContent data-testid="dialog-assign-invoice">
+              <DialogHeader>
+                <DialogTitle>Assign Invoice to Order</DialogTitle>
+                <DialogDescription>Select an unassigned invoice to link to this order</DialogDescription>
+              </DialogHeader>
+              <ScrollArea className="max-h-[400px]">
+                <div className="space-y-2">
+                  {unassignedInvoices.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4" data-testid="text-no-unassigned-invoices">
+                      No unassigned invoices available
+                    </p>
+                  ) : (
+                    unassignedInvoices.map((invoice: any) => (
+                      <Card key={invoice.id} className="cursor-pointer hover:bg-accent" onClick={() => assignInvoiceMutation.mutate({ invoiceId: invoice.id })} data-testid={`card-unassigned-invoice-${invoice.id}`}>
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{invoice.invoiceNumber}</p>
+                              <p className="text-sm text-muted-foreground">Issued: {formatDate(invoice.issueDate)}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold">{formatCurrency(invoice.totalAmount)}</p>
+                              <ArrowRight className="h-4 w-4" />
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {showAssignCommission && (
+          <Dialog open={showAssignCommission} onOpenChange={setShowAssignCommission}>
+            <DialogContent data-testid="dialog-assign-commission">
+              <DialogHeader>
+                <DialogTitle>Assign Commission to Order</DialogTitle>
+                <DialogDescription>Select an unassigned commission to link to this order</DialogDescription>
+              </DialogHeader>
+              <ScrollArea className="max-h-[400px]">
+                <div className="space-y-2">
+                  {unassignedCommissions.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-4" data-testid="text-no-unassigned-commissions">
+                      No unassigned commissions available
+                    </p>
+                  ) : (
+                    unassignedCommissions.map((commission: any) => (
+                      <Card key={commission.id} className="cursor-pointer hover:bg-accent" onClick={() => assignCommissionMutation.mutate({ commissionId: commission.id })} data-testid={`card-unassigned-commission-${commission.id}`}>
+                        <CardContent className="p-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{commission.commissionType} Commission</p>
+                              <p className="text-sm text-muted-foreground">
+                                Rate: {parseFloat(commission.rate) * 100}% • Base: {formatCurrency(commission.baseAmount)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold">{formatCurrency(commission.commissionAmount)}</p>
+                              <ArrowRight className="h-4 w-4" />
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </div>
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Create Custom Inflow Dialog */}
+        {showCreateInflow && (
+          <Dialog open={showCreateInflow} onOpenChange={setShowCreateInflow}>
+            <DialogContent data-testid="dialog-create-custom-inflow">
+              <DialogHeader>
+                <DialogTitle className="text-green-700 dark:text-green-300">Create Custom Inflow</DialogTitle>
+                <DialogDescription>Add a custom inflow entry to this order</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="inflow-description">Description *</Label>
+                  <Input
+                    id="inflow-description"
+                    value={customEntryForm.description}
+                    onChange={(e) => setCustomEntryForm({ ...customEntryForm, description: e.target.value })}
+                    placeholder="Enter description"
+                    data-testid="input-custom-description"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="inflow-amount">Amount *</Label>
+                  <Input
+                    id="inflow-amount"
+                    type="number"
+                    step="0.01"
+                    value={customEntryForm.amount}
+                    onChange={(e) => setCustomEntryForm({ ...customEntryForm, amount: e.target.value })}
+                    placeholder="0.00"
+                    data-testid="input-custom-amount"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="inflow-date">Date</Label>
+                  <Input
+                    id="inflow-date"
+                    type="date"
+                    value={customEntryForm.date}
+                    onChange={(e) => setCustomEntryForm({ ...customEntryForm, date: e.target.value })}
+                    data-testid="input-custom-date"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="inflow-category">Category</Label>
+                  <Input
+                    id="inflow-category"
+                    value={customEntryForm.category}
+                    onChange={(e) => setCustomEntryForm({ ...customEntryForm, category: e.target.value })}
+                    placeholder="Optional category"
+                    data-testid="input-custom-category"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="inflow-notes">Notes</Label>
+                  <Textarea
+                    id="inflow-notes"
+                    value={customEntryForm.notes}
+                    onChange={(e) => setCustomEntryForm({ ...customEntryForm, notes: e.target.value })}
+                    placeholder="Optional notes"
+                    data-testid="textarea-custom-notes"
+                  />
+                </div>
+                <Button
+                  className="w-full bg-green-600 hover:bg-green-700 text-white"
+                  onClick={() => createCustomEntryMutation.mutate({ entryType: 'inflow' })}
+                  disabled={!customEntryForm.description || !customEntryForm.amount || createCustomEntryMutation.isPending}
+                  data-testid="button-submit-custom-entry"
+                >
+                  {createCustomEntryMutation.isPending ? 'Adding...' : 'Add Inflow'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Create Custom Outflow Dialog */}
+        {showCreateOutflow && (
+          <Dialog open={showCreateOutflow} onOpenChange={setShowCreateOutflow}>
+            <DialogContent data-testid="dialog-create-custom-outflow">
+              <DialogHeader>
+                <DialogTitle className="text-red-700 dark:text-red-300">Create Custom Outflow</DialogTitle>
+                <DialogDescription>Add a custom outflow entry to this order</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="outflow-description">Description *</Label>
+                  <Input
+                    id="outflow-description"
+                    value={customEntryForm.description}
+                    onChange={(e) => setCustomEntryForm({ ...customEntryForm, description: e.target.value })}
+                    placeholder="Enter description"
+                    data-testid="input-custom-description"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="outflow-amount">Amount *</Label>
+                  <Input
+                    id="outflow-amount"
+                    type="number"
+                    step="0.01"
+                    value={customEntryForm.amount}
+                    onChange={(e) => setCustomEntryForm({ ...customEntryForm, amount: e.target.value })}
+                    placeholder="0.00"
+                    data-testid="input-custom-amount"
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="outflow-date">Date</Label>
+                  <Input
+                    id="outflow-date"
+                    type="date"
+                    value={customEntryForm.date}
+                    onChange={(e) => setCustomEntryForm({ ...customEntryForm, date: e.target.value })}
+                    data-testid="input-custom-date"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="outflow-category">Category</Label>
+                  <Input
+                    id="outflow-category"
+                    value={customEntryForm.category}
+                    onChange={(e) => setCustomEntryForm({ ...customEntryForm, category: e.target.value })}
+                    placeholder="Optional category"
+                    data-testid="input-custom-category"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="outflow-notes">Notes</Label>
+                  <Textarea
+                    id="outflow-notes"
+                    value={customEntryForm.notes}
+                    onChange={(e) => setCustomEntryForm({ ...customEntryForm, notes: e.target.value })}
+                    placeholder="Optional notes"
+                    data-testid="textarea-custom-notes"
+                  />
+                </div>
+                <Button
+                  className="w-full bg-red-600 hover:bg-red-700 text-white"
+                  onClick={() => createCustomEntryMutation.mutate({ entryType: 'outflow' })}
+                  disabled={!customEntryForm.description || !customEntryForm.amount || createCustomEntryMutation.isPending}
+                  data-testid="button-submit-custom-entry"
+                >
+                  {createCustomEntryMutation.isPending ? 'Adding...' : 'Add Outflow'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

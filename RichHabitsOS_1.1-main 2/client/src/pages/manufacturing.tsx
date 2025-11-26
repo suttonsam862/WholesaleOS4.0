@@ -1,0 +1,655 @@
+/**
+ * Manufacturing Page
+ * 
+ * Displays manufacturing records with board/list views,
+ * status workflow, and Pantone color picker integration.
+ */
+
+import { useState, useEffect, useMemo } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { motion, AnimatePresence } from "framer-motion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { 
+  Factory, 
+  Package, 
+  AlertCircle, 
+  CheckCircle2, 
+  Clock, 
+  Plus, 
+  Search, 
+  Filter,
+  MoreVertical,
+  Calendar,
+  Palette,
+  LayoutGrid,
+  List,
+  Scissors,
+  Printer,
+  Truck,
+  PackageCheck,
+  RefreshCcw,
+  Eye,
+  Archive,
+  ChevronRight
+} from "lucide-react";
+import { format } from "date-fns";
+import type { Manufacturing, Order } from "@shared/schema";
+import { cn } from "@/lib/utils";
+import { PantonePicker } from "@/components/manufacturing/pantone-picker";
+import { ManufacturingDetailModal } from "@/components/modals/manufacturing-detail-modal";
+import { CreateManufacturingModal } from "@/components/modals/create-manufacturing-modal";
+import { OrgLogo } from "@/components/ui/org-logo";
+import {
+  MANUFACTURING_STATUS_CONFIG,
+  ManufacturingStatus,
+  calculateVelocity,
+  VELOCITY_CONFIG,
+} from "@/lib/status-system";
+
+// Icon mapping for dynamic stage loading
+const iconMap: Record<string, any> = {
+  Clock,
+  PackageCheck,
+  Scissors,
+  Printer,
+  Package,
+  Truck,
+  CheckCircle2,
+  AlertCircle,
+};
+
+interface ManufacturingStageConfig {
+  value: string;
+  label: string;
+  description: string;
+  color: string;
+  icon: string;
+  order: number;
+  allowedRoles: string[];
+}
+
+export default function Manufacturing() {
+  const { toast } = useToast();
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  // Modal states
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isPantoneModalOpen, setIsPantoneModalOpen] = useState(false);
+  const [selectedManufacturing, setSelectedManufacturing] = useState<any | null>(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+
+  // View and filter states
+  const [viewMode, setViewMode] = useState<"board" | "list">("board");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      toast({
+        title: "Unauthorized",
+        description: "You are logged out. Logging in again...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 500);
+      return;
+    }
+  }, [isAuthenticated, isLoading, toast]);
+
+  // Fetch manufacturing stages dynamically
+  const { data: manufacturingStages = [] } = useQuery<ManufacturingStageConfig[]>({
+    queryKey: ["/api/config/manufacturing-stages"],
+    retry: false,
+    staleTime: 1000 * 60 * 60, // Cache for 1 hour
+  });
+
+  // Fetch manufacturing records - use the correct endpoint
+  const { data: manufacturingRecords = [], isLoading: recordsLoading, refetch } = useQuery<any[]>({
+    queryKey: ["/api/manufacturing"],
+    retry: false,
+  });
+
+  // Fetch orders for enrichment
+  const { data: orders = [] } = useQuery<Order[]>({
+    queryKey: ["/api/orders"],
+    retry: false,
+  });
+
+  // Fetch organizations for display
+  const { data: organizations = [] } = useQuery<any[]>({
+    queryKey: ["/api/organizations"],
+    retry: false,
+  });
+
+  // Build statusConfig from dynamic data
+  const statusConfig = useMemo(() => {
+    const config: Record<string, { label: string; icon: any; color: string; textColor: string; hexColor: string; }> = {};
+    manufacturingStages.forEach(stage => {
+      const Icon = iconMap[stage.icon] || Package;
+      config[stage.value] = {
+        label: stage.label,
+        icon: Icon,
+        color: `bg-[${stage.color}]/20`,
+        textColor: `text-[${stage.color}]`,
+        hexColor: stage.color,
+      };
+    });
+    return config;
+  }, [manufacturingStages]);
+
+  // Enrich manufacturing records with order data
+  const enrichedRecords = useMemo(() => {
+    return manufacturingRecords.map(record => {
+      const order = orders.find(o => o.id === record.orderId);
+      const organization = order?.orgId ? organizations.find(org => org.id === order.orgId) : null;
+      return {
+        ...record,
+        order,
+        organization,
+      };
+    });
+  }, [manufacturingRecords, orders, organizations]);
+
+  // Filter records
+  const filteredRecords = useMemo(() => {
+    return enrichedRecords.filter(record => {
+      // Search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch = 
+          record.order?.orderCode?.toLowerCase().includes(query) ||
+          record.order?.orderName?.toLowerCase().includes(query) ||
+          record.organization?.name?.toLowerCase().includes(query) ||
+          record.batchNumber?.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+
+      // Status filter
+      if (statusFilter && statusFilter !== "all" && record.status !== statusFilter) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [enrichedRecords, searchQuery, statusFilter]);
+
+  // Group records by status for board view
+  const recordsByStatus = useMemo(() => {
+    const grouped: Record<string, any[]> = {};
+    manufacturingStages.forEach(stage => {
+      grouped[stage.value] = [];
+    });
+    
+    filteredRecords.forEach(record => {
+      if (grouped[record.status]) {
+        grouped[record.status].push(record);
+      } else {
+        // Fallback for unknown status
+        if (!grouped['other']) grouped['other'] = [];
+        grouped['other'].push(record);
+      }
+    });
+    
+    return grouped;
+  }, [filteredRecords, manufacturingStages]);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const total = enrichedRecords.length;
+    const inProgress = enrichedRecords.filter(r => 
+      r.status === 'cutting_sewing' || r.status === 'printing'
+    ).length;
+    const completed = enrichedRecords.filter(r => r.status === 'complete').length;
+    const awaitingConfirmation = enrichedRecords.filter(r => 
+      r.status === 'awaiting_admin_confirmation'
+    ).length;
+    
+    return { total, inProgress, completed, awaitingConfirmation };
+  }, [enrichedRecords]);
+
+  const handleOpenDetail = (record: any) => {
+    setSelectedManufacturing(record);
+    setIsDetailModalOpen(true);
+  };
+
+  if (isLoading || recordsLoading) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-muted rounded w-1/4 mb-4"></div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-24 bg-muted rounded"></div>
+            ))}
+          </div>
+          <div className="h-[500px] bg-muted rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold gradient-text" data-testid="text-page-title">Manufacturing</h1>
+          <p className="text-muted-foreground">Track production and manufacturing orders</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline"
+            onClick={() => refetch()}
+            className="border-white/10 hover:bg-white/10"
+          >
+            <RefreshCcw className="w-4 h-4 mr-2" />
+            Refresh
+          </Button>
+          <Button 
+            onClick={() => setIsPantoneModalOpen(true)} 
+            variant="outline"
+            className="border-white/10 hover:bg-white/10"
+          >
+            <Palette className="w-4 h-4 mr-2" />
+            Pantone
+          </Button>
+          <Button 
+            onClick={() => setIsCreateModalOpen(true)} 
+            data-testid="button-create-order"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            New Record
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card className="glass-card border-white/10 bg-blue-500/10">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-400">Total Records</p>
+              <h3 className="text-2xl font-bold text-white">{stats.total}</h3>
+            </div>
+            <Factory className="h-8 w-8 text-blue-400 opacity-50" />
+          </CardContent>
+        </Card>
+        <Card className="glass-card border-white/10 bg-amber-500/10">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-amber-400">Awaiting Approval</p>
+              <h3 className="text-2xl font-bold text-white">{stats.awaitingConfirmation}</h3>
+            </div>
+            <Clock className="h-8 w-8 text-amber-400 opacity-50" />
+          </CardContent>
+        </Card>
+        <Card className="glass-card border-white/10 bg-purple-500/10">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-purple-400">In Production</p>
+              <h3 className="text-2xl font-bold text-white">{stats.inProgress}</h3>
+            </div>
+            <Scissors className="h-8 w-8 text-purple-400 opacity-50" />
+          </CardContent>
+        </Card>
+        <Card className="glass-card border-white/10 bg-green-500/10">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-green-400">Completed</p>
+              <h3 className="text-2xl font-bold text-white">{stats.completed}</h3>
+            </div>
+            <CheckCircle2 className="h-8 w-8 text-green-400 opacity-50" />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters and View Toggle */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by order, organization, batch..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 bg-black/20 border-white/10"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[200px] bg-black/20 border-white/10">
+              <Filter className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="All Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Statuses</SelectItem>
+              {manufacturingStages.map(stage => (
+                <SelectItem key={stage.value} value={stage.value}>
+                  {stage.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-white/5 border border-white/10">
+          <button
+            onClick={() => setViewMode("board")}
+            className={cn(
+              "p-2 rounded-md transition-colors",
+              viewMode === "board"
+                ? "bg-neon-blue/20 text-neon-blue"
+                : "text-white/40 hover:text-white"
+            )}
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setViewMode("list")}
+            className={cn(
+              "p-2 rounded-md transition-colors",
+              viewMode === "list"
+                ? "bg-neon-blue/20 text-neon-blue"
+                : "text-white/40 hover:text-white"
+            )}
+          >
+            <List className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      {viewMode === "board" ? (
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {manufacturingStages.map((stage) => {
+            const records = recordsByStatus[stage.value] || [];
+            const Icon = iconMap[stage.icon] || Package;
+            
+            return (
+              <div key={stage.value} className="flex-shrink-0 w-72">
+                {/* Column Header */}
+                <div 
+                  className="p-3 rounded-t-xl border border-b-0"
+                  style={{ 
+                    backgroundColor: `${stage.color}15`,
+                    borderColor: `${stage.color}30`
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Icon className="w-4 h-4" style={{ color: stage.color }} />
+                      <span className="font-medium text-sm" style={{ color: stage.color }}>
+                        {stage.label}
+                      </span>
+                    </div>
+                    <Badge variant="outline" style={{ borderColor: `${stage.color}50`, color: stage.color }}>
+                      {records.length}
+                    </Badge>
+                  </div>
+                </div>
+                
+                {/* Cards */}
+                <div 
+                  className="p-2 rounded-b-xl border border-t-0 min-h-[400px] max-h-[calc(100vh-400px)] overflow-y-auto bg-slate-900/50"
+                  style={{ borderColor: `${stage.color}30` }}
+                >
+                  <AnimatePresence>
+                    {records.map((record, index) => (
+                      <ManufacturingCard
+                        key={record.id}
+                        record={record}
+                        stageConfig={stage}
+                        onClick={() => handleOpenDetail(record)}
+                        index={index}
+                      />
+                    ))}
+                  </AnimatePresence>
+                  
+                  {records.length === 0 && (
+                    <div className="flex items-center justify-center h-24 text-white/30 text-sm">
+                      No records
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <Card className="glass-card border-white/10">
+          <CardContent className="p-0">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-white/10">
+                  <th className="text-left p-4 text-muted-foreground font-medium">Order</th>
+                  <th className="text-left p-4 text-muted-foreground font-medium">Organization</th>
+                  <th className="text-left p-4 text-muted-foreground font-medium">Status</th>
+                  <th className="text-left p-4 text-muted-foreground font-medium">Priority</th>
+                  <th className="text-left p-4 text-muted-foreground font-medium">Est. Completion</th>
+                  <th className="text-left p-4 text-muted-foreground font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRecords.map((record) => {
+                  const stageConfig = manufacturingStages.find(s => s.value === record.status);
+                  return (
+                    <tr 
+                      key={record.id} 
+                      className="border-b border-white/5 hover:bg-white/5 cursor-pointer"
+                      onClick={() => handleOpenDetail(record)}
+                    >
+                      <td className="p-4">
+                        <div>
+                          <div className="font-medium text-white">{record.order?.orderCode || `#${record.orderId}`}</div>
+                          <div className="text-sm text-muted-foreground">{record.order?.orderName}</div>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <OrgLogo
+                            src={record.organization?.logoUrl}
+                            orgName={record.organization?.name || 'Unknown'}
+                            orgId={record.organization?.id}
+                            size="sm"
+                          />
+                          <span className="text-muted-foreground">{record.organization?.name || '-'}</span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <Badge 
+                          variant="outline"
+                          style={{ 
+                            borderColor: `${stageConfig?.color}50`, 
+                            color: stageConfig?.color,
+                            backgroundColor: `${stageConfig?.color}15`
+                          }}
+                        >
+                          {stageConfig?.label || record.status}
+                        </Badge>
+                      </td>
+                      <td className="p-4">
+                        <Badge variant="outline" className={cn(
+                          record.priority === 'urgent' && "border-red-500/50 text-red-400 bg-red-500/10",
+                          record.priority === 'high' && "border-orange-500/50 text-orange-400 bg-orange-500/10",
+                          record.priority === 'normal' && "border-blue-500/50 text-blue-400 bg-blue-500/10",
+                          record.priority === 'low' && "border-gray-500/50 text-gray-400 bg-gray-500/10",
+                        )}>
+                          {record.priority}
+                        </Badge>
+                      </td>
+                      <td className="p-4 text-muted-foreground">
+                        {record.estCompletion ? format(new Date(record.estCompletion), 'MMM d, yyyy') : '-'}
+                      </td>
+                      <td className="p-4">
+                        <Button variant="ghost" size="sm">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            
+            {filteredRecords.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                No manufacturing records found.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Modals */}
+      <CreateManufacturingModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+      />
+
+      {selectedManufacturing && (
+        <ManufacturingDetailModal
+          isOpen={isDetailModalOpen}
+          onClose={() => {
+            setIsDetailModalOpen(false);
+            setSelectedManufacturing(null);
+          }}
+          manufacturingUpdate={selectedManufacturing}
+        />
+      )}
+
+      {/* Pantone Picker Modal */}
+      <Dialog open={isPantoneModalOpen} onOpenChange={setIsPantoneModalOpen}>
+        <DialogContent className="glass-panel border-white/10 max-w-4xl w-full h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Pantone Color Picker</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Upload an image and pick a color to find the closest Pantone match.
+            </DialogDescription>
+          </DialogHeader>
+          <PantonePicker onSelect={(pantone) => {
+            toast({
+              title: "Pantone Selected",
+              description: `Selected ${pantone.name} (${pantone.code})`,
+            });
+            setIsPantoneModalOpen(false);
+          }} />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// Manufacturing Card Component for Board View
+function ManufacturingCard({ 
+  record, 
+  stageConfig,
+  onClick,
+  index 
+}: { 
+  record: any;
+  stageConfig: ManufacturingStageConfig;
+  onClick: () => void;
+  index: number;
+}) {
+  const velocity = calculateVelocity(record.updatedAt, record.estCompletion, record.status);
+  const velocityConfig = VELOCITY_CONFIG[velocity];
+  
+  return (
+    <motion.div
+      onClick={onClick}
+      className={cn(
+        "p-3 mb-2 rounded-lg cursor-pointer transition-all duration-200",
+        "bg-white/5 border hover:bg-white/10",
+        velocityConfig.borderClass,
+        velocity !== 'grey' && velocityConfig.glowClass
+      )}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ delay: index * 0.03 }}
+      whileHover={{ scale: 1.02 }}
+    >
+      {/* Header */}
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold text-white truncate">
+            {record.order?.orderCode || `Order #${record.orderId}`}
+          </div>
+          <div className="text-xs text-white/50 truncate">
+            {record.order?.orderName}
+          </div>
+        </div>
+        
+        {/* Velocity dot */}
+        <div 
+          className={cn(
+            "w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1",
+            velocity === 'green' && "bg-green-400 shadow-[0_0_8px_rgba(34,197,94,0.5)]",
+            velocity === 'yellow' && "bg-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.5)]",
+            velocity === 'red' && "bg-red-400 shadow-[0_0_8px_rgba(239,68,68,0.5)] animate-pulse",
+            velocity === 'grey' && "bg-gray-400"
+          )}
+          title={velocityConfig.label}
+        />
+      </div>
+      
+      {/* Organization */}
+      {record.organization?.name && (
+        <div className="flex items-center gap-1.5 text-xs text-white/40 mb-2">
+          <OrgLogo
+            src={record.organization?.logoUrl}
+            orgName={record.organization.name}
+            orgId={record.organization?.id}
+            size="xs"
+          />
+          <span className="truncate">{record.organization.name}</span>
+        </div>
+      )}
+      
+      {/* Footer */}
+      <div className="flex items-center justify-between text-xs">
+        <Badge 
+          variant="outline" 
+          className={cn(
+            "text-[10px] px-1.5 py-0",
+            record.priority === 'urgent' && "border-red-500/50 text-red-400",
+            record.priority === 'high' && "border-orange-500/50 text-orange-400",
+            record.priority === 'normal' && "border-blue-500/50 text-blue-400",
+            record.priority === 'low' && "border-gray-500/50 text-gray-400",
+          )}
+        >
+          {record.priority}
+        </Badge>
+        
+        {record.estCompletion && (
+          <span className="text-white/40 flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
+            {format(new Date(record.estCompletion), 'MMM d')}
+          </span>
+        )}
+      </div>
+    </motion.div>
+  );
+}
