@@ -4,6 +4,10 @@
 A comprehensive wholesale management platform designed to streamline wholesale operations, enhance collaboration, and provide valuable insights for various user roles. The platform offers robust order management, automated manufacturing workflows, granular permission controls, task management, and real-time communication tracking. The business vision is to establish a central hub for efficient wholesale trade, improving operational efficiency and driving data-driven decision-making to increase market potential.
 
 ## Recent Changes
+- **Feature Update (2025-11-26)**: Added DataCapsule quick view integration to Manufacturing page. Clicking the Eye icon on manufacturing records opens the DataCapsule modal showing the related order details. DataCapsule provides a glass-morphism styled view with collapsible line items, beautiful image gallery with lightbox, and callback to open the full detail modal.
+- **Bug Fix (2025-11-26)**: Fixed critical line item refresh bug by passing user parameter to `getManufacturingRecord()` function in manufacturing routes.
+- **Enhancement (2025-11-26)**: Enhanced DataCapsule component with collapsible line items, image gallery with lightbox, and onOpenFullView callback for seamless modal switching.
+- **Finance Fix (2025-11-26)**: Fixed Finance page to fetch real revenue data from `/api/financial/overview` endpoint displaying totalRevenue, totalPaid, pendingCommissions, and paidCommissions metrics.
 - **Feature Update (2025-11-14)**: Changed manufacturer role access control to grant system-wide visibility. Manufacturer role users now see ALL manufacturing records and updates across the entire system (matching admin-level visibility), rather than being restricted to only records assigned to their associated manufacturers. Updated `getManufacturing`, `getManufacturingRecord`, `getArchivedManufacturing`, and `getManufacturingUpdates` functions in `server/storage.ts` to remove manufacturer-scoped filtering.
 
 ## User Preferences

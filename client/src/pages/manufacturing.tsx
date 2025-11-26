@@ -59,6 +59,7 @@ import { cn } from "@/lib/utils";
 import { PantonePicker } from "@/components/manufacturing/pantone-picker";
 import { ManufacturingDetailModal } from "@/components/modals/manufacturing-detail-modal";
 import { CreateManufacturingModal } from "@/components/modals/create-manufacturing-modal";
+import { DataCapsule } from "@/components/DataCapsule";
 import { OrgLogo } from "@/components/ui/org-logo";
 import {
   MANUFACTURING_STATUS_CONFIG,
@@ -98,6 +99,8 @@ export default function Manufacturing() {
   const [isPantoneModalOpen, setIsPantoneModalOpen] = useState(false);
   const [selectedManufacturing, setSelectedManufacturing] = useState<any | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [quickViewRecord, setQuickViewRecord] = useState<any | null>(null);
+  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
 
   // View and filter states
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
@@ -232,6 +235,11 @@ export default function Manufacturing() {
   const handleOpenDetail = (record: any) => {
     setSelectedManufacturing(record);
     setIsDetailModalOpen(true);
+  };
+
+  const handleQuickView = (record: any) => {
+    setQuickViewRecord(record);
+    setIsQuickViewOpen(true);
   };
 
   if (isLoading || recordsLoading) {
@@ -503,9 +511,19 @@ export default function Manufacturing() {
                         {record.estCompletion ? format(new Date(record.estCompletion), 'MMM d, yyyy') : '-'}
                       </td>
                       <td className="p-4">
-                        <Button variant="ghost" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleQuickView(record);
+                            }}
+                            data-testid={`btn-quick-view-${record.id}`}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -538,6 +556,23 @@ export default function Manufacturing() {
           manufacturingUpdate={selectedManufacturing}
         />
       )}
+
+      <DataCapsule
+        isOpen={isQuickViewOpen && quickViewRecord !== null}
+        onClose={() => {
+          setIsQuickViewOpen(false);
+          setQuickViewRecord(null);
+        }}
+        orderId={quickViewRecord?.orderId || 0}
+        onOpenFullView={() => {
+          if (quickViewRecord) {
+            setSelectedManufacturing(quickViewRecord);
+            setIsDetailModalOpen(true);
+          }
+          setIsQuickViewOpen(false);
+          setQuickViewRecord(null);
+        }}
+      />
 
       {/* Pantone Picker Modal */}
       <Dialog open={isPantoneModalOpen} onOpenChange={setIsPantoneModalOpen}>

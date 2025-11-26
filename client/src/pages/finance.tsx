@@ -89,6 +89,37 @@ export default function Finance() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
+  // Fetch financial overview for real revenue/expense data from orders
+  interface FinancialOverview {
+    totalRevenue: number;
+    totalExpenses: number;
+    netProfit: number;
+    pendingCommissions: number;
+    paidCommissions: number;
+    budgetUtilization: number;
+    cashFlow: { month: string; income: number; expenses: number }[];
+  }
+
+  const { data: overview, isLoading: overviewLoading } = useQuery<FinancialOverview>({
+    queryKey: ["/api/financial/overview"],
+    queryFn: async () => {
+      const response = await fetch('/api/financial/overview', { credentials: 'include' });
+      if (response.ok) {
+        return response.json();
+      }
+      return {
+        totalRevenue: 0,
+        totalExpenses: 0,
+        netProfit: 0,
+        pendingCommissions: 0,
+        paidCommissions: 0,
+        budgetUtilization: 0,
+        cashFlow: []
+      };
+    },
+    retry: false,
+  });
+
   // Fetch finance records from financial transactions endpoint
   const { data: records = [], isLoading: recordsLoading } = useQuery<FinancialTransaction[]>({
     queryKey: ["/api/financial/transactions"],
@@ -102,8 +133,14 @@ export default function Finance() {
     retry: false,
   });
 
-  // Calculate stats
-  const stats = records.reduce((acc, record) => {
+  // Use real data from overview, fallback to transaction calculations
+  const stats = overview ? {
+    totalIncome: overview.totalRevenue,
+    totalExpenses: overview.totalExpenses,
+    netProfit: overview.netProfit,
+    pendingCommissions: overview.pendingCommissions,
+    paidCommissions: overview.paidCommissions,
+  } : records.reduce((acc, record) => {
     const amount = Number(record.amount);
     if (record.type === 'payment' || record.type === 'deposit' || record.type === 'commission') {
       acc.totalIncome += amount;
@@ -111,9 +148,9 @@ export default function Finance() {
       acc.totalExpenses += amount;
     }
     return acc;
-  }, { totalIncome: 0, totalExpenses: 0 });
+  }, { totalIncome: 0, totalExpenses: 0, netProfit: 0, pendingCommissions: 0, paidCommissions: 0 });
 
-  const netIncome = stats.totalIncome - stats.totalExpenses;
+  const netIncome = overview ? overview.netProfit : (stats.totalIncome - stats.totalExpenses);
 
   // Filter records
   const filteredRecords = records.filter(record => {
@@ -174,7 +211,7 @@ export default function Finance() {
     }).format(Number(amount));
   };
 
-  if (isLoading || recordsLoading) {
+  if (isLoading || recordsLoading || overviewLoading) {
     return (
       <div className="p-6">
         <div className="animate-pulse">
@@ -208,12 +245,13 @@ export default function Finance() {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card className="glass-card border-white/10 bg-green-500/10">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-green-400">Total Income</p>
-              <h3 className="text-2xl font-bold text-white">{formatCurrency(stats.totalIncome)}</h3>
+              <p className="text-sm font-medium text-green-400">Total Revenue</p>
+              <h3 className="text-2xl font-bold text-white" data-testid="stat-revenue">{formatCurrency(stats.totalIncome)}</h3>
+              <p className="text-xs text-muted-foreground mt-1">From completed orders</p>
             </div>
             <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center">
               <TrendingUp className="h-6 w-6 text-green-400" />
@@ -224,7 +262,8 @@ export default function Finance() {
           <CardContent className="p-6 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-red-400">Total Expenses</p>
-              <h3 className="text-2xl font-bold text-white">{formatCurrency(stats.totalExpenses)}</h3>
+              <h3 className="text-2xl font-bold text-white" data-testid="stat-expenses">{formatCurrency(stats.totalExpenses)}</h3>
+              <p className="text-xs text-muted-foreground mt-1">Design + Commissions</p>
             </div>
             <div className="h-10 w-10 rounded-full bg-red-500/20 flex items-center justify-center">
               <TrendingDown className="h-6 w-6 text-red-400" />
@@ -234,13 +273,38 @@ export default function Finance() {
         <Card className="glass-card border-white/10 bg-blue-500/10">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-blue-400">Net Income</p>
-              <h3 className={cn("text-2xl font-bold", netIncome >= 0 ? "text-white" : "text-red-400")}>
+              <p className="text-sm font-medium text-blue-400">Net Profit</p>
+              <h3 className={cn("text-2xl font-bold", netIncome >= 0 ? "text-white" : "text-red-400")} data-testid="stat-profit">
                 {formatCurrency(netIncome)}
               </h3>
+              <p className="text-xs text-muted-foreground mt-1">Revenue - Expenses</p>
             </div>
             <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center">
               <DollarSign className="h-6 w-6 text-blue-400" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card border-white/10 bg-yellow-500/10">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-yellow-400">Pending Commissions</p>
+              <h3 className="text-2xl font-bold text-white" data-testid="stat-pending-comm">{formatCurrency(stats.pendingCommissions || 0)}</h3>
+              <p className="text-xs text-muted-foreground mt-1">Awaiting payment</p>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+              <PieChart className="h-6 w-6 text-yellow-400" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-card border-white/10 bg-purple-500/10">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-purple-400">Paid Commissions</p>
+              <h3 className="text-2xl font-bold text-white" data-testid="stat-paid-comm">{formatCurrency(stats.paidCommissions || 0)}</h3>
+              <p className="text-xs text-muted-foreground mt-1">Already distributed</p>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+              <DollarSign className="h-6 w-6 text-purple-400" />
             </div>
           </CardContent>
         </Card>

@@ -12,6 +12,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   OrderStatus,
   DesignJobStatus,
@@ -51,7 +53,11 @@ import {
   ExternalLink,
   Copy,
   ChevronRight,
+  ChevronDown,
   X,
+  Image as ImageIcon,
+  Expand,
+  ZoomIn,
 } from "lucide-react";
 
 // =============================================================================
@@ -62,6 +68,7 @@ interface DataCapsuleProps {
   isOpen: boolean;
   onClose: () => void;
   orderId: number | null;
+  onOpenFullView?: (orderId: number) => void;
 }
 
 interface CapsuleData {
@@ -247,7 +254,7 @@ function InfoRow({ label, value, icon: Icon }: { label: string; value: React.Rea
 // MAIN COMPONENT
 // =============================================================================
 
-export function DataCapsule({ isOpen, onClose, orderId }: DataCapsuleProps) {
+export function DataCapsule({ isOpen, onClose, orderId, onOpenFullView }: DataCapsuleProps) {
   const { user } = useAuth();
   const [activeModule, setActiveModule] = useState<'overview' | 'design' | 'manufacturing' | 'communication'>('overview');
 
@@ -490,7 +497,15 @@ export function DataCapsule({ isOpen, onClose, orderId }: DataCapsuleProps) {
                 Last updated: {order.updatedAt ? format(new Date(order.updatedAt), 'MMM d, yyyy h:mm a') : 'Never'}
               </div>
               <div className="flex items-center gap-2">
-                <button className="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white text-sm transition-colors flex items-center gap-2">
+                <button 
+                  onClick={() => {
+                    if (onOpenFullView && orderId) {
+                      onOpenFullView(orderId);
+                    }
+                  }}
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-neon-blue/20 to-neon-purple/20 border border-neon-blue/50 text-white hover:from-neon-blue/30 hover:to-neon-purple/30 text-sm transition-all duration-200 flex items-center gap-2"
+                  data-testid="button-open-full-view"
+                >
                   <ExternalLink className="w-4 h-4" />
                   Open Full View
                 </button>
@@ -508,80 +523,244 @@ export function DataCapsule({ isOpen, onClose, orderId }: DataCapsuleProps) {
 // =============================================================================
 
 function OverviewModule({ order, organization, lineItems }: { order: any; organization: any; lineItems: any[] }) {
+  const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  
+  const toggleItem = (id: number) => {
+    setExpandedItems(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const lineItemsWithImages = lineItems.filter((item: any) => item.imageUrl);
+  const totalValue = lineItems.reduce((sum: number, item: any) => sum + parseFloat(item.lineTotal || '0'), 0);
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
-      className="grid grid-cols-2 gap-6"
+      className="space-y-6"
     >
-      {/* Order Details */}
-      <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-        <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-          <Package className="w-4 h-4 text-neon-blue" />
-          Order Details
-        </h3>
-        <div className="space-y-1">
-          <InfoRow label="Order Name" value={order.orderName} icon={FileText} />
-          <InfoRow label="Priority" value={order.priority} icon={AlertTriangle} />
-          <InfoRow label="Tracking" value={order.trackingNumber} icon={Truck} />
-          <InfoRow 
-            label="Estimated Delivery" 
-            value={order.estDelivery ? format(new Date(order.estDelivery), 'MMM d, yyyy') : null} 
-            icon={Calendar} 
-          />
-        </div>
-      </div>
-
-      {/* Customer Info */}
-      <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-        <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-          <Building2 className="w-4 h-4 text-neon-purple" />
-          Customer
-        </h3>
-        <div className="space-y-1">
-          <InfoRow label="Organization" value={organization?.name} icon={Building2} />
-          <InfoRow label="Contact" value={order.contactName} icon={User} />
-          <InfoRow label="Email" value={order.contactEmail} icon={Mail} />
-          <InfoRow label="Phone" value={order.contactPhone} icon={Phone} />
-        </div>
-      </div>
-
-      {/* Line Items Summary */}
-      <div className="col-span-2 p-4 rounded-xl bg-white/5 border border-white/10">
-        <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-          <Package className="w-4 h-4 text-neon-cyan" />
-          Line Items ({lineItems.length})
-        </h3>
-        {lineItems.length > 0 ? (
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {lineItems.map((item: any) => (
-              <div 
-                key={item.id} 
-                className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5"
+      {/* Image Gallery - Show all line item images */}
+      {lineItemsWithImages.length > 0 && (
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+          <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+            <ImageIcon className="w-4 h-4 text-neon-cyan" />
+            Product Images ({lineItemsWithImages.length})
+          </h3>
+          <div className="grid grid-cols-4 gap-3">
+            {lineItemsWithImages.slice(0, 8).map((item: any, index: number) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.05 }}
+                className="group relative aspect-square rounded-lg overflow-hidden border border-white/10 cursor-pointer hover:border-neon-blue/50 transition-all duration-200"
+                onClick={() => setSelectedImage(item.imageUrl)}
+                data-testid={`img-lineitem-${item.id}`}
               >
-                <div className="flex items-center gap-3">
-                  {item.imageUrl ? (
-                    <img 
-                      src={item.imageUrl} 
-                      alt="" 
-                      className="w-10 h-10 rounded object-cover"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded bg-white/10 flex items-center justify-center">
-                      <Package className="w-5 h-5 text-white/40" />
-                    </div>
-                  )}
-                  <div>
-                    <div className="text-sm text-white">{item.itemName || 'Unnamed Item'}</div>
-                    <div className="text-xs text-white/40">{item.colorNotes}</div>
+                <img 
+                  src={item.imageUrl} 
+                  alt={item.itemName || 'Product'} 
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <div className="absolute bottom-2 left-2 right-2">
+                    <div className="text-xs text-white truncate">{item.itemName}</div>
+                  </div>
+                  <div className="absolute top-2 right-2">
+                    <ZoomIn className="w-4 h-4 text-white" />
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-sm text-white">{item.qtyTotal} units</div>
-                  <div className="text-xs text-white/40">${item.lineTotal}</div>
-                </div>
+              </motion.div>
+            ))}
+            {lineItemsWithImages.length > 8 && (
+              <div className="aspect-square rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+                <span className="text-white/60 text-sm">+{lineItemsWithImages.length - 8} more</span>
               </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-6">
+        {/* Order Details */}
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+          <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+            <Package className="w-4 h-4 text-neon-blue" />
+            Order Details
+          </h3>
+          <div className="space-y-1">
+            <InfoRow label="Order Name" value={order.orderName} icon={FileText} />
+            <InfoRow label="Priority" value={order.priority} icon={AlertTriangle} />
+            <InfoRow label="Tracking" value={order.trackingNumber} icon={Truck} />
+            <InfoRow 
+              label="Estimated Delivery" 
+              value={order.estDelivery ? format(new Date(order.estDelivery), 'MMM d, yyyy') : null} 
+              icon={Calendar} 
+            />
+          </div>
+        </div>
+
+        {/* Customer Info */}
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+          <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-neon-purple" />
+            Customer
+          </h3>
+          <div className="space-y-1">
+            <InfoRow label="Organization" value={organization?.name} icon={Building2} />
+            <InfoRow label="Contact" value={order.contactName} icon={User} />
+            <InfoRow label="Email" value={order.contactEmail} icon={Mail} />
+            <InfoRow label="Phone" value={order.contactPhone} icon={Phone} />
+          </div>
+        </div>
+      </div>
+
+      {/* Line Items with Collapsible Details */}
+      <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+            <Package className="w-4 h-4 text-neon-cyan" />
+            Line Items ({lineItems.length})
+          </h3>
+          <div className="flex items-center gap-4 text-sm">
+            <span className="text-white/60">Total:</span>
+            <span className="text-white font-semibold">${totalValue.toFixed(2)}</span>
+          </div>
+        </div>
+        
+        {lineItems.length > 0 ? (
+          <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
+            {lineItems.map((item: any, index: number) => (
+              <Collapsible
+                key={item.id}
+                open={expandedItems.has(item.id)}
+                onOpenChange={() => toggleItem(item.id)}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                  className={cn(
+                    "rounded-lg border transition-all duration-200",
+                    expandedItems.has(item.id) 
+                      ? "bg-white/10 border-neon-blue/30" 
+                      : "bg-white/5 border-white/5 hover:border-white/20"
+                  )}
+                >
+                  <CollapsibleTrigger asChild>
+                    <button
+                      className="w-full flex items-center justify-between p-3 text-left"
+                      data-testid={`btn-expand-lineitem-${item.id}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {item.imageUrl ? (
+                          <div className="relative group">
+                            <img 
+                              src={item.imageUrl} 
+                              alt="" 
+                              className="w-12 h-12 rounded-lg object-cover border border-white/10"
+                            />
+                            <div 
+                              className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center cursor-pointer"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedImage(item.imageUrl);
+                              }}
+                            >
+                              <Expand className="w-4 h-4 text-white" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center border border-white/10">
+                            <Package className="w-5 h-5 text-white/40" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="text-sm text-white font-medium">{item.itemName || 'Unnamed Item'}</div>
+                          <div className="text-xs text-white/40 flex items-center gap-2">
+                            {item.colorNotes && <span>{item.colorNotes}</span>}
+                            {item.variantCode && <span className="text-neon-blue/70">{item.variantCode}</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <div className="text-sm text-white">{item.qtyTotal} units</div>
+                          <div className="text-xs text-neon-cyan">${item.lineTotal}</div>
+                        </div>
+                        <motion.div
+                          animate={{ rotate: expandedItems.has(item.id) ? 180 : 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <ChevronDown className="w-4 h-4 text-white/40" />
+                        </motion.div>
+                      </div>
+                    </button>
+                  </CollapsibleTrigger>
+                  
+                  <CollapsibleContent>
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="px-3 pb-3 pt-0"
+                    >
+                      <div className="border-t border-white/10 pt-3">
+                        <div className="grid grid-cols-2 gap-4">
+                          {/* Size breakdown */}
+                          <div>
+                            <div className="text-xs text-white/50 mb-2">Size Breakdown</div>
+                            <div className="flex flex-wrap gap-1.5">
+                              {['yxs', 'ys', 'ym', 'yl', 'xs', 's', 'm', 'l', 'xl', 'xxl', 'xxxl', 'xxxxl'].map(size => {
+                                const qty = item[size] || 0;
+                                if (qty === 0) return null;
+                                return (
+                                  <span 
+                                    key={size} 
+                                    className="px-2 py-1 text-xs rounded bg-white/10 text-white/80 border border-white/10"
+                                  >
+                                    {size.toUpperCase()}: {qty}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          {/* Pricing */}
+                          <div>
+                            <div className="text-xs text-white/50 mb-2">Pricing</div>
+                            <div className="space-y-1 text-sm">
+                              <div className="flex justify-between text-white/70">
+                                <span>Unit Price:</span>
+                                <span>${item.unitPrice}</span>
+                              </div>
+                              <div className="flex justify-between text-white font-medium">
+                                <span>Line Total:</span>
+                                <span className="text-neon-cyan">${item.lineTotal}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Notes */}
+                        {item.notes && (
+                          <div className="mt-3 pt-3 border-t border-white/10">
+                            <div className="text-xs text-white/50 mb-1">Notes</div>
+                            <div className="text-sm text-white/70">{item.notes}</div>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  </CollapsibleContent>
+                </motion.div>
+              </Collapsible>
             ))}
           </div>
         ) : (
@@ -591,6 +770,13 @@ function OverviewModule({ order, organization, lineItems }: { order: any; organi
           </div>
         )}
       </div>
+
+      {/* Fullscreen Image Viewer */}
+      <FullScreenImageViewer
+        imageUrl={selectedImage || ''}
+        isOpen={!!selectedImage}
+        onClose={() => setSelectedImage(null)}
+      />
     </motion.div>
   );
 }

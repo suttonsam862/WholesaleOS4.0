@@ -9,10 +9,11 @@ import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { OrderDetailModal } from "@/components/modals/order-detail-modal";
 import { CreateOrderModal } from "@/components/modals/create-order-modal";
+import { DataCapsule } from "@/components/DataCapsule";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { hasPermission, canModify } from "@/lib/permissions";
 import { KanbanSkeleton } from "@/components/ui/loading-skeletons";
-import { Search, Plus, Download, LayoutGrid, Users, Package, Calendar, Clock, AlertCircle, CheckCircle2, Truck } from "lucide-react";
+import { Search, Plus, Download, LayoutGrid, Users, Package, Calendar, Clock, AlertCircle, CheckCircle2, Truck, Eye, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
@@ -78,6 +79,7 @@ export default function Orders() {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -361,12 +363,24 @@ export default function Orders() {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => setIsQuickViewOpen(true)}
+                      className="border-white/10 hover:bg-white/5"
+                      data-testid="button-quick-view"
+                    >
+                      <Eye className="w-4 h-4 mr-2" />
+                      Quick View
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => {
                         setIsDetailModalOpen(true);
                       }}
-                      className="border-white/10 hover:bg-white/5"
+                      className="border-primary/50 bg-primary/10 hover:bg-primary/20"
+                      data-testid="button-full-details"
                     >
-                      Full Details
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Order
                     </Button>
                   </div>
                 </div>
@@ -496,13 +510,24 @@ export default function Orders() {
 
       {/* Modals */}
       {selectedOrder && (
-        <OrderDetailModal
-          orderId={selectedOrder.id}
-          isOpen={isDetailModalOpen}
-          onClose={() => {
-            setIsDetailModalOpen(false);
-          }}
-        />
+        <>
+          <OrderDetailModal
+            orderId={selectedOrder.id}
+            isOpen={isDetailModalOpen}
+            onClose={() => {
+              setIsDetailModalOpen(false);
+            }}
+          />
+          <DataCapsule
+            isOpen={isQuickViewOpen}
+            onClose={() => setIsQuickViewOpen(false)}
+            orderId={selectedOrder.id}
+            onOpenFullView={(orderId) => {
+              setIsQuickViewOpen(false);
+              setIsDetailModalOpen(true);
+            }}
+          />
+        </>
       )}
 
       <CreateOrderModal

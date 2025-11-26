@@ -11,6 +11,10 @@ externalPort = 80
 localPort = 5002
 externalPort = 3000
 
+[[ports]]
+localPort = 38459
+externalPort = 3001
+
 [deployment]
 run = ["sh", "-c", "npm run start"]
 deploymentTarget = "cloudrun"
@@ -25,3 +29,6 @@ author = 41090967
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
+
+[agent]
+integrations = ["javascript_log_in_with_replit:1.0.0"]
