@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -34,11 +35,37 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Calendar,
-  FileText
+  FileText,
+  Receipt,
+  CreditCard,
+  Users,
+  Building2
 } from "lucide-react";
 import { format } from "date-fns";
-import type { FinancialTransaction, InsertFinancialTransaction } from "@shared/schema";
+import type { Invoice, InvoicePayment, CommissionPayment, InsertFinancialTransaction } from "@shared/schema";
 import { cn } from "@/lib/utils";
+
+interface FinancialOverview {
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  pendingCommissions: number;
+  paidCommissions: number;
+  budgetUtilization: number;
+  cashFlow: { month: string; income: number; expenses: number }[];
+}
+
+interface UnifiedFinancialRecord {
+  id: string;
+  type: "invoice" | "payment" | "commission";
+  description: string;
+  amount: number;
+  status: string;
+  date: Date;
+  category: string;
+  reference: string;
+  details?: Record<string, any>;
+}
 
 const CATEGORY_OPTIONS = [
   "Sales",
@@ -58,22 +85,10 @@ export default function Finance() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
 
-  // Modal states
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
-  // Filter and search states
   const [searchQuery, setSearchQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"payment" | "expense" | "">("");
-  const [categoryFilter, setCategoryFilter] = useState("");
-
-  // Form states
-  const [formData, setFormData] = useState<Partial<InsertFinancialTransaction>>({
-    type: "payment",
-    category: "",
-    amount: "0",
-    description: "",
-    status: "completed",
-  });
+  const [typeFilter, setTypeFilter] = useState<"all" | "invoice" | "payment" | "commission">("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -88,17 +103,6 @@ export default function Finance() {
       return;
     }
   }, [isAuthenticated, isLoading, toast]);
-
-  // Fetch financial overview for real revenue/expense data from orders
-  interface FinancialOverview {
-    totalRevenue: number;
-    totalExpenses: number;
-    netProfit: number;
-    pendingCommissions: number;
-    paidCommissions: number;
-    budgetUtilization: number;
-    cashFlow: { month: string; income: number; expenses: number }[];
-  }
 
   const { data: overview, isLoading: overviewLoading } = useQuery<FinancialOverview>({
     queryKey: ["/api/financial/overview"],
@@ -120,11 +124,10 @@ export default function Finance() {
     retry: false,
   });
 
-  // Fetch finance records from financial transactions endpoint
-  const { data: records = [], isLoading: recordsLoading } = useQuery<FinancialTransaction[]>({
-    queryKey: ["/api/financial/transactions"],
+  const { data: invoices = [], isLoading: invoicesLoading } = useQuery<Invoice[]>({
+    queryKey: ["/api/invoices"],
     queryFn: async () => {
-      const response = await fetch('/api/financial/transactions', { credentials: 'include' });
+      const response = await fetch('/api/invoices', { credentials: 'include' });
       if (response.ok) {
         return response.json();
       }
@@ -133,76 +136,114 @@ export default function Finance() {
     retry: false,
   });
 
-  // Use real data from overview, fallback to transaction calculations
+  const { data: invoicePayments = [], isLoading: paymentsLoading } = useQuery<InvoicePayment[]>({
+    queryKey: ["/api/invoice-payments"],
+    queryFn: async () => {
+      const response = await fetch('/api/invoice-payments', { credentials: 'include' });
+      if (response.ok) {
+        return response.json();
+      }
+      return [];
+    },
+    retry: false,
+  });
+
+  const { data: commissionPayments = [], isLoading: commissionsLoading } = useQuery<CommissionPayment[]>({
+    queryKey: ["/api/commission-payments"],
+    queryFn: async () => {
+      const response = await fetch('/api/commission-payments', { credentials: 'include' });
+      if (response.ok) {
+        return response.json();
+      }
+      return [];
+    },
+    retry: false,
+  });
+
+  const unifiedRecords: UnifiedFinancialRecord[] = [
+    ...invoices.map((inv): UnifiedFinancialRecord => ({
+      id: `invoice-${inv.id}`,
+      type: "invoice",
+      description: `Invoice ${inv.invoiceNumber}`,
+      amount: Number(inv.totalAmount),
+      status: inv.status,
+      date: new Date(inv.issueDate),
+      category: "Invoice",
+      reference: inv.invoiceNumber,
+      details: {
+        amountPaid: Number(inv.amountPaid || 0),
+        amountDue: Number(inv.amountDue || 0),
+        dueDate: inv.dueDate,
+        orgId: inv.orgId,
+      }
+    })),
+    ...invoicePayments.map((payment): UnifiedFinancialRecord => ({
+      id: `payment-${payment.id}`,
+      type: "payment",
+      description: `Payment ${payment.paymentNumber}`,
+      amount: Number(payment.amount),
+      status: "completed",
+      date: new Date(payment.paymentDate),
+      category: "Payment Received",
+      reference: payment.paymentNumber,
+      details: {
+        invoiceId: payment.invoiceId,
+        paymentMethod: payment.paymentMethod,
+        referenceNumber: payment.referenceNumber,
+      }
+    })),
+    ...commissionPayments.map((comm): UnifiedFinancialRecord => ({
+      id: `commission-${comm.id}`,
+      type: "commission",
+      description: `Commission ${comm.paymentNumber} - ${comm.period}`,
+      amount: Number(comm.totalAmount),
+      status: "paid",
+      date: new Date(comm.paymentDate),
+      category: "Commission Payment",
+      reference: comm.paymentNumber,
+      details: {
+        salespersonId: comm.salespersonId,
+        period: comm.period,
+        paymentMethod: comm.paymentMethod,
+      }
+    })),
+  ].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+  const filteredRecords = unifiedRecords.filter(record => {
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesSearch = 
+        record.description.toLowerCase().includes(query) ||
+        record.reference.toLowerCase().includes(query) ||
+        record.category.toLowerCase().includes(query);
+      if (!matchesSearch) return false;
+    }
+
+    if (typeFilter !== "all" && record.type !== typeFilter) return false;
+    if (statusFilter !== "all" && record.status !== statusFilter) return false;
+
+    return true;
+  });
+
   const stats = overview ? {
     totalIncome: overview.totalRevenue,
     totalExpenses: overview.totalExpenses,
     netProfit: overview.netProfit,
     pendingCommissions: overview.pendingCommissions,
     paidCommissions: overview.paidCommissions,
-  } : records.reduce((acc, record) => {
-    const amount = Number(record.amount);
-    if (record.type === 'payment' || record.type === 'deposit' || record.type === 'commission') {
-      acc.totalIncome += amount;
-    } else {
-      acc.totalExpenses += amount;
-    }
-    return acc;
-  }, { totalIncome: 0, totalExpenses: 0, netProfit: 0, pendingCommissions: 0, paidCommissions: 0 });
+  } : {
+    totalIncome: invoices.reduce((sum, inv) => sum + Number(inv.amountPaid || 0), 0),
+    totalExpenses: commissionPayments.reduce((sum, comm) => sum + Number(comm.totalAmount), 0),
+    netProfit: 0,
+    pendingCommissions: invoices.reduce((sum, inv) => sum + Number(inv.amountDue || 0), 0),
+    paidCommissions: commissionPayments.reduce((sum, comm) => sum + Number(comm.totalAmount), 0),
+  };
 
   const netIncome = overview ? overview.netProfit : (stats.totalIncome - stats.totalExpenses);
 
-  // Filter records
-  const filteredRecords = records.filter(record => {
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesSearch = 
-        (record.description?.toLowerCase() || "").includes(query) ||
-        (record.category?.toLowerCase() || "").includes(query);
-      if (!matchesSearch) return false;
-    }
-
-    if (typeFilter && record.type !== typeFilter) return false;
-    if (categoryFilter && record.category !== categoryFilter) return false;
-
-    return true;
-  });
-
-  // Create record mutation
-  const createRecordMutation = useMutation({
-    mutationFn: (data: Partial<InsertFinancialTransaction>) => {
-      return apiRequest("/api/financial/transactions", {
-        method: "POST",
-        body: data,
-      });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "Transaction recorded successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/financial/transactions"] });
-      setIsCreateModalOpen(false);
-      setFormData({
-        type: "payment",
-        category: "",
-        amount: "0",
-        description: "",
-        status: "completed",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to record transaction",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleCreateRecord = () => {
-    createRecordMutation.mutate(formData);
-  };
+  const totalInvoiced = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0);
+  const totalPaid = invoicePayments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalCommissionsPaid = commissionPayments.reduce((sum, c) => sum + Number(c.totalAmount), 0);
 
   const formatCurrency = (amount: number | string) => {
     return new Intl.NumberFormat('en-US', {
@@ -211,7 +252,41 @@ export default function Finance() {
     }).format(Number(amount));
   };
 
-  if (isLoading || recordsLoading || overviewLoading) {
+  const getRecordIcon = (type: string) => {
+    switch (type) {
+      case "invoice": return <FileText className="h-5 w-5" />;
+      case "payment": return <CreditCard className="h-5 w-5" />;
+      case "commission": return <Users className="h-5 w-5" />;
+      default: return <DollarSign className="h-5 w-5" />;
+    }
+  };
+
+  const getRecordColor = (type: string, status: string) => {
+    if (type === "commission") return "bg-purple-500/20 text-purple-400";
+    if (type === "payment") return "bg-green-500/20 text-green-400";
+    if (type === "invoice") {
+      if (status === "paid") return "bg-green-500/20 text-green-400";
+      if (status === "overdue") return "bg-red-500/20 text-red-400";
+      return "bg-blue-500/20 text-blue-400";
+    }
+    return "bg-gray-500/20 text-gray-400";
+  };
+
+  const getStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case "paid":
+      case "completed": return "bg-green-500/20 text-green-400 border-green-500/30";
+      case "partial": return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
+      case "overdue": return "bg-red-500/20 text-red-400 border-red-500/30";
+      case "draft": return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+      case "sent": return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+      default: return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+    }
+  };
+
+  const isDataLoading = isLoading || overviewLoading || invoicesLoading || paymentsLoading || commissionsLoading;
+
+  if (isDataLoading) {
     return (
       <div className="p-6">
         <div className="animate-pulse">
@@ -228,67 +303,43 @@ export default function Finance() {
 
   return (
     <div className="p-6 space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold gradient-text" data-testid="text-page-title">Finance</h1>
-          <p className="text-muted-foreground">Track income, expenses, and financial health</p>
+          <p className="text-muted-foreground">Track invoices, payments, and commissions</p>
         </div>
-        <Button 
-          onClick={() => setIsCreateModalOpen(true)} 
-          data-testid="button-add-transaction"
-          className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Transaction
-        </Button>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="glass-card border-white/10 bg-blue-500/10">
+          <CardContent className="p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-blue-400">Total Invoiced</p>
+              <h3 className="text-2xl font-bold text-white" data-testid="stat-invoiced">{formatCurrency(totalInvoiced)}</h3>
+              <p className="text-xs text-muted-foreground mt-1">{invoices.length} invoices</p>
+            </div>
+            <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+              <FileText className="h-6 w-6 text-blue-400" />
+            </div>
+          </CardContent>
+        </Card>
         <Card className="glass-card border-white/10 bg-green-500/10">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-green-400">Total Revenue</p>
-              <h3 className="text-2xl font-bold text-white" data-testid="stat-revenue">{formatCurrency(stats.totalIncome)}</h3>
-              <p className="text-xs text-muted-foreground mt-1">From completed orders</p>
+              <p className="text-sm font-medium text-green-400">Payments Received</p>
+              <h3 className="text-2xl font-bold text-white" data-testid="stat-payments">{formatCurrency(totalPaid)}</h3>
+              <p className="text-xs text-muted-foreground mt-1">{invoicePayments.length} payments</p>
             </div>
             <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center">
               <TrendingUp className="h-6 w-6 text-green-400" />
             </div>
           </CardContent>
         </Card>
-        <Card className="glass-card border-white/10 bg-red-500/10">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-red-400">Total Expenses</p>
-              <h3 className="text-2xl font-bold text-white" data-testid="stat-expenses">{formatCurrency(stats.totalExpenses)}</h3>
-              <p className="text-xs text-muted-foreground mt-1">Design + Commissions</p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-red-500/20 flex items-center justify-center">
-              <TrendingDown className="h-6 w-6 text-red-400" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="glass-card border-white/10 bg-blue-500/10">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-400">Net Profit</p>
-              <h3 className={cn("text-2xl font-bold", netIncome >= 0 ? "text-white" : "text-red-400")} data-testid="stat-profit">
-                {formatCurrency(netIncome)}
-              </h3>
-              <p className="text-xs text-muted-foreground mt-1">Revenue - Expenses</p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-              <DollarSign className="h-6 w-6 text-blue-400" />
-            </div>
-          </CardContent>
-        </Card>
         <Card className="glass-card border-white/10 bg-yellow-500/10">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-yellow-400">Pending Commissions</p>
-              <h3 className="text-2xl font-bold text-white" data-testid="stat-pending-comm">{formatCurrency(stats.pendingCommissions || 0)}</h3>
+              <p className="text-sm font-medium text-yellow-400">Outstanding</p>
+              <h3 className="text-2xl font-bold text-white" data-testid="stat-outstanding">{formatCurrency(totalInvoiced - totalPaid)}</h3>
               <p className="text-xs text-muted-foreground mt-1">Awaiting payment</p>
             </div>
             <div className="h-10 w-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
@@ -299,194 +350,259 @@ export default function Finance() {
         <Card className="glass-card border-white/10 bg-purple-500/10">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-purple-400">Paid Commissions</p>
-              <h3 className="text-2xl font-bold text-white" data-testid="stat-paid-comm">{formatCurrency(stats.paidCommissions || 0)}</h3>
-              <p className="text-xs text-muted-foreground mt-1">Already distributed</p>
+              <p className="text-sm font-medium text-purple-400">Commissions Paid</p>
+              <h3 className="text-2xl font-bold text-white" data-testid="stat-commissions">{formatCurrency(totalCommissionsPaid)}</h3>
+              <p className="text-xs text-muted-foreground mt-1">{commissionPayments.length} payments</p>
             </div>
             <div className="h-10 w-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-              <DollarSign className="h-6 w-6 text-purple-400" />
+              <Users className="h-6 w-6 text-purple-400" />
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
-      <Card className="glass-card border-white/10">
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search transactions..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-black/20 border-white/10 text-white"
-                data-testid="input-search-finance"
-              />
-            </div>
-            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
-              <SelectTrigger className="bg-black/20 border-white/10 text-white" data-testid="select-type-filter">
-                <SelectValue placeholder="All Types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value=" ">All Types</SelectItem>
-                <SelectItem value="payment">Income</SelectItem>
-                <SelectItem value="expense">Expense</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="bg-black/20 border-white/10 text-white" data-testid="select-category-filter">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value=" ">All Categories</SelectItem>
-                {CATEGORY_OPTIONS.map(cat => (
-                  <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="bg-black/20 border-white/10">
+          <TabsTrigger value="overview" data-testid="tab-overview">All Records</TabsTrigger>
+          <TabsTrigger value="invoices" data-testid="tab-invoices">Invoices ({invoices.length})</TabsTrigger>
+          <TabsTrigger value="payments" data-testid="tab-payments">Payments ({invoicePayments.length})</TabsTrigger>
+          <TabsTrigger value="commissions" data-testid="tab-commissions">Commissions ({commissionPayments.length})</TabsTrigger>
+        </TabsList>
 
-      {/* Transactions List */}
-      <div className="space-y-4">
-        {filteredRecords.map(record => (
-          <Card key={record.id} className="glass-card border-white/10 hover:border-primary/50 transition-all duration-300" data-testid={`card-transaction-${record.id}`}>
-            <CardContent className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  "h-10 w-10 rounded-full flex items-center justify-center",
-                  (record.type === 'payment' || record.type === 'deposit' || record.type === 'commission') ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400"
-                )}>
-                  {(record.type === 'payment' || record.type === 'deposit' || record.type === 'commission') ? <ArrowUpRight className="h-5 w-5" /> : <ArrowDownRight className="h-5 w-5" />}
+        <TabsContent value="overview" className="space-y-4 mt-4">
+          <Card className="glass-card border-white/10">
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search records..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 bg-black/20 border-white/10 text-white"
+                    data-testid="input-search-finance"
+                  />
                 </div>
-                <div>
-                  <h4 className="font-medium text-foreground">{record.description}</h4>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Badge variant="secondary" className="bg-white/10 text-white hover:bg-white/20">
-                      {record.category}
-                    </Badge>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="h-3 w-3" />
-                      {format(new Date(record.createdAt || new Date()), "MMM d, yyyy")}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className={cn(
-                  "font-bold text-lg",
-                  (record.type === 'payment' || record.type === 'deposit' || record.type === 'commission') ? "text-green-400" : "text-red-400"
-                )}>
-                  {(record.type === 'payment' || record.type === 'deposit' || record.type === 'commission') ? '+' : '-'}{formatCurrency(record.amount)}
-                </p>
-                <Badge variant="outline" className="text-xs border-white/10 text-muted-foreground capitalize">
-                  {record.status}
-                </Badge>
+                <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as any)}>
+                  <SelectTrigger className="bg-black/20 border-white/10 text-white" data-testid="select-type-filter">
+                    <SelectValue placeholder="All Types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Types</SelectItem>
+                    <SelectItem value="invoice">Invoices</SelectItem>
+                    <SelectItem value="payment">Payments</SelectItem>
+                    <SelectItem value="commission">Commissions</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="bg-black/20 border-white/10 text-white" data-testid="select-status-filter">
+                    <SelectValue placeholder="All Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="sent">Sent</SelectItem>
+                    <SelectItem value="partial">Partial</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
-        ))}
-        
-        {filteredRecords.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            No transactions found matching your filters.
-          </div>
-        )}
-      </div>
 
-      {/* Create Transaction Modal */}
-      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="glass-panel border-white/10" data-testid="dialog-create-transaction">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Add Transaction</DialogTitle>
-            <DialogDescription className="text-muted-foreground">Record a new income or expense</DialogDescription>
-          </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="type" className="text-foreground">Type</Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value) => setFormData({ ...formData, type: value as any })}
-                >
-                  <SelectTrigger className="bg-black/20 border-white/10 text-white" data-testid="select-type">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="payment">Income</SelectItem>
-                    <SelectItem value="expense">Expense</SelectItem>
-                  </SelectContent>
-                </Select>
+            {filteredRecords.map(record => (
+              <Card key={record.id} className="glass-card border-white/10 hover:border-primary/50 transition-all duration-300" data-testid={`card-record-${record.id}`}>
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "h-10 w-10 rounded-full flex items-center justify-center",
+                      getRecordColor(record.type, record.status)
+                    )}>
+                      {getRecordIcon(record.type)}
+                    </div>
+                    <div>
+                      <h4 className="font-medium text-foreground">{record.description}</h4>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Badge variant="secondary" className="bg-white/10 text-white hover:bg-white/20 capitalize">
+                          {record.type}
+                        </Badge>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {format(record.date, "MMM d, yyyy")}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className={cn(
+                      "font-bold text-lg",
+                      record.type === "commission" ? "text-purple-400" :
+                      record.type === "payment" ? "text-green-400" : "text-blue-400"
+                    )}>
+                      {record.type === "payment" ? '+' : ''}{formatCurrency(record.amount)}
+                    </p>
+                    <Badge variant="outline" className={cn("text-xs capitalize", getStatusBadgeColor(record.status))}>
+                      {record.status}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+            
+            {filteredRecords.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground" data-testid="empty-records">
+                <Receipt className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No financial records found.</p>
+                <p className="text-sm mt-1">Invoices, payments, and commissions will appear here.</p>
               </div>
-              <div>
-                <Label htmlFor="amount" className="text-foreground">Amount</Label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="amount"
-                    type="number"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    className="pl-9 bg-black/20 border-white/10 text-white"
-                    data-testid="input-amount"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="description" className="text-foreground">Description *</Label>
-              <Input
-                id="description"
-                value={formData.description || ""}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Transaction description"
-                className="bg-black/20 border-white/10 text-white"
-                data-testid="input-description"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="category" className="text-foreground">Category</Label>
-                <Select
-                  value={formData.category || ""}
-                  onValueChange={(value) => setFormData({ ...formData, category: value })}
-                >
-                  <SelectTrigger className="bg-black/20 border-white/10 text-white" data-testid="select-category">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORY_OPTIONS.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            )}
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsCreateModalOpen(false)}
-              data-testid="button-cancel-create"
-              className="border-white/10 hover:bg-white/10"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateRecord}
-              disabled={!formData.description || !formData.amount || createRecordMutation.isPending}
-              data-testid="button-submit-create"
-              className="bg-primary hover:bg-primary/90"
-            >
-              Add Transaction
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </TabsContent>
+
+        <TabsContent value="invoices" className="space-y-4 mt-4">
+          <div className="space-y-4">
+            {invoices.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground" data-testid="empty-invoices">
+                <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No invoices found.</p>
+              </div>
+            ) : (
+              invoices.map(invoice => (
+                <Card key={invoice.id} className="glass-card border-white/10 hover:border-primary/50 transition-all duration-300" data-testid={`card-invoice-${invoice.id}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                          <FileText className="h-5 w-5 text-blue-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-foreground">{invoice.invoiceNumber}</h4>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              Issued: {format(new Date(invoice.issueDate), "MMM d, yyyy")}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              Due: {format(new Date(invoice.dueDate), "MMM d, yyyy")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-lg text-blue-400">{formatCurrency(invoice.totalAmount)}</p>
+                        <div className="flex items-center gap-2 justify-end">
+                          <span className="text-xs text-muted-foreground">
+                            Paid: {formatCurrency(invoice.amountPaid || 0)}
+                          </span>
+                          <Badge variant="outline" className={cn("text-xs capitalize", getStatusBadgeColor(invoice.status))}>
+                            {invoice.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="payments" className="space-y-4 mt-4">
+          <div className="space-y-4">
+            {invoicePayments.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground" data-testid="empty-payments">
+                <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No payments found.</p>
+              </div>
+            ) : (
+              invoicePayments.map(payment => (
+                <Card key={payment.id} className="glass-card border-white/10 hover:border-primary/50 transition-all duration-300" data-testid={`card-payment-${payment.id}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                          <CreditCard className="h-5 w-5 text-green-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-foreground">{payment.paymentNumber}</h4>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Badge variant="secondary" className="bg-white/10 text-white hover:bg-white/20 capitalize">
+                              {payment.paymentMethod.replace('_', ' ')}
+                            </Badge>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {format(new Date(payment.paymentDate), "MMM d, yyyy")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-lg text-green-400">+{formatCurrency(payment.amount)}</p>
+                        {payment.referenceNumber && (
+                          <span className="text-xs text-muted-foreground">
+                            Ref: {payment.referenceNumber}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="commissions" className="space-y-4 mt-4">
+          <div className="space-y-4">
+            {commissionPayments.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground" data-testid="empty-commissions">
+                <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No commission payments found.</p>
+              </div>
+            ) : (
+              commissionPayments.map(commission => (
+                <Card key={commission.id} className="glass-card border-white/10 hover:border-primary/50 transition-all duration-300" data-testid={`card-commission-${commission.id}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                          <Users className="h-5 w-5 text-purple-400" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-foreground">{commission.paymentNumber}</h4>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Badge variant="secondary" className="bg-white/10 text-white hover:bg-white/20">
+                              {commission.period}
+                            </Badge>
+                            <Badge variant="secondary" className="bg-white/10 text-white hover:bg-white/20 capitalize">
+                              {commission.paymentMethod.replace('_', ' ')}
+                            </Badge>
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {format(new Date(commission.paymentDate), "MMM d, yyyy")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-lg text-purple-400">{formatCurrency(commission.totalAmount)}</p>
+                        {commission.referenceNumber && (
+                          <span className="text-xs text-muted-foreground">
+                            Ref: {commission.referenceNumber}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
