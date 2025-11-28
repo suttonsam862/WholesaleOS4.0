@@ -1,6 +1,7 @@
 import { sql, relations } from "drizzle-orm";
 import {
   pgTable,
+  pgEnum,
   varchar,
   text,
   integer,
@@ -12,6 +13,23 @@ import {
   jsonb,
   index
 } from "drizzle-orm/pg-core";
+
+// PostgreSQL Enum Types for order status and priority
+export const orderStatusEnum = pgEnum("order_status", [
+  "new",
+  "waiting_sizes",
+  "invoiced",
+  "production",
+  "shipped",
+  "completed",
+  "cancelled",
+]);
+
+export const orderPriorityEnum = pgEnum("order_priority", [
+  "low",
+  "normal",
+  "high",
+]);
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -345,7 +363,7 @@ export const orders = pgTable("orders", {
   leadId: integer("lead_id").references(() => leads.id),
   salespersonId: varchar("salesperson_id").references(() => users.id),
   orderName: varchar("order_name").notNull(),
-  status: varchar("status").notNull().$type<"new" | "waiting_sizes" | "invoiced" | "production" | "shipped" | "completed" | "cancelled">().default("new"),
+  status: orderStatusEnum("status").notNull().default("new"),
   designApproved: boolean("design_approved").default(false),
   sizesValidated: boolean("sizes_validated").default(false),
   depositReceived: boolean("deposit_received").default(false),
@@ -355,7 +373,7 @@ export const orders = pgTable("orders", {
   estDelivery: date("est_delivery"),
   manufacturerId: integer("manufacturer_id").references(() => manufacturers.id), // Legacy field - use orderLineItemManufacturers junction table instead
   trackingNumber: text("tracking_number"),
-  priority: varchar("priority").notNull().$type<"low" | "normal" | "high">().default("normal"),
+  priority: orderPriorityEnum("priority").notNull().default("normal"),
   // Shipping and billing addresses
   shippingAddress: text("shipping_address"),
   billToAddress: text("bill_to_address"),
