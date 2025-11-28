@@ -283,6 +283,7 @@ export interface IStorage {
   getDesignJobWithComments(id: number): Promise<(DesignJob & { organization?: Organization; designer?: User; comments: DesignJobComment[] }) | undefined>;
   getDesignJobsByDesigner(userId: string): Promise<(DesignJob & { organization?: Organization; designer?: User })[]>;
   getDesignJobsBySalesperson(userId: string): Promise<(DesignJob & { organization?: Organization; designer?: User })[]>;
+  getDesignJobsByOrder(orderId: number): Promise<(DesignJob & { organization?: Organization; designer?: User })[]>;
   createDesignJob(job: InsertDesignJob): Promise<DesignJob>;
   updateDesignJob(id: number, job: Partial<InsertDesignJob>): Promise<DesignJob>;
   updateDesignJobStatus(id: number, status: string): Promise<DesignJob>;
@@ -1606,6 +1607,26 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(organizations, eq(designJobs.orgId, organizations.id))
       .leftJoin(users, eq(designJobs.assignedDesignerId, users.id))
       .where(eq(designJobs.salespersonId, userId))
+      .orderBy(desc(designJobs.createdAt));
+
+    return jobs.map(row => ({
+      ...row.designJob,
+      organization: row.organization || undefined,
+      designer: row.designer || undefined,
+    }));
+  }
+
+  async getDesignJobsByOrder(orderId: number): Promise<(DesignJob & { organization?: Organization; designer?: User })[]> {
+    const jobs = await db
+      .select({
+        designJob: designJobs,
+        organization: organizations,
+        designer: users,
+      })
+      .from(designJobs)
+      .leftJoin(organizations, eq(designJobs.orgId, organizations.id))
+      .leftJoin(users, eq(designJobs.assignedDesignerId, users.id))
+      .where(eq(designJobs.orderId, orderId))
       .orderBy(desc(designJobs.createdAt));
 
     return jobs.map(row => ({

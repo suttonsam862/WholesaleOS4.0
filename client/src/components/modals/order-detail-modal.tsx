@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Calculator, Package, TruckIcon, AlertCircle, CheckCircle, DollarSign, Edit2, Save, X, UserCheck, Mail, Printer, Copy, Truck, Factory, Users, MessageSquare, Settings, AlertTriangle, Image as ImageIcon, Upload, Expand } from "lucide-react";
+import { Trash2, Plus, Calculator, Package, TruckIcon, AlertCircle, CheckCircle, DollarSign, Edit2, Save, X, UserCheck, Mail, Printer, Copy, Truck, Factory, Users, MessageSquare, Settings, AlertTriangle, Image as ImageIcon, Upload, Expand, Palette, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
+import { useLocation } from "wouter";
 import type { UploadResult } from "@uppy/core";
 
 interface OrderLineItem {
@@ -104,6 +105,7 @@ const STATUS_WORKFLOW = [
 export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("details");
   const [isEditing, setIsEditing] = useState(false);
   const [editingLineItem, setEditingLineItem] = useState<number | null>(null);
@@ -215,6 +217,12 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
   // Fetch tracking numbers
   const { data: trackingNumbers = [] } = useQuery<any[]>({
     queryKey: [`/api/orders/${orderId}/tracking`],
+    enabled: isOpen && !!orderId,
+  });
+
+  // Fetch design jobs for this order
+  const { data: orderDesignJobs = [], isLoading: designJobsLoading } = useQuery<any[]>({
+    queryKey: [`/api/design-jobs/order/${orderId}`],
     enabled: isOpen && !!orderId,
   });
 
@@ -1363,6 +1371,94 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
                   </CardContent>
                 </Card>
               )}
+
+              {/* Design Jobs Section */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Palette className="h-4 w-4" />
+                    Design Jobs
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {designJobsLoading ? (
+                    <div className="text-sm text-muted-foreground">Loading design jobs...</div>
+                  ) : orderDesignJobs.length === 0 ? (
+                    <div className="text-sm text-muted-foreground italic" data-testid="text-no-design-jobs">
+                      No design jobs associated with this order
+                    </div>
+                  ) : (
+                    <div className="space-y-3" data-testid="design-jobs-list">
+                      {orderDesignJobs.map((job: any) => {
+                        const statusColors: Record<string, string> = {
+                          pending: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+                          assigned: 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300',
+                          in_progress: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
+                          review: 'bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300',
+                          approved: 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
+                          rejected: 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300',
+                          completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300',
+                        };
+
+                        const handleNavigateToJob = () => {
+                          onClose();
+                          setLocation(`/design-jobs/${job.id}`);
+                        };
+
+                        return (
+                          <div
+                            key={job.id}
+                            className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
+                            onClick={handleNavigateToJob}
+                            data-testid={`design-job-${job.id}`}
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium text-sm">{job.jobCode}</span>
+                                <Badge className={`text-xs ${statusColors[job.status] || statusColors.pending}`}>
+                                  {job.status.replace('_', ' ')}
+                                </Badge>
+                                {job.urgency === 'rush' && (
+                                  <Badge variant="destructive" className="text-xs">Rush</Badge>
+                                )}
+                                {job.urgency === 'high' && (
+                                  <Badge variant="outline" className="text-xs border-orange-500 text-orange-500">High Priority</Badge>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {job.designer?.name ? (
+                                  <span>Assigned to: <span className="font-medium">{job.designer.name}</span></span>
+                                ) : (
+                                  <span className="italic">Unassigned</span>
+                                )}
+                                {job.deadline && (
+                                  <span className="ml-3">Due: {format(new Date(job.deadline), "PP")}</span>
+                                )}
+                              </div>
+                              {job.brief && (
+                                <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{job.brief}</p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleNavigateToJob();
+                                }}
+                                data-testid={`button-view-design-job-${job.id}`}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               <Card>
                 <CardHeader className="pb-3">

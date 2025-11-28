@@ -70,6 +70,21 @@ export function registerDesignRoutes(app: Express): void {
     }
   });
 
+  // Get design jobs by order ID
+  app.get('/api/design-jobs/order/:orderId', isAuthenticated, loadUserData, requirePermission('designJobs', 'read'), async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+      const designJobs = await storage.getDesignJobsByOrder(orderId);
+      res.json(designJobs);
+    } catch (error) {
+      console.error("Error fetching design jobs by order:", error);
+      res.status(500).json({ message: "Failed to fetch design jobs" });
+    }
+  });
+
   // Bulk design job assignment endpoint (must come before :id routes)
   app.put('/api/design-jobs/bulk-reassign', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
     try {

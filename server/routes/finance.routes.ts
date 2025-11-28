@@ -1,10 +1,118 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
-import { insertInvoiceSchema, insertInvoicePaymentSchema, insertCommissionPaymentSchema, insertProductCogsSchema } from "@shared/schema";
+import { insertInvoiceSchema, insertInvoicePaymentSchema, insertCommissionPaymentSchema, insertProductCogsSchema, insertFinancialTransactionSchema } from "@shared/schema";
 import { z } from "zod";
 
 export function registerFinanceRoutes(app: Express): void {
+  // Financial Transaction routes
+  app.get('/api/financial/transactions', isAuthenticated, loadUserData, requirePermission('finance', 'read'), async (req, res) => {
+    try {
+      const { type, status, salespersonId, startDate, endDate } = req.query;
+      const transactions = await storage.getFinancialTransactions({
+        type: type as string,
+        status: status as string,
+        salespersonId: salespersonId as string,
+        startDate: startDate as string,
+        endDate: endDate as string,
+      });
+      res.json(transactions);
+    } catch (error) {
+      console.error("Error fetching financial transactions:", error);
+      res.status(500).json({ message: "Failed to fetch financial transactions" });
+    }
+  });
+
+  app.get('/api/financial/transactions/:id', isAuthenticated, loadUserData, requirePermission('finance', 'read'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const transaction = await storage.getFinancialTransaction(id);
+      if (!transaction) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+      res.json(transaction);
+    } catch (error) {
+      console.error("Error fetching financial transaction:", error);
+      res.status(500).json({ message: "Failed to fetch financial transaction" });
+    }
+  });
+
+  app.post('/api/financial/transactions', isAuthenticated, loadUserData, requirePermission('finance', 'write'), async (req, res) => {
+    try {
+      const transactionData = insertFinancialTransactionSchema.parse(req.body);
+      const transaction = await storage.createFinancialTransaction(transactionData);
+
+      await storage.logActivity(
+        (req as AuthenticatedRequest).user.userData!.id,
+        'financial_transaction',
+        transaction.id,
+        'created',
+        null,
+        transaction
+      );
+
+      res.status(201).json(transaction);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating financial transaction:", error);
+      res.status(500).json({ message: "Failed to create financial transaction" });
+    }
+  });
+
+  app.patch('/api/financial/transactions/:id', isAuthenticated, loadUserData, requirePermission('finance', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const existingTransaction = await storage.getFinancialTransaction(id);
+      if (!existingTransaction) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+
+      const transaction = await storage.updateFinancialTransaction(id, req.body);
+
+      await storage.logActivity(
+        (req as AuthenticatedRequest).user.userData!.id,
+        'financial_transaction',
+        id,
+        'updated',
+        existingTransaction,
+        transaction
+      );
+
+      res.json(transaction);
+    } catch (error: any) {
+      console.error("Error updating financial transaction:", error);
+      res.status(400).json({ message: error.message || "Failed to update financial transaction" });
+    }
+  });
+
+  app.delete('/api/financial/transactions/:id', isAuthenticated, loadUserData, requirePermission('finance', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const existingTransaction = await storage.getFinancialTransaction(id);
+      if (!existingTransaction) {
+        return res.status(404).json({ message: "Transaction not found" });
+      }
+
+      await storage.deleteFinancialTransaction(id);
+
+      await storage.logActivity(
+        (req as AuthenticatedRequest).user.userData!.id,
+        'financial_transaction',
+        id,
+        'deleted',
+        existingTransaction,
+        null
+      );
+
+      res.json({ message: "Transaction deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting financial transaction:", error);
+      res.status(400).json({ message: error.message || "Failed to delete financial transaction" });
+    }
+  });
+
   // Invoice routes
   app.get('/api/invoices', isAuthenticated, loadUserData, requirePermission('finance', 'read'), async (req, res) => {
     try {
@@ -315,6 +423,27 @@ export function registerFinanceRoutes(app: Express): void {
     } catch (error: any) {
       console.error("Error deleting product COGS:", error);
       res.status(400).json({ message: error.message || "Failed to delete product COGS" });
+    }
+  });
+
+  // Financial Overview/Dashboard endpoint
+  app.get('/api/financial/overview', isAuthenticated, loadUserData, requirePermission('finance', 'read'), async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const userRole = (req as AuthenticatedRequest).user.userData!.role;
+      const userId = (req as AuthenticatedRequest).user.userData!.id;
+
+      // Sales users can only see their own financial data
+      let salespersonId: string | undefined = undefined;
+      if (userRole === 'sales') {
+        salespersonId = userId;
+      }
+
+      const overview = await storage.getFinancialOverview(startDate as string, endDate as string, salespersonId);
+      res.json(overview);
+    } catch (error) {
+      console.error("Error fetching financial overview:", error);
+      res.status(500).json({ message: "Failed to fetch financial overview" });
     }
   });
 }
