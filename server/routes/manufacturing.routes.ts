@@ -327,7 +327,7 @@ export function registerManufacturingRoutes(app: Express): void {
         });
       }
 
-      const existingRecord = await storage.getManufacturingRecord(id);
+      const existingRecord = await storage.getManufacturingRecordStrict(id);
       if (!existingRecord) {
         return res.status(404).json({ message: "Manufacturing record not found" });
       }
@@ -424,7 +424,7 @@ export function registerManufacturingRoutes(app: Express): void {
     try {
       const id = parseInt(req.params.id);
 
-      const existingRecord = await storage.getManufacturingRecord(id);
+      const existingRecord = await storage.getManufacturingRecordStrict(id);
       if (!existingRecord) {
         return res.status(404).json({ message: "Manufacturing record not found" });
       }
@@ -452,7 +452,7 @@ export function registerManufacturingRoutes(app: Express): void {
   app.post('/api/manufacturing/:id/duplicate-structure', isAuthenticated, loadUserData, requirePermission('manufacturing', 'write'), async (req, res) => {
     try {
       const manufacturingId = parseInt(req.params.id);
-      const originalManufacturing = await storage.getManufacturingRecord(manufacturingId);
+      const originalManufacturing = await storage.getManufacturingRecordStrict(manufacturingId);
       
       if (!originalManufacturing) {
         return res.status(404).json({ message: "Manufacturing record not found" });
@@ -1113,7 +1113,7 @@ export function registerManufacturingRoutes(app: Express): void {
       // Get manufacturing record with better error handling
       let manufacturingRecord;
       try {
-        manufacturingRecord = await storage.getManufacturingRecord(update.manufacturingId);
+        manufacturingRecord = await storage.getManufacturingRecordStrict(update.manufacturingId);
       } catch (dbError) {
         console.error(`[PDF EXPORT] Database error fetching manufacturing record:`, dbError);
         // Try alternative query if column mismatch
