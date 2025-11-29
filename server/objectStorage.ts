@@ -130,6 +130,100 @@ export class ObjectStorageService {
     }
   }
 
+  // Gets an object as a Buffer (for PDF embedding, etc.)
+  async getObjectAsBuffer(file: File): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      const stream = file.createReadStream();
+
+      stream.on("data", (chunk: Buffer) => {
+        chunks.push(chunk);
+      });
+
+      stream.on("end", () => {
+        resolve(Buffer.concat(chunks));
+      });
+
+      stream.on("error", (err) => {
+        reject(err);
+      });
+    });
+  }
+
+  // Fetches an image from a URL path (supports both object storage and relative URLs)
+  // baseUrl should be derived from the request (e.g., "https://myapp.repl.co")
+  async fetchImageAsBuffer(imagePath: string, baseUrl?: string): Promise<Buffer | null> {
+    try {
+      // Handle external URLs first (https://)
+      if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+        const response = await fetch(imagePath);
+        if (response.ok) {
+          return Buffer.from(await response.arrayBuffer());
+        }
+        console.warn(`[ObjectStorage] Failed to fetch external URL: ${imagePath} - ${response.status}`);
+        return null;
+      }
+
+      // Handle object storage paths - try direct access first, then HTTP fallback
+      if (imagePath.startsWith("/objects/")) {
+        try {
+          const file = await this.getObjectEntityFile(imagePath);
+          return await this.getObjectAsBuffer(file);
+        } catch (objErr) {
+          console.warn(`[ObjectStorage] Object storage lookup failed for ${imagePath}, trying HTTP fallback`);
+          // Fall through to HTTP fallback below
+        }
+      }
+
+      // Handle public object paths - try direct access first, then HTTP fallback
+      if (imagePath.startsWith("/public-objects/")) {
+        try {
+          const relativePath = imagePath.replace("/public-objects/", "");
+          const file = await this.searchPublicObject(relativePath);
+          if (file) {
+            return await this.getObjectAsBuffer(file);
+          }
+        } catch (pubErr) {
+          console.warn(`[ObjectStorage] Public object lookup failed for ${imagePath}, trying HTTP fallback`);
+          // Fall through to HTTP fallback below
+        }
+      }
+
+      // HTTP fallback for all relative paths (including failed object storage lookups)
+      if (imagePath.startsWith("/")) {
+        // Use provided baseUrl, or environment-derived URL, or localhost as fallback
+        let serverUrl: string;
+        if (baseUrl) {
+          serverUrl = baseUrl;
+        } else if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
+          serverUrl = `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+        } else {
+          serverUrl = "http://localhost:5000";
+        }
+        
+        const fullUrl = `${serverUrl}${imagePath}`;
+        console.log(`[ObjectStorage] Fetching via HTTP: ${fullUrl}`);
+        
+        try {
+          const response = await fetch(fullUrl);
+          if (response.ok) {
+            return Buffer.from(await response.arrayBuffer());
+          }
+          console.warn(`[ObjectStorage] HTTP fetch failed: ${fullUrl} - ${response.status}`);
+        } catch (httpErr) {
+          console.warn(`[ObjectStorage] HTTP fetch error for ${fullUrl}:`, httpErr);
+        }
+        return null;
+      }
+
+      console.warn(`[ObjectStorage] Unknown image path format: ${imagePath}`);
+      return null;
+    } catch (error) {
+      console.error(`[ObjectStorage] Error fetching image as buffer: ${imagePath}`, error);
+      return null;
+    }
+  }
+
   // Gets the upload URL for an object entity.
   async getObjectEntityUploadURL(): Promise<string> {
     const privateObjectDir = this.getPrivateObjectDir();

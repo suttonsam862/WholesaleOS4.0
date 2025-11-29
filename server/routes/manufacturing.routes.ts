@@ -36,6 +36,9 @@ import path from 'path';
 import fs from 'fs';
 import { isValidManufacturingStatus, getValidManufacturingStatuses } from './config.routes';
 
+// Create a shared instance of ObjectStorageService for PDF exports
+const objectStorageService = new ObjectStorageService();
+
 export function registerManufacturingRoutes(app: Express): void {
   // Manufacturing Update Line Items API (specific to manufacturing updates)
   app.get('/api/manufacturing-update-line-items', isAuthenticated, loadUserData, requirePermission('manufacturing', 'read'), async (req, res) => {
@@ -68,6 +71,7 @@ export function registerManufacturingRoutes(app: Express): void {
           xl: manufacturingUpdateLineItems.xl,
           xxl: manufacturingUpdateLineItems.xxl,
           xxxl: manufacturingUpdateLineItems.xxxl,
+          xxxxl: manufacturingUpdateLineItems.xxxxl,
           // Manufacturing workflow fields
           mockupImageUrl: manufacturingUpdateLineItems.mockupImageUrl,
           actualCost: manufacturingUpdateLineItems.actualCost,
@@ -1097,12 +1101,11 @@ export function registerManufacturingRoutes(app: Express): void {
     }
   });
 
-  // Export manufacturing update as PDF - Moved earlier to ensure proper registration
+  // Export manufacturing update as PDF - Manufacturing Order Sheet format
   app.get('/api/manufacturing-updates/:id/export-pdf', isAuthenticated, loadUserData, requirePermission('manufacturing', 'read'), async (req, res) => {
     try {
       const updateId = parseInt(req.params.id);
       console.log(`[PDF EXPORT] Starting PDF export for update ID: ${updateId}`);
-      console.log(`[PDF EXPORT] User role: ${(req as AuthenticatedRequest).user.userData?.role}`);
       
       // Get the specific manufacturing update
       const update = await storage.getManufacturingUpdateById(updateId);
@@ -1119,7 +1122,6 @@ export function registerManufacturingRoutes(app: Express): void {
         manufacturingRecord = await storage.getManufacturingRecord(update.manufacturingId, user);
       } catch (dbError) {
         console.error(`[PDF EXPORT] Database error fetching manufacturing record:`, dbError);
-        // Try alternative query if column mismatch
         try {
           const [record] = await db
             .select()
@@ -1137,14 +1139,14 @@ export function registerManufacturingRoutes(app: Express): void {
         return res.status(404).json({ message: "Manufacturing record not found" });
       }
 
-      // Get order and organization details with error handling
-      let order, org;
+      // Get order and organization details
+      let order: any = null;
+      let org: any = null;
       try {
         order = manufacturingRecord.orderId ? await storage.getOrder(manufacturingRecord.orderId) : null;
         org = order?.orgId ? await storage.getOrganization(order.orgId) : null;
       } catch (err) {
         console.error(`[PDF EXPORT] Error fetching order/org details:`, err);
-        // Continue without order/org details
       }
 
       // Get line items for this update
@@ -1176,255 +1178,361 @@ export function registerManufacturingRoutes(app: Express): void {
         manufacturerMap.get(assignment.lineItemId)!.push(assignment.manufacturerName);
       });
 
-      // Create PDF using PDFKit with Rich Habits branding
+      // Pre-fetch all images using ObjectStorageService for reliability
+      // Construct base URL from request for reliable image fetching in any deployment
+      const protocol = req.protocol || 'http';
+      const host = req.get('host') || 'localhost:5000';
+      const baseUrl = `${protocol}://${host}`;
+      
+      const imageCache = new Map<string, Buffer>();
+      for (const item of lineItemsData) {
+        if (item.imageUrl) {
+          try {
+            const imageBuffer = await objectStorageService.fetchImageAsBuffer(item.imageUrl, baseUrl);
+            if (imageBuffer) {
+              imageCache.set(item.imageUrl, imageBuffer);
+              console.log(`[PDF EXPORT] Cached image for item ${item.id} (${imageBuffer.length} bytes)`);
+            }
+          } catch (err) {
+            console.warn(`[PDF EXPORT] Failed to cache image for item ${item.id}:`, err);
+          }
+        }
+      }
+
+      // Create PDF using PDFKit - Manufacturing Order Sheet format
       const doc = new PDFDocument({ 
-        margin: 50,
+        margin: 40,
         size: 'LETTER',
         bufferPages: true
       });
       const chunks: Buffer[] = [];
-      
-      // Collect PDF data
       doc.on('data', (chunk) => chunks.push(chunk));
       
-      // Rich Habits brand colors (approximation based on professional branding)
+      // Brand colors
       const brandBlack = '#000000';
       const brandGray = '#666666';
-      const accentColor = '#333333';
+      const lightGray = '#F5F5F5';
+      const borderColor = '#DDDDDD';
+      const headerBg = '#1a1a2e';
+
+      const pageWidth = doc.page.width;
+      const pageHeight = doc.page.height;
+      const margin = 40;
+      const contentWidth = pageWidth - (margin * 2);
       
-      // Add Rich Habits logo (smaller, top-right corner)
+      // Try to load company logo
+      let logoBuffer: Buffer | null = null;
       try {
         const logoPath = path.join(process.cwd(), 'attached_assets', 'BlackPNG_New_Rich_Habits_Logo_caa84ddc-c1dc-49fa-a3cf-063db73499d3_1761071466643.png');
         if (fs.existsSync(logoPath)) {
-          // Position logo in top-right corner, smaller size
-          doc.image(logoPath, doc.page.width - 110, 45, { width: 60 });
+          logoBuffer = fs.readFileSync(logoPath);
         }
       } catch (err) {
-        console.warn('[PDF EXPORT] Could not load Rich Habits logo:', err);
+        console.warn('[PDF EXPORT] Could not load company logo:', err);
       }
+
+      // Helper function to draw header on each page
+      const drawPageHeader = () => {
+        // Header background
+        doc.rect(0, 0, pageWidth, 70).fill('#ffffff');
+        
+        // Logo (left side)
+        if (logoBuffer) {
+          try {
+            doc.image(logoBuffer, margin, 15, { height: 40 });
+          } catch (e) {
+            console.warn('[PDF EXPORT] Failed to render logo');
+          }
+        }
+        
+        // Title (right side)
+        doc.fontSize(22)
+           .fillColor(brandBlack)
+           .text('MANUFACTURING ORDER', margin, 20, { 
+             width: contentWidth, 
+             align: 'right' 
+           });
+        
+        doc.fontSize(10)
+           .fillColor(brandGray)
+           .text(`Order: ${order?.orderCode || 'N/A'} | ${org?.name || 'N/A'}`, margin, 45, { 
+             width: contentWidth, 
+             align: 'right' 
+           });
+        
+        // Header line
+        doc.moveTo(margin, 65)
+           .lineTo(pageWidth - margin, 65)
+           .strokeColor(brandBlack)
+           .lineWidth(2)
+           .stroke();
+      };
+
+      // Draw header on first page
+      drawPageHeader();
+      doc.y = 80;
+
+      // Order Summary Box
+      doc.rect(margin, doc.y, contentWidth, 60)
+         .fillAndStroke(lightGray, borderColor);
       
-      // Header with company branding
-      doc.fontSize(24)
+      const summaryY = doc.y + 10;
+      const col1 = margin + 15;
+      const col2 = margin + contentWidth * 0.35;
+      const col3 = margin + contentWidth * 0.65;
+      
+      doc.fontSize(9).fillColor(brandGray);
+      doc.text('Status:', col1, summaryY);
+      doc.text('Date:', col2, summaryY);
+      doc.text('Total Items:', col3, summaryY);
+      
+      doc.fontSize(11).fillColor(brandBlack);
+      doc.text(update.status.replace(/_/g, ' ').toUpperCase(), col1, summaryY + 14);
+      doc.text(update.createdAt ? new Date(update.createdAt).toLocaleDateString('en-US', { 
+        year: 'numeric', month: 'short', day: 'numeric' 
+      }) : 'N/A', col2, summaryY + 14);
+      
+      // Calculate total quantity
+      let totalQty = 0;
+      lineItemsData.forEach(item => {
+        totalQty += (item.yxs || 0) + (item.ys || 0) + (item.ym || 0) + (item.yl || 0) +
+                   (item.xs || 0) + (item.s || 0) + (item.m || 0) + (item.l || 0) +
+                   (item.xl || 0) + (item.xxl || 0) + (item.xxxl || 0) + (item.xxxxl || 0);
+      });
+      doc.text(`${lineItemsData.length} items (${totalQty} units)`, col3, summaryY + 14);
+      
+      doc.y = summaryY + 60;
+
+      // Line Items Section
+      doc.fontSize(14)
          .fillColor(brandBlack)
-         .text('Manufacturing Update', 50, 50, { align: 'left' });
-      
-      doc.moveTo(50, doc.y + 10)
-         .lineTo(doc.page.width - 50, doc.y + 10)
-         .strokeColor(accentColor)
-         .lineWidth(2)
-         .stroke();
-      
-      doc.moveDown(1);
-      
-      // Update details in a professional format
-      doc.fontSize(11).fillColor(brandGray);
-      const detailsY = doc.y;
-      doc.text(`Update ID:`, 50, detailsY, { continued: true })
-         .fillColor(brandBlack)
-         .text(` ${update.id}`);
-      
-      doc.fillColor(brandGray)
-         .text(`Order Code:`, 50, doc.y + 5, { continued: true })
-         .fillColor(brandBlack)
-         .text(` ${order?.orderCode || 'N/A'}`);
-      
-      doc.fillColor(brandGray)
-         .text(`Organization:`, 50, doc.y + 5, { continued: true })
-         .fillColor(brandBlack)
-         .text(` ${org?.name || 'N/A'}`);
-      
-      doc.fillColor(brandGray)
-         .text(`Status:`, 50, doc.y + 5, { continued: true })
-         .fillColor(brandBlack)
-         .text(` ${update.status.replace(/_/g, ' ').toUpperCase()}`);
-      
-      doc.fillColor(brandGray)
-         .text(`Date:`, 50, doc.y + 5, { continued: true })
-         .fillColor(brandBlack)
-         .text(` ${update.createdAt ? new Date(update.createdAt).toLocaleDateString('en-US', { 
-           year: 'numeric', 
-           month: 'long', 
-           day: 'numeric' 
-         }) : 'N/A'}`);
-      
-      doc.moveDown(2);
-      
-      // Line items section header
-      doc.fontSize(16)
-         .fillColor(brandBlack)
-         .text('Product Line Items', { underline: true });
+         .text('LINE ITEMS', margin, doc.y);
       doc.moveDown(0.5);
-      
+
       if (lineItemsData.length === 0) {
         doc.fontSize(10).fillColor(brandGray).text('No line items found');
       } else {
-        // Process each line item with images and descriptors
+        // Process each line item
         for (let index = 0; index < lineItemsData.length; index++) {
           const item = lineItemsData[index];
           
-          // Check if we need a new page
-          if (doc.y > 620) {
-            doc.addPage();
-          }
+          // Calculate required height for this item
+          const itemHeight = 180; // Fixed height per item for consistency
           
-          // Item number and product name
-          doc.fontSize(12)
-             .fillColor(brandBlack)
-             .text(`${index + 1}. ${item.productName || 'N/A'}`, { underline: true });
-          doc.moveDown(0.5);
+          // Check if we need a new page
+          if (doc.y + itemHeight > pageHeight - 60) {
+            doc.addPage();
+            drawPageHeader();
+            doc.y = 80;
+          }
           
           const itemStartY = doc.y;
-          const imageBoxWidth = 120;
-          const imageBoxHeight = 120;
-          const imageX = doc.page.width - imageBoxWidth - 50;
-          let actualImageHeight = imageBoxHeight;
+          const imageSize = 140;
+          const imageX = margin;
+          const textX = margin + imageSize + 20;
+          const textWidth = contentWidth - imageSize - 30;
           
-          // Try to add order line item image, or show "No Image" box
+          // Item container with border
+          doc.rect(margin, itemStartY, contentWidth, itemHeight - 10)
+             .strokeColor(borderColor)
+             .lineWidth(1)
+             .stroke();
+          
+          // Item number badge
+          doc.circle(margin + 15, itemStartY + 15, 12)
+             .fill(brandBlack);
+          doc.fontSize(10)
+             .fillColor('#ffffff')
+             .text(`${index + 1}`, margin + 8, itemStartY + 10, { width: 14, align: 'center' });
+          
+          // Product Image (left side)
           let hasImage = false;
-          if (item.imageUrl) {
+          if (item.imageUrl && imageCache.has(item.imageUrl)) {
             try {
-              // Convert relative URLs to absolute URLs for server-side fetch
-              let imageUrl = item.imageUrl;
-              if (imageUrl.startsWith('/')) {
-                // Relative URL - construct absolute URL using request host
-                const protocol = req.protocol || 'http';
-                const host = req.get('host') || 'localhost:5000';
-                imageUrl = `${protocol}://${host}${imageUrl}`;
-              }
-              
-              console.log(`[PDF EXPORT] Fetching order line item image from: ${imageUrl}`);
-              const imageResponse = await fetch(imageUrl);
-              
-              if (imageResponse.ok) {
-                const imageBuffer = Buffer.from(await imageResponse.arrayBuffer());
-                console.log(`[PDF EXPORT] Successfully loaded image (${imageBuffer.length} bytes)`);
-                
-                // PDFKit automatically handles image sizing and aspect ratio
-                // We just need to fit it within our box constraints
-                doc.image(imageBuffer, imageX, itemStartY, {
-                  fit: [imageBoxWidth, imageBoxHeight],
-                  align: 'center',
-                  valign: 'center'
-                });
-                
-                hasImage = true;
-                console.log(`[PDF EXPORT] Image rendered successfully for item ${item.id}`);
-              } else {
-                console.warn(`[PDF EXPORT] Failed to fetch image: ${imageResponse.status} ${imageResponse.statusText}`);
-              }
+              const imageBuffer = imageCache.get(item.imageUrl)!;
+              doc.image(imageBuffer, imageX + 10, itemStartY + 30, {
+                fit: [imageSize - 20, imageSize - 40],
+                align: 'center',
+                valign: 'center'
+              });
+              hasImage = true;
             } catch (imgErr) {
-              console.error(`[PDF EXPORT] Error loading order line item image for item ${item.id}:`, imgErr);
+              console.error(`[PDF EXPORT] Error rendering image for item ${item.id}:`, imgErr);
             }
-          } else {
-            console.log(`[PDF EXPORT] No image URL for item ${item.id}`);
           }
           
-          // Save Y position before drawing image (images can affect doc.y)
-          const savedY = doc.y;
-          
-          // If no image loaded, draw "No Image" box
+          // Fallback "No Image" box
           if (!hasImage) {
-            doc.rect(imageX, itemStartY, imageBoxWidth, imageBoxHeight)
+            doc.rect(imageX + 10, itemStartY + 30, imageSize - 20, imageSize - 40)
                .strokeColor('#CCCCCC')
                .lineWidth(1)
                .stroke();
             
             doc.fontSize(10)
                .fillColor('#999999')
-               .text('No Image', imageX, itemStartY + imageBoxHeight / 2 - 5, {
-                 width: imageBoxWidth,
+               .text('No Image', imageX + 10, itemStartY + 30 + (imageSize - 40) / 2 - 5, {
+                 width: imageSize - 20,
                  align: 'center'
                });
           }
           
-          // Restore Y position so text isn't affected by image placement
-          doc.y = savedY;
+          // Product Details (right side)
+          let currentY = itemStartY + 10;
           
-          // Product details (left side, accounting for image box)
-          const textWidth = doc.page.width - imageBoxWidth - 120;
-          let currentY = itemStartY;
-          
-          doc.fontSize(10).fillColor(brandGray);
-          doc.text('Variant Code: ', 50, currentY, { continued: true, width: textWidth });
-          doc.fillColor(brandBlack).text(item.variantCode || 'N/A', { width: textWidth });
+          // Product Name
+          doc.fontSize(14)
+             .fillColor(brandBlack)
+             .text(item.productName || 'N/A', textX, currentY, { width: textWidth });
           currentY = doc.y + 5;
           
-          doc.fillColor(brandGray);
-          doc.text('Color: ', 50, currentY, { continued: true, width: textWidth });
-          doc.fillColor(brandBlack).text(item.variantColor || 'N/A', { width: textWidth });
-          currentY = doc.y + 5;
-          
-          // Manufacturer assignment
-          const assignedManufacturers = manufacturerMap.get(item.lineItemId) || [];
-          doc.fillColor(brandGray);
-          doc.text('Manufacturer: ', 50, currentY, { continued: true, width: textWidth });
-          doc.fillColor(brandBlack).text(assignedManufacturers.length > 0 ? assignedManufacturers.join(', ') : 'Not Assigned', { width: textWidth });
-          currentY = doc.y + 5;
-          
-          // Size breakdown
-          const sizes = [
-            item.yxs && `YXS: ${item.yxs}`,
-            item.ys && `YS: ${item.ys}`,
-            item.ym && `YM: ${item.ym}`,
-            item.yl && `YL: ${item.yl}`,
-            item.xs && `XS: ${item.xs}`,
-            item.s && `S: ${item.s}`,
-            item.m && `M: ${item.m}`,
-            item.l && `L: ${item.l}`,
-            item.xl && `XL: ${item.xl}`,
-            item.xxl && `2XL: ${item.xxl}`,
-            item.xxxl && `3XL: ${item.xxxl}`,
-          ].filter(Boolean).join(', ');
-          
-          doc.fillColor(brandGray);
-          doc.text('Sizes: ', 50, currentY, { continued: true, width: textWidth });
-          doc.fillColor(brandBlack).text(sizes || 'No sizes specified', { width: textWidth });
+          // Variant Info Row
+          doc.fontSize(9).fillColor(brandGray);
+          const variantInfo = [
+            item.variantCode && `Code: ${item.variantCode}`,
+            item.variantColor && `Color: ${item.variantColor}`,
+          ].filter(Boolean).join(' | ');
+          doc.text(variantInfo || 'No variant info', textX, currentY, { width: textWidth });
           currentY = doc.y + 8;
           
-          // Descriptors section
-          if (item.descriptors && Array.isArray(item.descriptors) && item.descriptors.length > 0) {
-            doc.fillColor(brandGray);
-            doc.text('Descriptors:', 50, currentY, { width: textWidth });
-            currentY = doc.y + 3;
+          // Manufacturer
+          const assignedManufacturers = manufacturerMap.get(item.lineItemId) || [];
+          doc.fontSize(10).fillColor(brandGray);
+          doc.text('Manufacturer: ', textX, currentY, { continued: true });
+          doc.fillColor(assignedManufacturers.length > 0 ? brandBlack : '#cc0000')
+             .text(assignedManufacturers.length > 0 ? assignedManufacturers.join(', ') : 'NOT ASSIGNED');
+          currentY = doc.y + 10;
+          
+          // Size Breakdown Table
+          doc.fontSize(9).fillColor(brandGray).text('SIZE BREAKDOWN:', textX, currentY);
+          currentY = doc.y + 5;
+          
+          // Build sizes array with values
+          const sizeData = [
+            { label: 'YXS', qty: item.yxs || 0 },
+            { label: 'YS', qty: item.ys || 0 },
+            { label: 'YM', qty: item.ym || 0 },
+            { label: 'YL', qty: item.yl || 0 },
+            { label: 'XS', qty: item.xs || 0 },
+            { label: 'S', qty: item.s || 0 },
+            { label: 'M', qty: item.m || 0 },
+            { label: 'L', qty: item.l || 0 },
+            { label: 'XL', qty: item.xl || 0 },
+            { label: '2XL', qty: item.xxl || 0 },
+            { label: '3XL', qty: item.xxxl || 0 },
+            { label: '4XL', qty: item.xxxxl || 0 },
+          ].filter(s => s.qty > 0);
+          
+          if (sizeData.length > 0) {
+            // Draw size table
+            const cellWidth = 35;
+            const cellHeight = 28;
+            const maxCols = Math.min(sizeData.length, 8);
+            const tableWidth = cellWidth * maxCols;
             
-            item.descriptors.forEach((descriptor: string) => {
-              doc.fontSize(9)
+            let tableX = textX;
+            let tableY = currentY;
+            let col = 0;
+            
+            sizeData.forEach((size, idx) => {
+              if (col >= maxCols) {
+                col = 0;
+                tableY += cellHeight;
+              }
+              
+              const cellX = tableX + (col * cellWidth);
+              
+              // Cell background
+              doc.rect(cellX, tableY, cellWidth, cellHeight)
+                 .fillAndStroke(lightGray, borderColor);
+              
+              // Size label
+              doc.fontSize(8)
+                 .fillColor(brandGray)
+                 .text(size.label, cellX, tableY + 4, { width: cellWidth, align: 'center' });
+              
+              // Quantity
+              doc.fontSize(12)
                  .fillColor(brandBlack)
-                 .text(`  • ${descriptor}`, 55, currentY, { width: textWidth - 5 });
-              currentY = doc.y + 2;
+                 .text(size.qty.toString(), cellX, tableY + 14, { width: cellWidth, align: 'center' });
+              
+              col++;
             });
+            
+            // Total quantity box - always show at end of sizes
+            const totalItemQty = sizeData.reduce((sum, s) => sum + s.qty, 0);
+            
+            // If current row still has space, put total there; otherwise put on new row
+            let totalX: number;
+            let totalY: number;
+            if (col < maxCols) {
+              totalX = tableX + (col * cellWidth) + 5;
+              totalY = tableY;
+            } else {
+              // Total box goes below on a new line
+              totalX = tableX;
+              totalY = tableY + cellHeight;
+            }
+            
+            doc.rect(totalX, totalY, 50, cellHeight)
+               .fillAndStroke('#1a1a2e', '#1a1a2e');
+            
+            doc.fontSize(8)
+               .fillColor('#ffffff')
+               .text('TOTAL', totalX, totalY + 4, { width: 50, align: 'center' });
+            
+            doc.fontSize(12)
+               .fillColor('#ffffff')
+               .text(totalItemQty.toString(), totalX, totalY + 14, { width: 50, align: 'center' });
+            
+            currentY = (col >= maxCols ? totalY : tableY) + cellHeight + 8;
+          } else {
+            doc.fontSize(10).fillColor('#999999').text('No sizes specified', textX, currentY);
+            currentY = doc.y + 10;
           }
           
-          // Ensure we move past the image box if text is shorter
-          const textEndY = currentY;
-          const imageEndY = itemStartY + imageBoxHeight;
-          const rowEndY = Math.max(textEndY, imageEndY);
+          // Descriptors
+          if (item.descriptors && Array.isArray(item.descriptors) && item.descriptors.length > 0) {
+            doc.fontSize(9).fillColor(brandGray).text('Notes:', textX, currentY);
+            currentY = doc.y + 2;
+            
+            item.descriptors.slice(0, 3).forEach((descriptor: string) => {
+              doc.fontSize(9)
+                 .fillColor(brandBlack)
+                 .text(`• ${descriptor}`, textX + 5, currentY, { width: textWidth - 10 });
+              currentY = doc.y + 1;
+            });
+            
+            if (item.descriptors.length > 3) {
+              doc.fontSize(8)
+                 .fillColor(brandGray)
+                 .text(`+ ${item.descriptors.length - 3} more...`, textX + 5, currentY);
+            }
+          }
           
-          // Move to end of row
-          doc.y = rowEndY + 15;
-          
-          // Draw separator line
-          doc.moveTo(50, doc.y)
-             .lineTo(doc.page.width - 50, doc.y)
-             .strokeColor('#CCCCCC')
-             .lineWidth(0.5)
-             .stroke();
-          
-          doc.moveDown(1);
+          // Move to next item
+          doc.y = itemStartY + itemHeight;
         }
       }
       
-      // Footer with Rich Habits branding
+      // Footer on all pages
       const pageCount = doc.bufferedPageRange().count;
       for (let i = 0; i < pageCount; i++) {
         doc.switchToPage(i);
+        
+        // Footer line
+        doc.moveTo(margin, pageHeight - 40)
+           .lineTo(pageWidth - margin, pageHeight - 40)
+           .strokeColor(borderColor)
+           .lineWidth(0.5)
+           .stroke();
+        
         doc.fontSize(8)
            .fillColor(brandGray)
            .text(
-             `Rich Habits Manufacturing | Page ${i + 1} of ${pageCount}`,
-             50,
-             doc.page.height - 50,
-             { align: 'center' }
+             `Rich Habits Manufacturing Order | Generated ${new Date().toLocaleDateString('en-US')} | Page ${i + 1} of ${pageCount}`,
+             margin,
+             pageHeight - 30,
+             { width: contentWidth, align: 'center' }
            );
       }
       
@@ -1441,8 +1549,11 @@ export function registerManufacturingRoutes(app: Express): void {
         doc.on('error', reject);
       });
       
+      // Generate filename
+      const filename = `Manufacturing-Order-${order?.orderCode || updateId}-${new Date().toISOString().split('T')[0]}.pdf`;
+      
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="manufacturing-update-${updateId}.pdf"`);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(pdfBuffer);
     } catch (error) {
       console.error("[PDF EXPORT] Error:", error);
@@ -1451,8 +1562,7 @@ export function registerManufacturingRoutes(app: Express): void {
       if (!res.headersSent) {
         res.status(500).json({ 
           message: "Failed to generate PDF export", 
-          error: error instanceof Error ? error.message : String(error),
-          stack: process.env.NODE_ENV === 'development' ? (error instanceof Error ? error.stack : undefined) : undefined
+          error: error instanceof Error ? error.message : String(error)
         });
       }
     }
