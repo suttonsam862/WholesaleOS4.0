@@ -1861,6 +1861,12 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  /**
+   * INTERNAL USE ONLY - Fetches a manufacturing record by ID without role-based filtering.
+   * Use getManufacturingRecord(id, user) for user-facing operations to enforce RBAC.
+   * This method is intended for internal service layer operations where authorization
+   * has already been verified at the route handler level.
+   */
   async getManufacturingRecordStrict(id: number): Promise<(Manufacturing & { order?: Order; manufacturer?: Manufacturer; assignedUser?: User }) | undefined> {
     const [result] = await db
       .select({

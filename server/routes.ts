@@ -3474,9 +3474,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put('/api/manufacturing/:id', isAuthenticated, loadUserData, requirePermission('manufacturing', 'write'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const user = (req as AuthenticatedRequest).user.userData!;
       const validatedData = insertManufacturingSchema.partial().parse(req.body);
 
-      const existingRecord = await storage.getManufacturingRecordStrict(id);
+      const existingRecord = await storage.getManufacturingRecord(id, user);
       if (!existingRecord) {
         return res.status(404).json({ message: "Manufacturing record not found" });
       }
@@ -3489,14 +3490,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           manufacturingId: id,
           status: validatedData.status,
           notes: req.body.statusNotes || `Status changed from ${existingRecord.status} to ${validatedData.status}`,
-          updatedBy: (req as AuthenticatedRequest).user.userData!.id,
+          updatedBy: user.id,
           manufacturerId: updatedRecord.manufacturerId || undefined,
         });
       }
 
       // Log activity
       await storage.logActivity(
-        (req as AuthenticatedRequest).user.userData!.id,
+        user.id,
         'manufacturing',
         id,
         'updated',
@@ -3517,8 +3518,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/manufacturing/:id', isAuthenticated, loadUserData, requirePermission('manufacturing', 'delete'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const user = (req as AuthenticatedRequest).user.userData!;
 
-      const existingRecord = await storage.getManufacturingRecordStrict(id);
+      const existingRecord = await storage.getManufacturingRecord(id, user);
       if (!existingRecord) {
         return res.status(404).json({ message: "Manufacturing record not found" });
       }
@@ -3527,7 +3529,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Log activity
       await storage.logActivity(
-        (req as AuthenticatedRequest).user.userData!.id,
+        user.id,
         'manufacturing',
         id,
         'deleted',
