@@ -123,7 +123,7 @@ export class ManufacturingService {
     userId: string
   ): Promise<Manufacturing> {
     // Get the existing manufacturing record
-    const existing = await storage.getManufacturingRecord(manufacturingId);
+    const existing = await storage.getManufacturingRecordStrict(manufacturingId);
     if (!existing) {
       throw new NotFoundError('Manufacturing', manufacturingId);
     }
@@ -181,7 +181,7 @@ export class ManufacturingService {
     newStatus: ManufacturingStatus,
     userId: string
   ): Promise<Manufacturing> {
-    const existing = await storage.getManufacturingRecord(manufacturingId);
+    const existing = await storage.getManufacturingRecordStrict(manufacturingId);
     if (!existing) {
       throw new NotFoundError('Manufacturing', manufacturingId);
     }
@@ -224,7 +224,7 @@ export class ManufacturingService {
     manufacturingId: number,
     userId: string
   ): Promise<void> {
-    const manufacturing = await storage.getManufacturingRecord(manufacturingId);
+    const manufacturing = await storage.getManufacturingRecordStrict(manufacturingId);
     if (!manufacturing) {
       return;
     }
@@ -248,7 +248,7 @@ export class ManufacturingService {
    * Get a manufacturing record by ID
    */
   static async getManufacturingById(manufacturingId: number): Promise<Manufacturing> {
-    const manufacturing = await storage.getManufacturingRecord(manufacturingId);
+    const manufacturing = await storage.getManufacturingRecordStrict(manufacturingId);
     if (!manufacturing) {
       throw new NotFoundError('Manufacturing', manufacturingId);
     }
