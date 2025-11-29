@@ -299,6 +299,7 @@ export interface IStorage {
   // Manufacturing operations
   getManufacturing(user?: User): Promise<(Manufacturing & { order?: Order; manufacturer?: Manufacturer; assignedUser?: User })[]>;
   getManufacturingRecord(id: number, user?: User): Promise<(Manufacturing & { order?: Order; manufacturer?: Manufacturer; assignedUser?: User }) | undefined>;
+  getManufacturingRecordStrict(id: number): Promise<(Manufacturing & { order?: Order; manufacturer?: Manufacturer; assignedUser?: User }) | undefined>;
   getManufacturingByOrder(orderId: number): Promise<Manufacturing | undefined>;
   createManufacturing(record: InsertManufacturing): Promise<Manufacturing>;
   updateManufacturing(id: number, record: Partial<InsertManufacturing>): Promise<Manufacturing>;
@@ -1849,6 +1850,30 @@ export class DatabaseStorage implements IStorage {
     } else {
       return undefined; // Unknown role
     }
+
+    if (!result) return undefined;
+
+    return {
+      ...result.manufacturing,
+      order: result.order || undefined,
+      manufacturer: result.manufacturer || undefined,
+      assignedUser: result.assignedUser || undefined,
+    };
+  }
+
+  async getManufacturingRecordStrict(id: number): Promise<(Manufacturing & { order?: Order; manufacturer?: Manufacturer; assignedUser?: User }) | undefined> {
+    const [result] = await db
+      .select({
+        manufacturing: manufacturing,
+        order: orders,
+        manufacturer: manufacturers,
+        assignedUser: users,
+      })
+      .from(manufacturing)
+      .leftJoin(orders, eq(manufacturing.orderId, orders.id))
+      .leftJoin(manufacturers, eq(manufacturing.manufacturerId, manufacturers.id))
+      .leftJoin(users, eq(manufacturing.assignedTo, users.id))
+      .where(eq(manufacturing.id, id));
 
     if (!result) return undefined;
 
