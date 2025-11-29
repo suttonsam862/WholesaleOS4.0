@@ -3476,7 +3476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const id = parseInt(req.params.id);
       const validatedData = insertManufacturingSchema.partial().parse(req.body);
 
-      const existingRecord = await storage.getManufacturingRecord(id);
+      const existingRecord = await storage.getManufacturingRecordStrict(id);
       if (!existingRecord) {
         return res.status(404).json({ message: "Manufacturing record not found" });
       }
@@ -3518,7 +3518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const id = parseInt(req.params.id);
 
-      const existingRecord = await storage.getManufacturingRecord(id);
+      const existingRecord = await storage.getManufacturingRecordStrict(id);
       if (!existingRecord) {
         return res.status(404).json({ message: "Manufacturing record not found" });
       }
