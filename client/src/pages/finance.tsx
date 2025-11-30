@@ -39,8 +39,14 @@ import {
   Receipt,
   CreditCard,
   Users,
-  Building2
+  Building2,
+  Link2,
+  Eye,
+  CheckCircle2,
+  AlertCircle,
+  Clock
 } from "lucide-react";
+import { FinancialMatchingModal } from "@/components/modals/financial-matching-modal";
 import { format } from "date-fns";
 import type { Invoice, InvoicePayment, CommissionPayment, InsertFinancialTransaction } from "@shared/schema";
 import { cn } from "@/lib/utils";
@@ -67,6 +73,31 @@ interface UnifiedFinancialRecord {
   details?: Record<string, any>;
 }
 
+interface FinancialMatchingOrder {
+  id: number;
+  orderCode: string;
+  orderName: string;
+  status: string;
+  createdAt: string;
+  orgId: number | null;
+  salespersonId: string | null;
+  organization?: { id: number; name: string; logoUrl?: string };
+  salesperson?: { id: string; firstName: string; lastName: string };
+  financialSummary: {
+    invoiceCount: number;
+    paymentCount: number;
+    commissionCount: number;
+    totalInvoiceAmount: number;
+    totalPaymentsReceived: number;
+    totalCommissions: number;
+    totalCommissionsPaid: number;
+    totalInflows: number;
+    totalOutflows: number;
+    netCashFlow: number;
+    matchStatus: 'matched' | 'partial' | 'unmatched';
+  };
+}
+
 const CATEGORY_OPTIONS = [
   "Sales",
   "Services",
@@ -89,6 +120,10 @@ export default function Finance() {
   const [typeFilter, setTypeFilter] = useState<"all" | "invoice" | "payment" | "commission">("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState("overview");
+  
+  const [matchingSearchQuery, setMatchingSearchQuery] = useState("");
+  const [matchingStatusFilter, setMatchingStatusFilter] = useState<string>("all");
+  const [selectedOrderForMatching, setSelectedOrderForMatching] = useState<FinancialMatchingOrder | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -158,6 +193,35 @@ export default function Finance() {
       return [];
     },
     retry: false,
+  });
+
+  const { data: matchingOrders = [], isLoading: matchingOrdersLoading } = useQuery<FinancialMatchingOrder[]>({
+    queryKey: ["/api/financial-matching/orders"],
+    queryFn: async () => {
+      const response = await fetch('/api/financial-matching/orders', { credentials: 'include' });
+      if (response.ok) {
+        return response.json();
+      }
+      return [];
+    },
+    retry: false,
+  });
+
+  const filteredMatchingOrders = matchingOrders.filter(order => {
+    if (matchingSearchQuery) {
+      const query = matchingSearchQuery.toLowerCase();
+      const matchesSearch = 
+        order.orderCode?.toLowerCase().includes(query) ||
+        order.orderName?.toLowerCase().includes(query) ||
+        order.organization?.name?.toLowerCase().includes(query);
+      if (!matchesSearch) return false;
+    }
+    
+    if (matchingStatusFilter !== "all" && order.financialSummary.matchStatus !== matchingStatusFilter) {
+      return false;
+    }
+    
+    return true;
   });
 
   const unifiedRecords: UnifiedFinancialRecord[] = [
@@ -364,6 +428,10 @@ export default function Finance() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="bg-black/20 border-white/10">
           <TabsTrigger value="overview" data-testid="tab-overview">All Records</TabsTrigger>
+          <TabsTrigger value="matching" data-testid="tab-matching">
+            <Link2 className="h-4 w-4 mr-2" />
+            Financial Matching ({matchingOrders.length})
+          </TabsTrigger>
           <TabsTrigger value="invoices" data-testid="tab-invoices">Invoices ({invoices.length})</TabsTrigger>
           <TabsTrigger value="payments" data-testid="tab-payments">Payments ({invoicePayments.length})</TabsTrigger>
           <TabsTrigger value="commissions" data-testid="tab-commissions">Commissions ({commissionPayments.length})</TabsTrigger>
@@ -460,6 +528,166 @@ export default function Finance() {
               </div>
             )}
           </div>
+        </TabsContent>
+
+        <TabsContent value="matching" className="space-y-4 mt-4">
+          <Card className="glass-card border-white/10">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Link2 className="h-5 w-5" />
+                Financial Matching
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Match orders with invoices, payments, and commissions. Click on an order to view and manage its financial flows.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search orders by code, name, or organization..."
+                    value={matchingSearchQuery}
+                    onChange={(e) => setMatchingSearchQuery(e.target.value)}
+                    className="pl-9 bg-black/20 border-white/10 text-white"
+                    data-testid="input-search-matching"
+                  />
+                </div>
+                <Select value={matchingStatusFilter} onValueChange={setMatchingStatusFilter}>
+                  <SelectTrigger className="bg-black/20 border-white/10 text-white" data-testid="select-matching-status">
+                    <SelectValue placeholder="All Match Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="matched">Matched</SelectItem>
+                    <SelectItem value="partial">Partial</SelectItem>
+                    <SelectItem value="unmatched">Unmatched</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {matchingOrdersLoading ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Clock className="h-12 w-12 mx-auto mb-4 animate-spin opacity-50" />
+              <p>Loading orders...</p>
+            </div>
+          ) : filteredMatchingOrders.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground" data-testid="empty-matching-orders">
+              <Link2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No orders found for financial matching.</p>
+              <p className="text-sm mt-1">Orders from the past year will appear here.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredMatchingOrders.map(order => {
+                const getMatchStatusIcon = (status: string) => {
+                  switch (status) {
+                    case 'matched': return <CheckCircle2 className="h-4 w-4 text-green-400" />;
+                    case 'partial': return <AlertCircle className="h-4 w-4 text-yellow-400" />;
+                    default: return <Clock className="h-4 w-4 text-gray-400" />;
+                  }
+                };
+
+                const getMatchStatusColor = (status: string) => {
+                  switch (status) {
+                    case 'matched': return 'bg-green-500/20 text-green-400 border-green-500/30';
+                    case 'partial': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+                    default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+                  }
+                };
+
+                return (
+                  <Card 
+                    key={order.id} 
+                    className="glass-card border-white/10 hover:border-primary/50 transition-all duration-300 cursor-pointer"
+                    onClick={() => setSelectedOrderForMatching(order)}
+                    data-testid={`card-matching-order-${order.id}`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 flex-1">
+                          <div className="h-10 w-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                            <Link2 className="h-5 w-5 text-indigo-400" />
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium text-foreground" data-testid={`text-order-code-${order.id}`}>
+                                {order.orderCode}
+                              </h4>
+                              <Badge variant="outline" className={cn("text-xs capitalize", getMatchStatusColor(order.financialSummary.matchStatus))}>
+                                {getMatchStatusIcon(order.financialSummary.matchStatus)}
+                                <span className="ml-1">{order.financialSummary.matchStatus}</span>
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <span>{order.orderName}</span>
+                              {order.organization && (
+                                <>
+                                  <span>•</span>
+                                  <span className="flex items-center gap-1">
+                                    <Building2 className="h-3 w-3" />
+                                    {order.organization.name}
+                                  </span>
+                                </>
+                              )}
+                              <span>•</span>
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {order.createdAt ? format(new Date(order.createdAt), "MMM d, yyyy") : 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">Invoices / Payments</p>
+                            <p className="font-medium text-blue-400">
+                              {order.financialSummary.invoiceCount} / {order.financialSummary.paymentCount}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">Inflows</p>
+                            <p className="font-medium text-green-400" data-testid={`text-inflows-${order.id}`}>
+                              {formatCurrency(order.financialSummary.totalInflows)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">Outflows</p>
+                            <p className="font-medium text-red-400" data-testid={`text-outflows-${order.id}`}>
+                              {formatCurrency(order.financialSummary.totalOutflows)}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">Net Cash Flow</p>
+                            <p className={cn(
+                              "font-bold",
+                              order.financialSummary.netCashFlow >= 0 ? "text-green-400" : "text-red-400"
+                            )} data-testid={`text-net-${order.id}`}>
+                              {formatCurrency(order.financialSummary.netCashFlow)}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="ml-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedOrderForMatching(order);
+                            }}
+                            data-testid={`button-view-matching-${order.id}`}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="invoices" className="space-y-4 mt-4">
@@ -603,6 +831,16 @@ export default function Finance() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {selectedOrderForMatching && (
+        <FinancialMatchingModal
+          isOpen={!!selectedOrderForMatching}
+          onClose={() => setSelectedOrderForMatching(null)}
+          orderId={selectedOrderForMatching.id}
+          orderName={selectedOrderForMatching.orderName}
+          orderCode={selectedOrderForMatching.orderCode}
+        />
+      )}
     </div>
   );
 }
