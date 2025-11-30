@@ -4,6 +4,7 @@
 A comprehensive wholesale management platform designed to streamline wholesale operations, enhance collaboration, and provide valuable insights for various user roles. The platform offers robust order management, automated manufacturing workflows, granular permission controls, task management, and real-time communication tracking. The business vision is to establish a central hub for efficient wholesale trade, improving operational efficiency and driving data-driven decision-making to increase market potential.
 
 ## Recent Changes
+- **Feature Update (2025-11-30)**: Enhanced Financial Matching tab on Finance page. Now shows ALL orders in the database (no year restriction). Added organization filter, year filter, and sorting options (newest/oldest, net cash flow, order code). Users can match any order with invoices, commissions, and expense payments through the FinancialMatchingModal.
 - **Feature Update (2025-11-26)**: Added DataCapsule quick view integration to Manufacturing page. Clicking the Eye icon on manufacturing records opens the DataCapsule modal showing the related order details. DataCapsule provides a glass-morphism styled view with collapsible line items, beautiful image gallery with lightbox, and callback to open the full detail modal.
 - **Bug Fix (2025-11-26)**: Fixed critical line item refresh bug by passing user parameter to `getManufacturingRecord()` function in manufacturing routes.
 - **Enhancement (2025-11-26)**: Enhanced DataCapsule component with collapsible line items, image gallery with lightbox, and onOpenFullView callback for seamless modal switching.
@@ -41,7 +42,7 @@ A comprehensive wholesale management platform designed to streamline wholesale o
 - **Communication Logging**: Real-time tracking of lead interactions.
 - **Organization Management**: Organization logo upload with real-time preview.
 - **Spreadsheet Orders View**: Dynamic grouping, gradient row backgrounds based on organization logos, tab-based interface, and comprehensive column display.
-- **Financial Matching**: Tab within Finance page showing orders from past year with financial summaries. Modal-based workflow displays inflows (invoice payments) and outflows (commissions, costs) in two columns. Users can assign unlinked transactions to orders, view auto-assigned transactions, and track complete financial flows at the order level. Includes financial summary cards showing total inflows, outflows, and net cash flow.
+- **Financial Matching**: Tab within Finance page showing ALL orders from the entire database (no year restriction). Features search, match status filter, organization filter, year filter, and multiple sorting options. Modal-based workflow displays inflows (invoice payments) and outflows (commissions, costs) in two columns. Users can assign unlinked transactions to orders, view auto-assigned transactions, and track complete financial flows at the order level. Includes financial summary cards showing total inflows, outflows, and net cash flow.
 
 ## External Dependencies
 - **PostgreSQL**: Primary database.

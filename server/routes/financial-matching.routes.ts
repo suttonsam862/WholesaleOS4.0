@@ -8,15 +8,12 @@ import { loadUserData, requirePermission, type AuthenticatedRequest } from "../p
 export function registerFinancialMatchingRoutes(app: Express): void {
   console.log('🔧 Registering Financial Matching routes...');
   
-  // Get all orders from the past year with financial summary
+  // Get all orders with financial summary - no date restriction, returns ALL orders in database
   app.get('/api/financial-matching/orders', isAuthenticated, loadUserData, requirePermission('finance', 'read'), async (req, res) => {
     console.log('📊 Financial matching orders endpoint hit');
     try {
-      const oneYearAgo = new Date();
-      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-
-      // Get orders from the past year
-      const recentOrders = await db
+      // Get ALL orders in the database - no date restriction
+      const allOrders = await db
         .select({
           id: orders.id,
           orderCode: orders.orderCode,
@@ -27,7 +24,6 @@ export function registerFinancialMatchingRoutes(app: Express): void {
           salespersonId: orders.salespersonId,
         })
         .from(orders)
-        .where(gte(orders.createdAt, oneYearAgo))
         .orderBy(sql`${orders.createdAt} DESC`);
 
       // Get organizations for display
@@ -40,7 +36,7 @@ export function registerFinancialMatchingRoutes(app: Express): void {
 
       // For each order, calculate financial summary
       const ordersWithFinancials = await Promise.all(
-        recentOrders.map(async (order) => {
+        allOrders.map(async (order) => {
           // Get invoices for this order
           const orderInvoices = await db
             .select()

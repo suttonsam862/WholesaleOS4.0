@@ -123,6 +123,9 @@ export default function Finance() {
   
   const [matchingSearchQuery, setMatchingSearchQuery] = useState("");
   const [matchingStatusFilter, setMatchingStatusFilter] = useState<string>("all");
+  const [matchingOrgFilter, setMatchingOrgFilter] = useState<string>("all");
+  const [matchingYearFilter, setMatchingYearFilter] = useState<string>("all");
+  const [matchingSortBy, setMatchingSortBy] = useState<string>("newest");
   const [selectedOrderForMatching, setSelectedOrderForMatching] = useState<FinancialMatchingOrder | null>(null);
 
   useEffect(() => {
@@ -207,22 +210,68 @@ export default function Finance() {
     retry: false,
   });
 
-  const filteredMatchingOrders = matchingOrders.filter(order => {
-    if (matchingSearchQuery) {
-      const query = matchingSearchQuery.toLowerCase();
-      const matchesSearch = 
-        order.orderCode?.toLowerCase().includes(query) ||
-        order.orderName?.toLowerCase().includes(query) ||
-        order.organization?.name?.toLowerCase().includes(query);
-      if (!matchesSearch) return false;
-    }
-    
-    if (matchingStatusFilter !== "all" && order.financialSummary.matchStatus !== matchingStatusFilter) {
-      return false;
-    }
-    
-    return true;
-  });
+  const uniqueOrganizations = Array.from(
+    new Map(
+      matchingOrders
+        .filter(o => o.organization)
+        .map(o => [o.organization!.id, o.organization!])
+    ).values()
+  ).sort((a, b) => a.name.localeCompare(b.name));
+
+  const uniqueYears = Array.from(
+    new Set(
+      matchingOrders
+        .filter(o => o.createdAt)
+        .map(o => new Date(o.createdAt).getFullYear())
+    )
+  ).sort((a, b) => b - a);
+
+  const filteredMatchingOrders = matchingOrders
+    .filter(order => {
+      if (matchingSearchQuery) {
+        const query = matchingSearchQuery.toLowerCase();
+        const matchesSearch = 
+          order.orderCode?.toLowerCase().includes(query) ||
+          order.orderName?.toLowerCase().includes(query) ||
+          order.organization?.name?.toLowerCase().includes(query);
+        if (!matchesSearch) return false;
+      }
+      
+      if (matchingStatusFilter !== "all" && order.financialSummary.matchStatus !== matchingStatusFilter) {
+        return false;
+      }
+      
+      if (matchingOrgFilter !== "all" && String(order.orgId) !== matchingOrgFilter) {
+        return false;
+      }
+      
+      if (matchingYearFilter !== "all" && order.createdAt) {
+        const orderYear = new Date(order.createdAt).getFullYear();
+        if (String(orderYear) !== matchingYearFilter) {
+          return false;
+        }
+      }
+      
+      return true;
+    })
+    .sort((a, b) => {
+      switch (matchingSortBy) {
+        case "oldest":
+          return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        case "newest":
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        case "highest_net":
+          return b.financialSummary.netCashFlow - a.financialSummary.netCashFlow;
+        case "lowest_net":
+          return a.financialSummary.netCashFlow - b.financialSummary.netCashFlow;
+        case "code_asc":
+          return (a.orderCode || '').localeCompare(b.orderCode || '');
+        case "code_desc":
+          return (b.orderCode || '').localeCompare(a.orderCode || '');
+        default:
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      }
+    });
 
   const unifiedRecords: UnifiedFinancialRecord[] = [
     ...invoices.map((inv): UnifiedFinancialRecord => ({
@@ -542,11 +591,11 @@ export default function Finance() {
               </p>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div className="relative">
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+                <div className="relative md:col-span-2 lg:col-span-1">
                   <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search orders by code, name, or organization..."
+                    placeholder="Search orders..."
                     value={matchingSearchQuery}
                     onChange={(e) => setMatchingSearchQuery(e.target.value)}
                     className="pl-9 bg-black/20 border-white/10 text-white"
@@ -555,7 +604,7 @@ export default function Finance() {
                 </div>
                 <Select value={matchingStatusFilter} onValueChange={setMatchingStatusFilter}>
                   <SelectTrigger className="bg-black/20 border-white/10 text-white" data-testid="select-matching-status">
-                    <SelectValue placeholder="All Match Status" />
+                    <SelectValue placeholder="Match Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
@@ -564,6 +613,44 @@ export default function Finance() {
                     <SelectItem value="unmatched">Unmatched</SelectItem>
                   </SelectContent>
                 </Select>
+                <Select value={matchingOrgFilter} onValueChange={setMatchingOrgFilter}>
+                  <SelectTrigger className="bg-black/20 border-white/10 text-white" data-testid="select-matching-org">
+                    <SelectValue placeholder="Organization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Organizations</SelectItem>
+                    {uniqueOrganizations.map(org => (
+                      <SelectItem key={org.id} value={String(org.id)}>{org.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={matchingYearFilter} onValueChange={setMatchingYearFilter}>
+                  <SelectTrigger className="bg-black/20 border-white/10 text-white" data-testid="select-matching-year">
+                    <SelectValue placeholder="Year" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Years</SelectItem>
+                    {uniqueYears.map(year => (
+                      <SelectItem key={year} value={String(year)}>{year}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={matchingSortBy} onValueChange={setMatchingSortBy}>
+                  <SelectTrigger className="bg-black/20 border-white/10 text-white" data-testid="select-matching-sort">
+                    <SelectValue placeholder="Sort By" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest First</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
+                    <SelectItem value="highest_net">Highest Net Cash Flow</SelectItem>
+                    <SelectItem value="lowest_net">Lowest Net Cash Flow</SelectItem>
+                    <SelectItem value="code_asc">Order Code (A-Z)</SelectItem>
+                    <SelectItem value="code_desc">Order Code (Z-A)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Showing {filteredMatchingOrders.length} of {matchingOrders.length} orders
               </div>
             </CardContent>
           </Card>
@@ -577,7 +664,7 @@ export default function Finance() {
             <div className="text-center py-12 text-muted-foreground" data-testid="empty-matching-orders">
               <Link2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No orders found for financial matching.</p>
-              <p className="text-sm mt-1">Orders from the past year will appear here.</p>
+              <p className="text-sm mt-1">All orders in the system will appear here for financial matching.</p>
             </div>
           ) : (
             <div className="space-y-3">
