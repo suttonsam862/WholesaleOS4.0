@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useEffect } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -56,6 +56,7 @@ import {
   Truck,
   CheckCircle2,
   AlertTriangle,
+  AlertCircle,
   FileText,
   Scissors,
   Printer,
@@ -77,6 +78,9 @@ import {
   Calculator,
   Settings,
   Upload,
+  Paperclip,
+  Lock,
+  Search,
 } from "lucide-react";
 
 interface OrderCapsuleProps {
@@ -209,17 +213,17 @@ function ModuleTab({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-200",
+        "flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border transition-all duration-200 whitespace-nowrap min-h-[44px]",
         active
-          ? "bg-gradient-to-r from-neon-blue/20 to-neon-purple/20 border-neon-blue/50 text-white"
+          ? "bg-gradient-to-r from-neon-blue/20 to-neon-purple/20 border-neon-blue/50 text-white shadow-lg shadow-neon-blue/10"
           : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
       )}
       data-testid={`tab-${label.toLowerCase().replace(/\s+/g, '-')}`}
     >
-      <Icon className="w-4 h-4" />
+      <Icon className="w-4 h-4 flex-shrink-0" />
       <span className="text-sm font-medium">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="px-1.5 py-0.5 text-xs rounded-full bg-neon-blue/30 text-neon-blue">
+        <span className="px-1.5 py-0.5 text-xs rounded-full bg-neon-blue/30 text-neon-blue flex-shrink-0">
           {badge}
         </span>
       )}
@@ -1017,6 +1021,23 @@ function OverviewModule({
     setFormData((prev: any) => ({ ...prev, [field]: value }));
   };
 
+  const getStatusStyle = (status: string) => {
+    const statusConfig = ORDER_STATUS_CONFIG[status as OrderStatus];
+    if (statusConfig) {
+      return cn(statusConfig.bgClass, statusConfig.textClass, statusConfig.borderClass);
+    }
+    return "bg-gray-500/20 text-gray-400 border-gray-500/30";
+  };
+
+  const getPriorityStyle = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case 'normal': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'low': return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -1024,6 +1045,101 @@ function OverviewModule({
       exit={{ opacity: 0, x: 20 }}
       className="space-y-6"
     >
+      {/* Key Status Header - Prominently displays salesperson, status, priority */}
+      <div className="p-4 rounded-xl bg-gradient-to-r from-neon-blue/5 via-neon-purple/5 to-neon-cyan/5 border border-white/10">
+        <div className="grid grid-cols-4 gap-4">
+          {/* Status */}
+          <div className="text-center p-3 rounded-lg bg-white/5">
+            <div className="text-xs text-white/50 uppercase font-medium mb-2">Status</div>
+            <div className={cn(
+              "inline-block px-3 py-1.5 rounded-full text-sm font-medium border",
+              getStatusStyle(order.status)
+            )}>
+              {ORDER_STATUS_CONFIG[order.status as OrderStatus]?.label || order.status?.replace('_', ' ')}
+            </div>
+          </div>
+
+          {/* Priority */}
+          <div className="text-center p-3 rounded-lg bg-white/5">
+            <div className="text-xs text-white/50 uppercase font-medium mb-2">Priority</div>
+            <div className={cn(
+              "inline-block px-3 py-1.5 rounded-full text-sm font-medium border capitalize",
+              getPriorityStyle(order.priority)
+            )}>
+              {order.priority || 'Normal'}
+            </div>
+          </div>
+
+          {/* Salesperson */}
+          <div className="text-center p-3 rounded-lg bg-white/5">
+            <div className="text-xs text-white/50 uppercase font-medium mb-2">Salesperson</div>
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-neon-purple/20 flex items-center justify-center">
+                <User className="w-4 h-4 text-neon-purple" />
+              </div>
+              <span className="text-sm text-white font-medium">
+                {order.salespersonId ? `ID: ${order.salespersonId.substring(0, 8)}...` : 'Unassigned'}
+              </span>
+            </div>
+          </div>
+
+          {/* Est. Delivery */}
+          <div className="text-center p-3 rounded-lg bg-white/5">
+            <div className="text-xs text-white/50 uppercase font-medium mb-2">Est. Delivery</div>
+            <div className="flex items-center justify-center gap-2">
+              <Calendar className="w-4 h-4 text-neon-cyan" />
+              <span className={cn(
+                "text-sm font-medium",
+                order.estDelivery && new Date(order.estDelivery) < new Date() ? "text-red-400" : "text-white"
+              )}>
+                {order.estDelivery ? format(new Date(order.estDelivery), 'MMM d, yyyy') : 'Not set'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Workflow Milestones */}
+        <div className="mt-4 pt-4 border-t border-white/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                {order.designApproved ? (
+                  <CheckCircle2 className="w-5 h-5 text-green-400" />
+                ) : (
+                  <div className="w-5 h-5 rounded-full border-2 border-white/30" />
+                )}
+                <span className={cn("text-sm", order.designApproved ? "text-green-400" : "text-white/50")}>
+                  Design Approved
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {order.sizesValidated ? (
+                  <CheckCircle2 className="w-5 h-5 text-green-400" />
+                ) : (
+                  <div className="w-5 h-5 rounded-full border-2 border-white/30" />
+                )}
+                <span className={cn("text-sm", order.sizesValidated ? "text-green-400" : "text-white/50")}>
+                  Sizes Validated
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                {order.depositReceived ? (
+                  <CheckCircle2 className="w-5 h-5 text-green-400" />
+                ) : (
+                  <div className="w-5 h-5 rounded-full border-2 border-white/30" />
+                )}
+                <span className={cn("text-sm", order.depositReceived ? "text-green-400" : "text-white/50")}>
+                  Deposit Received
+                </span>
+              </div>
+            </div>
+            <div className="text-xs text-white/40">
+              Order Code: <span className="text-neon-blue font-mono">{order.orderCode}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Image Gallery */}
       {lineItemsWithImages.length > 0 && (
         <div className="p-4 rounded-xl bg-white/5 border border-white/10">
@@ -1600,6 +1716,31 @@ function LineItemsModule({
 }
 
 function DesignModule({ designJobs, order }: { designJobs: any[]; order: any }) {
+  const [expandedJobs, setExpandedJobs] = useState<Set<number>>(new Set());
+  const [showAttachDialog, setShowAttachDialog] = useState(false);
+
+  const toggleJobExpand = (jobId: number) => {
+    setExpandedJobs(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(jobId)) {
+        newSet.delete(jobId);
+      } else {
+        newSet.add(jobId);
+      }
+      return newSet;
+    });
+  };
+
+  const getUrgencyStyle = (urgency: string) => {
+    switch (urgency) {
+      case 'rush': return 'bg-red-500/20 text-red-400 border-red-500/30';
+      case 'high': return 'bg-orange-500/20 text-orange-400 border-orange-500/30';
+      case 'normal': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      case 'low': return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+      default: return 'bg-gray-500/20 text-gray-400 border-gray-500/30';
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -1607,53 +1748,308 @@ function DesignModule({ designJobs, order }: { designJobs: any[]; order: any }) 
       exit={{ opacity: 0, x: 20 }}
       className="space-y-4"
     >
+      {/* Header with action buttons */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-white">Design Jobs</h3>
-        <div className={cn(
-          "px-3 py-1 rounded-full text-sm",
-          order.designApproved 
-            ? "bg-green-500/20 text-green-400 border border-green-500/30" 
-            : "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
-        )}>
-          {order.designApproved ? 'Design Approved' : 'Pending Approval'}
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-semibold text-white">Design Jobs</h3>
+          <span className="text-sm text-white/40">({designJobs.length})</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <ActionButton
+            icon={Plus}
+            label="Attach Design Job"
+            onClick={() => setShowAttachDialog(true)}
+            variant="primary"
+          />
+          <div className={cn(
+            "px-3 py-1.5 rounded-full text-sm border",
+            order.designApproved 
+              ? "bg-green-500/20 text-green-400 border-green-500/30" 
+              : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+          )}>
+            {order.designApproved ? 'Design Approved' : 'Pending Approval'}
+          </div>
         </div>
       </div>
 
       {designJobs.length > 0 ? (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {designJobs.map((job: any) => {
             const statusConfig = DESIGN_JOB_STATUS_CONFIG[job.status as DesignJobStatus];
+            const isExpanded = expandedJobs.has(job.id);
+            const hasRenditions = job.renditionUrls && job.renditionUrls.length > 0;
+            const hasReferenceFiles = job.referenceFiles && job.referenceFiles.length > 0;
+
             return (
-              <div key={job.id} className="p-4 rounded-xl bg-white/5 border border-white/10">
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="text-white font-medium">{job.title || `Job #${job.id}`}</div>
-                    <div className="text-sm text-white/40">{job.description}</div>
+              <motion.div 
+                key={job.id} 
+                layout
+                className="rounded-xl bg-white/5 border border-white/10 overflow-hidden"
+              >
+                {/* Job Header - Always visible */}
+                <div 
+                  className="p-4 cursor-pointer hover:bg-white/5 transition-colors"
+                  onClick={() => toggleJobExpand(job.id)}
+                  data-testid={`design-job-header-${job.id}`}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="text-white font-medium">{job.jobCode || `Job #${job.id}`}</div>
+                        <div className={cn(
+                          "px-2 py-0.5 rounded text-xs font-medium border",
+                          statusConfig?.bgClass,
+                          statusConfig?.textClass,
+                          statusConfig?.borderClass
+                        )}>
+                          {statusConfig?.label || job.status}
+                        </div>
+                        {job.urgency && job.urgency !== 'normal' && (
+                          <div className={cn("px-2 py-0.5 rounded text-xs font-medium border", getUrgencyStyle(job.urgency))}>
+                            {job.urgency.toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      {job.brief && (
+                        <p className="text-sm text-white/60 line-clamp-2">{job.brief}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      {hasRenditions && (
+                        <div className="flex items-center gap-1 text-xs text-neon-cyan">
+                          <ImageIcon className="w-3 h-3" />
+                          <span>{job.renditionCount || job.renditionUrls?.length || 0}</span>
+                        </div>
+                      )}
+                      <ChevronDown className={cn(
+                        "w-5 h-5 text-white/40 transition-transform",
+                        isExpanded && "rotate-180"
+                      )} />
+                    </div>
                   </div>
-                  <div className={cn(
-                    "px-2 py-1 rounded text-xs font-medium border",
-                    statusConfig?.bgClass,
-                    statusConfig?.textClass,
-                    statusConfig?.borderClass
-                  )}>
-                    {statusConfig?.label || job.status}
+
+                  {/* Quick Info Row */}
+                  <div className="flex items-center gap-4 mt-3 text-xs text-white/50">
+                    {job.assignedDesignerId && (
+                      <div className="flex items-center gap-1">
+                        <User className="w-3 h-3" />
+                        <span>Assigned</span>
+                      </div>
+                    )}
+                    {job.deadline && (
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        <span>Due: {format(new Date(job.deadline), 'MMM d')}</span>
+                      </div>
+                    )}
+                    {job.priority && (
+                      <div className="flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />
+                        <span className="capitalize">{job.priority} priority</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-                {job.assignedToId && (
-                  <div className="flex items-center gap-2 text-sm text-white/60">
-                    <User className="w-4 h-4" />
-                    <span>Assigned to designer</span>
-                  </div>
-                )}
-              </div>
+
+                {/* Expanded Details */}
+                <AnimatePresence>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="border-t border-white/10"
+                    >
+                      <div className="p-4 space-y-4">
+                        {/* Requirements */}
+                        {job.requirements && (
+                          <div className="p-3 rounded-lg bg-white/5">
+                            <div className="flex items-center gap-2 mb-2">
+                              <FileText className="w-4 h-4 text-neon-blue" />
+                              <span className="text-xs font-medium text-white/70 uppercase">Requirements</span>
+                            </div>
+                            <p className="text-sm text-white/80">{job.requirements}</p>
+                          </div>
+                        )}
+
+                        {/* Designer & Dates Info */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="p-3 rounded-lg bg-white/5">
+                            <div className="flex items-center gap-2 mb-2">
+                              <User className="w-4 h-4 text-neon-purple" />
+                              <span className="text-xs font-medium text-white/70 uppercase">Assigned Designer</span>
+                            </div>
+                            <p className="text-sm text-white">
+                              {job.assignedDesignerId ? `Designer ID: ${job.assignedDesignerId}` : 'Unassigned'}
+                            </p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-white/5">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Calendar className="w-4 h-4 text-neon-cyan" />
+                              <span className="text-xs font-medium text-white/70 uppercase">Timeline</span>
+                            </div>
+                            <div className="space-y-1 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-white/50">Created:</span>
+                                <span className="text-white">
+                                  {job.createdAt ? format(new Date(job.createdAt), 'MMM d, yyyy') : '—'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-white/50">Deadline:</span>
+                                <span className={cn(
+                                  "text-white",
+                                  job.deadline && new Date(job.deadline) < new Date() && "text-red-400"
+                                )}>
+                                  {job.deadline ? format(new Date(job.deadline), 'MMM d, yyyy') : '—'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Renditions / Design Files */}
+                        {hasRenditions && (
+                          <div className="p-3 rounded-lg bg-white/5">
+                            <div className="flex items-center gap-2 mb-3">
+                              <ImageIcon className="w-4 h-4 text-neon-cyan" />
+                              <span className="text-xs font-medium text-white/70 uppercase">
+                                Renditions ({job.renditionUrls.length})
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                              {job.renditionUrls.slice(0, 8).map((url: string, idx: number) => (
+                                <div key={idx} className="aspect-square rounded-lg overflow-hidden border border-white/10 group relative cursor-pointer">
+                                  <img src={url} alt={`Rendition ${idx + 1}`} className="w-full h-full object-cover" />
+                                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <ZoomIn className="w-5 h-5 text-white" />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Reference Files */}
+                        {hasReferenceFiles && (
+                          <div className="p-3 rounded-lg bg-white/5">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Paperclip className="w-4 h-4 text-white/60" />
+                              <span className="text-xs font-medium text-white/70 uppercase">
+                                Reference Files ({job.referenceFiles.length})
+                              </span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {job.referenceFiles.map((file: string, idx: number) => (
+                                <a 
+                                  key={idx}
+                                  href={file}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white/80 hover:bg-white/10 transition-colors"
+                                >
+                                  <FileText className="w-3 h-3" />
+                                  <span>File {idx + 1}</span>
+                                  <ExternalLink className="w-3 h-3 text-white/40" />
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Client Feedback */}
+                        {job.clientFeedback && (
+                          <div className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                            <div className="flex items-center gap-2 mb-2">
+                              <MessageSquare className="w-4 h-4 text-yellow-400" />
+                              <span className="text-xs font-medium text-yellow-400 uppercase">Client Feedback</span>
+                            </div>
+                            <p className="text-sm text-white/80">{job.clientFeedback}</p>
+                          </div>
+                        )}
+
+                        {/* Internal Notes */}
+                        {job.internalNotes && (
+                          <div className="p-3 rounded-lg bg-white/5 border-l-2 border-neon-purple">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Lock className="w-4 h-4 text-neon-purple" />
+                              <span className="text-xs font-medium text-neon-purple uppercase">Internal Notes</span>
+                            </div>
+                            <p className="text-sm text-white/80">{job.internalNotes}</p>
+                          </div>
+                        )}
+
+                        {/* Final Links */}
+                        {job.finalLink && (
+                          <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Link2 className="w-4 h-4 text-green-400" />
+                                <span className="text-xs font-medium text-green-400 uppercase">Final Approved Design</span>
+                              </div>
+                              <a 
+                                href={job.finalLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-sm text-green-400 hover:underline"
+                              >
+                                View Final
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
             );
           })}
         </div>
       ) : (
         <div className="text-center py-12 text-white/40">
           <Palette className="w-12 h-12 mx-auto mb-3 opacity-40" />
-          <p>No design jobs created yet</p>
+          <p className="mb-4">No design jobs attached to this order</p>
+          <ActionButton
+            icon={Plus}
+            label="Attach Design Job"
+            onClick={() => setShowAttachDialog(true)}
+            variant="primary"
+            className="mx-auto"
+          />
         </div>
+      )}
+
+      {/* Attach Design Job Dialog (placeholder - would need full implementation) */}
+      {showAttachDialog && (
+        <Dialog open={showAttachDialog} onOpenChange={setShowAttachDialog}>
+          <DialogContent className="bg-[#0a0a1f] border-white/10 max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="text-white flex items-center gap-2">
+                <Palette className="w-5 h-5 text-neon-blue" />
+                Attach Design Job
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-6 text-center text-white/60">
+              <p className="mb-4">Select an existing design job or create a new one to attach to this order.</p>
+              <div className="flex justify-center gap-3">
+                <ActionButton
+                  icon={Search}
+                  label="Find Existing"
+                  onClick={() => setShowAttachDialog(false)}
+                  variant="default"
+                />
+                <ActionButton
+                  icon={Plus}
+                  label="Create New"
+                  onClick={() => setShowAttachDialog(false)}
+                  variant="primary"
+                />
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </motion.div>
   );
@@ -2117,72 +2513,211 @@ function ActivityModule({
   setNewNote: (note: string) => void;
   addNoteMutation: any;
 }) {
+  const [activeFilter, setActiveFilter] = useState<'all' | 'notes' | 'changes'>('all');
+  const [noteType, setNoteType] = useState<'general' | 'internal' | 'customer'>('general');
+
+  const getActivityIcon = (action: string) => {
+    if (action === 'note_added') return MessageSquare;
+    if (action.includes('status')) return AlertCircle;
+    if (action.includes('created')) return Plus;
+    if (action.includes('updated')) return Edit2;
+    return FileText;
+  };
+
+  const getActivityColor = (action: string) => {
+    if (action === 'note_added') return 'text-neon-blue bg-neon-blue/20';
+    if (action.includes('status')) return 'text-neon-purple bg-neon-purple/20';
+    if (action.includes('created')) return 'text-green-400 bg-green-500/20';
+    if (action.includes('updated')) return 'text-yellow-400 bg-yellow-500/20';
+    return 'text-white/60 bg-white/10';
+  };
+
+  const filteredActivity = orderActivity.filter(activity => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'notes') return activity.action === 'note_added';
+    if (activeFilter === 'changes') return activity.action !== 'note_added';
+    return true;
+  });
+
+  const notes = orderActivity.filter(a => a.action === 'note_added');
+  const changes = orderActivity.filter(a => a.action !== 'note_added');
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
-      className="space-y-4"
+      className="space-y-6"
     >
-      <h3 className="text-lg font-semibold text-white">Activity & Notes</h3>
-      
-      {/* Add Note */}
-      <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-        <Label className="text-xs text-white/50 mb-2 block">Add Note</Label>
-        <div className="flex gap-2">
-          <Textarea
-            value={newNote}
-            onChange={(e) => setNewNote(e.target.value)}
-            placeholder="Add a note to this order..."
-            className="flex-1 bg-white/5 border-white/10 text-sm min-h-[60px]"
-          />
-          <button
-            onClick={() => {
-              if (newNote.trim()) {
-                addNoteMutation.mutate(newNote.trim());
-              }
-            }}
-            disabled={!newNote.trim() || addNoteMutation.isPending}
-            className="px-4 py-2 rounded-lg bg-neon-blue/20 border border-neon-blue/50 text-neon-blue hover:bg-neon-blue/30 disabled:opacity-50 self-end"
-          >
-            <Send className="w-4 h-4" />
-          </button>
+      {/* Header with Stats */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-white">Activity & Notes</h3>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="px-2 py-1 rounded-full bg-neon-blue/20 text-neon-blue">
+            {notes.length} Notes
+          </span>
+          <span className="px-2 py-1 rounded-full bg-neon-purple/20 text-neon-purple">
+            {changes.length} Changes
+          </span>
         </div>
       </div>
 
+      {/* Add Note Section */}
+      <div className="p-4 rounded-xl bg-gradient-to-br from-neon-blue/5 to-neon-purple/5 border border-white/10">
+        <div className="flex items-center justify-between mb-3">
+          <Label className="text-xs text-white/70 font-medium uppercase">Add New Note</Label>
+          <div className="flex gap-1">
+            {['general', 'internal', 'customer'].map((type) => (
+              <button
+                key={type}
+                onClick={() => setNoteType(type as any)}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-medium transition-all",
+                  noteType === type
+                    ? type === 'general' ? "bg-neon-blue/30 text-neon-blue border border-neon-blue/50"
+                    : type === 'internal' ? "bg-neon-purple/30 text-neon-purple border border-neon-purple/50"
+                    : "bg-neon-cyan/30 text-neon-cyan border border-neon-cyan/50"
+                    : "bg-white/5 text-white/50 border border-white/10 hover:bg-white/10"
+                )}
+              >
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <Textarea
+            value={newNote}
+            onChange={(e) => setNewNote(e.target.value)}
+            placeholder={`Add a ${noteType} note...`}
+            className="flex-1 bg-white/5 border-white/10 text-sm min-h-[80px] resize-none"
+            data-testid="input-activity-note"
+          />
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => {
+                if (newNote.trim()) {
+                  addNoteMutation.mutate(newNote.trim());
+                }
+              }}
+              disabled={!newNote.trim() || addNoteMutation.isPending}
+              className="px-4 py-3 rounded-lg bg-neon-blue/20 border border-neon-blue/50 text-neon-blue hover:bg-neon-blue/30 disabled:opacity-50 transition-all"
+              data-testid="button-add-note"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+        {[
+          { id: 'all', label: 'All Activity', count: orderActivity.length },
+          { id: 'notes', label: 'Notes', count: notes.length },
+          { id: 'changes', label: 'Changes', count: changes.length },
+        ].map((filter) => (
+          <button
+            key={filter.id}
+            onClick={() => setActiveFilter(filter.id as any)}
+            className={cn(
+              "px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2",
+              activeFilter === filter.id
+                ? "bg-white/10 text-white border border-white/20"
+                : "text-white/50 hover:text-white hover:bg-white/5"
+            )}
+          >
+            {filter.label}
+            <span className={cn(
+              "text-xs px-1.5 py-0.5 rounded-full",
+              activeFilter === filter.id ? "bg-white/20" : "bg-white/10"
+            )}>
+              {filter.count}
+            </span>
+          </button>
+        ))}
+      </div>
+
       {/* Activity Feed */}
-      {orderActivity.length > 0 ? (
-        <div className="space-y-3 max-h-96 overflow-y-auto">
-          {orderActivity.map((activity: any) => (
-            <div key={activity.id} className="p-3 rounded-xl bg-white/5 border border-white/10">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 rounded-full bg-neon-blue/20 flex items-center justify-center">
-                  <User className="w-4 h-4 text-neon-blue" />
-                </div>
-                <div>
-                  <div className="text-sm text-white font-medium">{activity.userName || 'System'}</div>
-                  <div className="text-xs text-white/40">
-                    {activity.createdAt ? format(new Date(activity.createdAt), 'MMM d, h:mm a') : ''}
+      {filteredActivity.length > 0 ? (
+        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+          {filteredActivity.map((activity: any, index: number) => {
+            const IconComponent = getActivityIcon(activity.action);
+            const colorClass = getActivityColor(activity.action);
+            const isNote = activity.action === 'note_added';
+
+            return (
+              <motion.div
+                key={activity.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.03 }}
+                className={cn(
+                  "p-4 rounded-xl border transition-all hover:bg-white/5",
+                  isNote 
+                    ? "bg-gradient-to-r from-white/5 to-transparent border-l-2 border-l-neon-blue border-white/10"
+                    : "bg-white/5 border-white/10"
+                )}
+              >
+                <div className="flex gap-3">
+                  {/* Icon */}
+                  <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", colorClass)}>
+                    <IconComponent className="w-4 h-4" />
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-medium text-white">
+                          {activity.userName || 'System'}
+                        </span>
+                        {isNote && (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-neon-blue/20 text-neon-blue uppercase">
+                            Note
+                          </span>
+                        )}
+                        {!isNote && (
+                          <span className="text-xs text-white/40">
+                            {activity.action?.replace(/_/g, ' ')}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-xs text-white/40 whitespace-nowrap">
+                        {activity.createdAt ? format(new Date(activity.createdAt), 'MMM d, h:mm a') : ''}
+                      </span>
+                    </div>
+
+                    {/* Note or Details */}
+                    <div className="text-sm text-white/80">
+                      {isNote ? (
+                        <p className="whitespace-pre-wrap">{activity.newValue?.note || activity.details}</p>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          {activity.oldValue && activity.newValue && (
+                            <>
+                              <span className="text-white/40 line-through">{JSON.stringify(activity.oldValue)}</span>
+                              <ChevronRight className="w-3 h-3 text-white/30" />
+                              <span className="text-white">{JSON.stringify(activity.newValue)}</span>
+                            </>
+                          )}
+                          {activity.details && !activity.oldValue && (
+                            <span>{activity.details}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="text-sm text-white/80 pl-10">
-                {activity.action === 'note_added' ? (
-                  activity.newValue?.note || activity.details
-                ) : (
-                  <>
-                    <span className="text-white/50">{activity.action?.replace('_', ' ')}</span>
-                    {activity.details && <span className="ml-2">{activity.details}</span>}
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-12 text-white/40">
           <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-40" />
-          <p>No activity yet</p>
+          <p className="mb-2">No activity yet</p>
+          <p className="text-sm text-white/30">Add the first note to get started</p>
         </div>
       )}
     </motion.div>
