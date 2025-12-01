@@ -2701,6 +2701,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get order line items
+  app.get('/api/orders/:id/line-items', isAuthenticated, loadUserData, requirePermission('orders', 'read'), async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+      
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      // Check if user can view this order
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const userRole = user.role as UserRole;
+      if (userRole === 'sales' && order.salespersonId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const lineItems = await storage.getOrderLineItems(orderId);
+      res.json(lineItems);
+    } catch (error) {
+      console.error("Error fetching line items:", error);
+      res.status(500).json({ message: "Failed to fetch line items" });
+    }
+  });
+
   // Add line item to order
   app.post('/api/orders/:id/line-items', isAuthenticated, loadUserData, requirePermission('orders', 'write'), async (req, res) => {
     try {
