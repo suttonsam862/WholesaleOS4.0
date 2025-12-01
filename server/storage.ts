@@ -16,6 +16,8 @@ import {
   userManufacturerAssociations,
   notifications,
   orderTrackingNumbers,
+  orderFormSubmissions,
+  orderFormLineItemSizes,
   type User,
   type UpsertUser,
   type InsertUser,
@@ -90,6 +92,10 @@ import {
   type InsertTeamStore,
   type TeamStoreLineItem,
   type InsertTeamStoreLineItem,
+  type OrderFormSubmission,
+  type InsertOrderFormSubmission,
+  type OrderFormLineItemSizes,
+  type InsertOrderFormLineItemSizes,
   designJobComments,
   type DesignJobComment,
   type InsertDesignJobComment,
@@ -1420,6 +1426,99 @@ export class DatabaseStorage implements IStorage {
 
   async deleteOrderTrackingNumber(id: number): Promise<void> {
     await db.delete(orderTrackingNumbers).where(eq(orderTrackingNumbers.id, id));
+  }
+
+  // Order form submissions operations
+  async getOrderFormSubmission(orderId: number): Promise<OrderFormSubmission | null> {
+    const [submission] = await db
+      .select()
+      .from(orderFormSubmissions)
+      .where(eq(orderFormSubmissions.orderId, orderId))
+      .orderBy(desc(orderFormSubmissions.submittedAt))
+      .limit(1);
+    return submission || null;
+  }
+
+  async getOrderFormSubmissions(orderId: number): Promise<OrderFormSubmission[]> {
+    return await db
+      .select()
+      .from(orderFormSubmissions)
+      .where(eq(orderFormSubmissions.orderId, orderId))
+      .orderBy(desc(orderFormSubmissions.submittedAt));
+  }
+
+  async createOrderFormSubmission(data: InsertOrderFormSubmission): Promise<OrderFormSubmission> {
+    const [submission] = await db
+      .insert(orderFormSubmissions)
+      .values(data)
+      .returning();
+    return submission;
+  }
+
+  async updateOrderFormSubmission(id: number, data: Partial<InsertOrderFormSubmission>): Promise<OrderFormSubmission | null> {
+    const [updated] = await db
+      .update(orderFormSubmissions)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(orderFormSubmissions.id, id))
+      .returning();
+    return updated || null;
+  }
+
+  // Order form line item sizes operations
+  async getOrderFormLineItemSizes(submissionId: number): Promise<OrderFormLineItemSizes[]> {
+    return await db
+      .select()
+      .from(orderFormLineItemSizes)
+      .where(eq(orderFormLineItemSizes.submissionId, submissionId));
+  }
+
+  async createOrderFormLineItemSizes(data: InsertOrderFormLineItemSizes): Promise<OrderFormLineItemSizes> {
+    const [sizes] = await db
+      .insert(orderFormLineItemSizes)
+      .values(data)
+      .returning();
+    return sizes;
+  }
+
+  async bulkCreateOrderFormLineItemSizes(items: InsertOrderFormLineItemSizes[]): Promise<OrderFormLineItemSizes[]> {
+    if (items.length === 0) return [];
+    return await db
+      .insert(orderFormLineItemSizes)
+      .values(items)
+      .returning();
+  }
+
+  // Get order for public form (no auth required, limited data)
+  async getOrderForPublicForm(orderId: number): Promise<{
+    order: Order | null;
+    organization: Organization | null;
+    lineItems: (OrderLineItem & { variant?: ProductVariant; product?: Product })[];
+  } | null> {
+    const [order] = await db.select().from(orders).where(eq(orders.id, orderId));
+    if (!order) return null;
+
+    const [organization] = order.orgId 
+      ? await db.select().from(organizations).where(eq(organizations.id, order.orgId))
+      : [null];
+
+    const lineItemResults = await db
+      .select({
+        lineItem: orderLineItems,
+        variant: productVariants,
+        product: products,
+      })
+      .from(orderLineItems)
+      .leftJoin(productVariants, eq(orderLineItems.variantId, productVariants.id))
+      .leftJoin(products, eq(productVariants.productId, products.id))
+      .where(eq(orderLineItems.orderId, orderId));
+
+    const lineItems = lineItemResults.map(row => ({
+      ...row.lineItem,
+      variant: row.variant || undefined,
+      product: row.product || undefined,
+    }));
+
+    return { order, organization, lineItems };
   }
 
   async getOrderWithLineItems(id: number): Promise<(Order & { lineItems: (OrderLineItem & { variant?: ProductVariant; product?: Product })[]; salespersonName?: string | null }) | undefined> {

@@ -90,6 +90,7 @@ function Router() {
         <Route path="/local-login" component={LocalLogin} /> {/* Add local login route */}
         <Route path="/setup-account" component={AccountSetup} />
         <Route path="/admin/test-users" component={TestUsers} /> {/* Test mode access without auth */}
+        <Route path="/customer-order-form/:id" component={CustomerOrderForm} /> {/* Public order form for customers */}
         <Route component={NotFound} />
       </Switch>
     );

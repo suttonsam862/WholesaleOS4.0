@@ -3125,6 +3125,277 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // =====================================================
+  // ORDER FORM SUBMISSIONS API (Public Customer Forms)
+  // =====================================================
+
+  // PUBLIC: Get order data for customer form (no auth required)
+  app.get('/api/public/orders/:orderId/form-data', async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+
+      const formData = await storage.getOrderForPublicForm(orderId);
+      if (!formData || !formData.order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Only expose safe fields - no financial data, internal notes, etc.
+      const safeOrder = {
+        id: formData.order.id,
+        orderCode: formData.order.orderCode,
+        orderName: formData.order.orderName,
+        status: formData.order.status,
+        estDelivery: formData.order.estDelivery,
+        contactName: formData.order.contactName,
+        contactEmail: formData.order.contactEmail,
+        contactPhone: formData.order.contactPhone,
+        shippingAddress: formData.order.shippingAddress,
+        billToAddress: formData.order.billToAddress,
+      };
+
+      const safeOrganization = formData.organization ? {
+        id: formData.organization.id,
+        name: formData.organization.name,
+        logoUrl: formData.organization.logoUrl,
+      } : null;
+
+      const safeLineItems = formData.lineItems.map(item => ({
+        id: item.id,
+        orderId: item.orderId,
+        variantId: item.variantId,
+        itemName: item.itemName,
+        colorNotes: item.colorNotes,
+        imageUrl: item.imageUrl,
+        // Current size selections (internal values)
+        yxs: item.yxs || 0,
+        ys: item.ys || 0,
+        ym: item.ym || 0,
+        yl: item.yl || 0,
+        xs: item.xs || 0,
+        s: item.s || 0,
+        m: item.m || 0,
+        l: item.l || 0,
+        xl: item.xl || 0,
+        xxl: item.xxl || 0,
+        xxxl: item.xxxl || 0,
+        xxxxl: item.xxxxl || 0,
+        qtyTotal: item.qtyTotal,
+        notes: item.notes,
+        // Product info (no pricing)
+        productName: item.product?.name,
+        variantCode: item.variant?.variantCode,
+        variantColor: item.variant?.color,
+      }));
+
+      res.json({
+        order: safeOrder,
+        organization: safeOrganization,
+        lineItems: safeLineItems,
+      });
+    } catch (error) {
+      console.error("Error fetching public order form data:", error);
+      res.status(500).json({ message: "Failed to fetch order data" });
+    }
+  });
+
+  // PUBLIC: Submit customer order form (no auth required)
+  app.post('/api/public/orders/:orderId/submit-form', async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+
+      // Verify order exists
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const { 
+        contactInfo, 
+        shippingAddress, 
+        billingAddress, 
+        additionalInfo,
+        uploadedFiles,
+        lineItemSizes
+      } = req.body;
+
+      // Validate required fields
+      if (!contactInfo?.name || !contactInfo?.email) {
+        return res.status(400).json({ message: "Contact name and email are required" });
+      }
+
+      // Create form submission
+      const submission = await storage.createOrderFormSubmission({
+        orderId,
+        contactName: contactInfo.name,
+        contactEmail: contactInfo.email,
+        contactPhone: contactInfo.phone || null,
+        shippingName: shippingAddress?.name || null,
+        shippingAddress: shippingAddress?.address || null,
+        shippingCity: shippingAddress?.city || null,
+        shippingState: shippingAddress?.state || null,
+        shippingZip: shippingAddress?.zip || null,
+        shippingCountry: shippingAddress?.country || 'USA',
+        billingName: billingAddress?.name || null,
+        billingAddress: billingAddress?.address || null,
+        billingCity: billingAddress?.city || null,
+        billingState: billingAddress?.state || null,
+        billingZip: billingAddress?.zip || null,
+        billingCountry: billingAddress?.country || 'USA',
+        sameAsShipping: billingAddress?.sameAsShipping ?? true,
+        organizationName: additionalInfo?.organizationName || null,
+        purchaseOrderNumber: additionalInfo?.purchaseOrderNumber || null,
+        specialInstructions: additionalInfo?.specialInstructions || null,
+        uploadedFiles: uploadedFiles || null,
+        status: 'submitted',
+      });
+
+      // Create line item size selections
+      if (lineItemSizes && Array.isArray(lineItemSizes)) {
+        const sizeInserts = lineItemSizes.map((item: any) => ({
+          submissionId: submission.id,
+          lineItemId: item.lineItemId,
+          yxs: item.yxs || 0,
+          ys: item.ys || 0,
+          ym: item.ym || 0,
+          yl: item.yl || 0,
+          xs: item.xs || 0,
+          s: item.s || 0,
+          m: item.m || 0,
+          l: item.l || 0,
+          xl: item.xl || 0,
+          xxl: item.xxl || 0,
+          xxxl: item.xxxl || 0,
+          xxxxl: item.xxxxl || 0,
+          itemNotes: item.notes || null,
+        }));
+
+        await storage.bulkCreateOrderFormLineItemSizes(sizeInserts);
+      }
+
+      // Update order with submitted contact/shipping info
+      await storage.updateOrder(orderId, {
+        contactName: contactInfo.name,
+        contactEmail: contactInfo.email,
+        contactPhone: contactInfo.phone || null,
+        shippingAddress: shippingAddress 
+          ? `${shippingAddress.name || ''}\n${shippingAddress.address || ''}\n${shippingAddress.city || ''}, ${shippingAddress.state || ''} ${shippingAddress.zip || ''}\n${shippingAddress.country || 'USA'}`
+          : null,
+        billToAddress: billingAddress && !billingAddress.sameAsShipping
+          ? `${billingAddress.name || ''}\n${billingAddress.address || ''}\n${billingAddress.city || ''}, ${billingAddress.state || ''} ${billingAddress.zip || ''}\n${billingAddress.country || 'USA'}`
+          : null,
+      });
+
+      res.status(201).json({ 
+        success: true, 
+        message: "Form submitted successfully",
+        submissionId: submission.id
+      });
+    } catch (error) {
+      console.error("Error submitting customer order form:", error);
+      res.status(500).json({ message: "Failed to submit form" });
+    }
+  });
+
+  // Internal: Get form submissions for an order
+  app.get('/api/orders/:id/form-submissions', isAuthenticated, loadUserData, requirePermission('orders', 'read'), async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const userRole = (req as AuthenticatedRequest).user.userData!.role as UserRole;
+      if (userRole === 'sales' && order.salespersonId !== (req as AuthenticatedRequest).user.userData!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const submissions = await storage.getOrderFormSubmissions(orderId);
+      
+      // For each submission, get the line item sizes
+      const submissionsWithSizes = await Promise.all(
+        submissions.map(async (submission) => {
+          const sizes = await storage.getOrderFormLineItemSizes(submission.id);
+          return { ...submission, lineItemSizes: sizes };
+        })
+      );
+
+      res.json(submissionsWithSizes);
+    } catch (error) {
+      console.error("Error fetching form submissions:", error);
+      res.status(500).json({ message: "Failed to fetch form submissions" });
+    }
+  });
+
+  // Internal: Get latest form submission for an order
+  app.get('/api/orders/:id/form-submission/latest', isAuthenticated, loadUserData, requirePermission('orders', 'read'), async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const userRole = (req as AuthenticatedRequest).user.userData!.role as UserRole;
+      if (userRole === 'sales' && order.salespersonId !== (req as AuthenticatedRequest).user.userData!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const submission = await storage.getOrderFormSubmission(orderId);
+      if (!submission) {
+        return res.json(null);
+      }
+
+      const sizes = await storage.getOrderFormLineItemSizes(submission.id);
+      res.json({ ...submission, lineItemSizes: sizes });
+    } catch (error) {
+      console.error("Error fetching latest form submission:", error);
+      res.status(500).json({ message: "Failed to fetch form submission" });
+    }
+  });
+
+  // Internal: Update form submission status (e.g., mark as reviewed)
+  app.patch('/api/orders/:id/form-submission/:submissionId', isAuthenticated, loadUserData, requirePermission('orders', 'write'), async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+      const submissionId = parseInt(req.params.submissionId);
+
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const { status } = req.body;
+      if (!['submitted', 'reviewed', 'approved'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const userId = (req as AuthenticatedRequest).user.userData!.id;
+      const updated = await storage.updateOrderFormSubmission(submissionId, {
+        status,
+        reviewedAt: status === 'reviewed' || status === 'approved' ? new Date() : undefined,
+        reviewedBy: status === 'reviewed' || status === 'approved' ? userId : undefined,
+      } as any);
+
+      if (!updated) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating form submission:", error);
+      res.status(500).json({ message: "Failed to update form submission" });
+    }
+  });
+
 
   // Design Jobs API
   app.get('/api/design-jobs', isAuthenticated, loadUserData, requirePermission('designJobs', 'read'), async (req, res) => {

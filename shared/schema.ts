@@ -438,6 +438,87 @@ export const orderTrackingNumbers = pgTable("order_tracking_numbers", {
   index("idx_order_tracking_order_id").on(table.orderId),
 ]);
 
+// Order Form Submissions - captures customer-submitted information
+export const orderFormSubmissions = pgTable("order_form_submissions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  orderId: integer("order_id").references(() => orders.id, { onDelete: 'cascade' }).notNull(),
+  
+  // Contact Information
+  contactName: varchar("contact_name").notNull(),
+  contactEmail: varchar("contact_email").notNull(),
+  contactPhone: varchar("contact_phone"),
+  
+  // Shipping Address
+  shippingName: varchar("shipping_name"),
+  shippingAddress: text("shipping_address"),
+  shippingCity: varchar("shipping_city"),
+  shippingState: varchar("shipping_state"),
+  shippingZip: varchar("shipping_zip"),
+  shippingCountry: varchar("shipping_country").default("USA"),
+  
+  // Billing Address
+  billingName: varchar("billing_name"),
+  billingAddress: text("billing_address"),
+  billingCity: varchar("billing_city"),
+  billingState: varchar("billing_state"),
+  billingZip: varchar("billing_zip"),
+  billingCountry: varchar("billing_country").default("USA"),
+  sameAsShipping: boolean("same_as_shipping").default(true),
+  
+  // Additional Information
+  organizationName: varchar("organization_name"),
+  purchaseOrderNumber: varchar("purchase_order_number"),
+  specialInstructions: text("special_instructions"),
+  
+  // Uploaded files (logo files, artwork, etc.)
+  uploadedFiles: jsonb("uploaded_files").$type<Array<{
+    fileName: string;
+    fileUrl: string;
+    fileType: string;
+    uploadedAt: string;
+  }>>(),
+  
+  // Submission status
+  status: varchar("status").$type<"draft" | "submitted" | "reviewed" | "approved">().default("submitted"),
+  submittedAt: timestamp("submitted_at").defaultNow(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_order_form_submissions_order_id").on(table.orderId),
+]);
+
+// Order Form Line Item Sizes - captures size selections per line item from customer
+export const orderFormLineItemSizes = pgTable("order_form_line_item_sizes", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  submissionId: integer("submission_id").references(() => orderFormSubmissions.id, { onDelete: 'cascade' }).notNull(),
+  lineItemId: integer("line_item_id").references(() => orderLineItems.id, { onDelete: 'cascade' }).notNull(),
+  
+  // Size selections (customer-submitted quantities)
+  yxs: integer("yxs").default(0),
+  ys: integer("ys").default(0),
+  ym: integer("ym").default(0),
+  yl: integer("yl").default(0),
+  xs: integer("xs").default(0),
+  s: integer("s").default(0),
+  m: integer("m").default(0),
+  l: integer("l").default(0),
+  xl: integer("xl").default(0),
+  xxl: integer("xxl").default(0),
+  xxxl: integer("xxxl").default(0),
+  xxxxl: integer("xxxxl").default(0),
+  
+  // Optional notes per item
+  itemNotes: text("item_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_order_form_line_item_sizes_submission_id").on(table.submissionId),
+  index("idx_order_form_line_item_sizes_line_item_id").on(table.lineItemId),
+]);
+
 // Manufacturing records (main table)
 export const manufacturing = pgTable("manufacturing", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -2144,3 +2225,59 @@ export type EventCampaign = typeof eventCampaigns.$inferSelect;
 export type InsertEventCampaign = z.infer<typeof insertEventCampaignSchema>;
 export type EventRegistration = typeof eventRegistrations.$inferSelect;
 export type InsertEventRegistration = z.infer<typeof insertEventRegistrationSchema>;
+
+// Order Form Submission Schemas
+export const insertOrderFormSubmissionSchema = createInsertSchema(orderFormSubmissions, {
+  orderId: z.number().int().positive("Order ID is required"),
+  contactName: z.string().min(1, "Contact name is required"),
+  contactEmail: z.string().email("Valid email is required"),
+  contactPhone: z.string().optional(),
+  shippingName: z.string().optional(),
+  shippingAddress: z.string().optional(),
+  shippingCity: z.string().optional(),
+  shippingState: z.string().optional(),
+  shippingZip: z.string().optional(),
+  shippingCountry: z.string().optional(),
+  billingName: z.string().optional(),
+  billingAddress: z.string().optional(),
+  billingCity: z.string().optional(),
+  billingState: z.string().optional(),
+  billingZip: z.string().optional(),
+  billingCountry: z.string().optional(),
+  sameAsShipping: z.boolean().optional(),
+  organizationName: z.string().optional(),
+  purchaseOrderNumber: z.string().optional(),
+  specialInstructions: z.string().optional(),
+  uploadedFiles: z.array(z.object({
+    fileName: z.string(),
+    fileUrl: z.string().url(),
+    fileType: z.string(),
+    uploadedAt: z.string(),
+  })).optional(),
+  status: z.enum(["draft", "submitted", "reviewed", "approved"]).optional(),
+}).omit({ createdAt: true, updatedAt: true, submittedAt: true, reviewedAt: true, reviewedBy: true });
+
+export type OrderFormSubmission = typeof orderFormSubmissions.$inferSelect;
+export type InsertOrderFormSubmission = z.infer<typeof insertOrderFormSubmissionSchema>;
+
+// Order Form Line Item Sizes Schemas
+export const insertOrderFormLineItemSizesSchema = createInsertSchema(orderFormLineItemSizes, {
+  submissionId: z.number().int().positive("Submission ID is required"),
+  lineItemId: z.number().int().positive("Line item ID is required"),
+  yxs: z.number().int().min(0).optional(),
+  ys: z.number().int().min(0).optional(),
+  ym: z.number().int().min(0).optional(),
+  yl: z.number().int().min(0).optional(),
+  xs: z.number().int().min(0).optional(),
+  s: z.number().int().min(0).optional(),
+  m: z.number().int().min(0).optional(),
+  l: z.number().int().min(0).optional(),
+  xl: z.number().int().min(0).optional(),
+  xxl: z.number().int().min(0).optional(),
+  xxxl: z.number().int().min(0).optional(),
+  xxxxl: z.number().int().min(0).optional(),
+  itemNotes: z.string().optional(),
+}).omit({ createdAt: true });
+
+export type OrderFormLineItemSizes = typeof orderFormLineItemSizes.$inferSelect;
+export type InsertOrderFormLineItemSizes = z.infer<typeof insertOrderFormLineItemSizesSchema>;
