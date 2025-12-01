@@ -6,7 +6,8 @@
  */
 
 import { useState, useMemo, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -700,7 +701,10 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
   if (orderLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden bg-transparent border-0">
+        <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden bg-transparent border-0" aria-describedby={undefined}>
+          <VisuallyHidden.Root>
+            <DialogTitle>Loading Order Details</DialogTitle>
+          </VisuallyHidden.Root>
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-blue"></div>
           </div>
@@ -716,7 +720,11 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
       <DialogContent 
         className="max-w-5xl max-h-[90vh] p-0 overflow-hidden bg-transparent border-0"
         onPointerDownOutside={(e) => e.preventDefault()}
+        aria-describedby={undefined}
       >
+        <VisuallyHidden.Root>
+          <DialogTitle>Order Details - {order.orderCode}</DialogTitle>
+        </VisuallyHidden.Root>
         <motion.div
           className="relative rounded-2xl overflow-hidden"
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -2281,7 +2289,7 @@ function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: a
       {/* Attach Design Job Dialog */}
       {showAttachDialog && (
         <Dialog open={showAttachDialog} onOpenChange={handleCloseDialog}>
-          <DialogContent className="bg-[#0a0a1f] border-white/10 max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogContent className="bg-[#0a0a1f] border-white/10 max-w-2xl max-h-[80vh] overflow-hidden flex flex-col" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle className="text-white flex items-center gap-2">
                 <Palette className="w-5 h-5 text-neon-blue" />
