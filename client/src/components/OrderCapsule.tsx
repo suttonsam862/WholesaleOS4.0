@@ -381,10 +381,22 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
   });
 
   // Fetch line items
-  const { data: lineItems = [] } = useQuery<any[]>({
+  const { data: lineItems = [], isLoading: lineItemsLoading, error: lineItemsError } = useQuery<any[]>({
     queryKey: [`/api/orders/${orderId}/line-items`],
     enabled: isOpen && !!orderId,
   });
+
+  // Debug line items fetch
+  useEffect(() => {
+    if (isOpen && orderId) {
+      console.log('[OrderCapsule] Line items query status:', { 
+        lineItemsLoading, 
+        lineItemsError, 
+        lineItemsCount: lineItems?.length,
+        lineItems: lineItems 
+      });
+    }
+  }, [isOpen, orderId, lineItemsLoading, lineItemsError, lineItems]);
 
   // Fetch design jobs
   const { data: designJobs = [] } = useQuery<any[]>({
@@ -1402,6 +1414,9 @@ function LineItemsModule({
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [showVariantDropdown, setShowVariantDropdown] = useState(false);
+
+  // Debug: Log received lineItems
+  console.log('[LineItemsModule] Received lineItems:', lineItems, 'isArray:', Array.isArray(lineItems), 'length:', lineItems?.length);
 
   const totalValue = lineItems.reduce((sum: number, item: any) => sum + parseFloat(item.lineTotal || '0'), 0);
   const totalQty = lineItems.reduce((sum: number, item: any) => sum + (item.qtyTotal || 0), 0);

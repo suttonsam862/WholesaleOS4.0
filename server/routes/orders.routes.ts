@@ -417,6 +417,34 @@ export function registerOrdersRoutes(app: Express): void {
     }
   });
 
+  // Get order line items (simple - without manufacturer data)
+  app.get('/api/orders/:id/line-items', isAuthenticated, loadUserData, requirePermission('orders', 'read'), async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+      
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      // Check if user can view this order
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const userRole = user.role as UserRole;
+      if (userRole === 'sales' && order.salespersonId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+      
+      const lineItems = await storage.getOrderLineItems(orderId);
+      
+      // Strip financial data for manufacturer role
+      const filteredLineItems = stripFinancialData(lineItems, userRole);
+      res.json(filteredLineItems);
+    } catch (error) {
+      console.error("Error fetching line items:", error);
+      res.status(500).json({ message: "Failed to fetch line items" });
+    }
+  });
+
   // Update order
   app.put('/api/orders/:id', isAuthenticated, loadUserData, requirePermission('orders', 'write'), async (req, res) => {
     try {
