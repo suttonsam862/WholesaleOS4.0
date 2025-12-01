@@ -67,6 +67,7 @@ import {
   Copy,
   ChevronRight,
   ChevronDown,
+  ChevronLeft,
   Image as ImageIcon,
   Expand,
   ZoomIn,
@@ -1388,8 +1389,55 @@ function LineItemsModule({
   calculateTotalQuantity,
   calculatePrice,
 }: any) {
+  const [productSearch, setProductSearch] = useState('');
+  const [variantSearch, setVariantSearch] = useState('');
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
+  const [showVariantDropdown, setShowVariantDropdown] = useState(false);
+
   const totalValue = lineItems.reduce((sum: number, item: any) => sum + parseFloat(item.lineTotal || '0'), 0);
   const totalQty = lineItems.reduce((sum: number, item: any) => sum + (item.qtyTotal || 0), 0);
+
+  const filteredProducts = products.filter((p: any) =>
+    p.name?.toLowerCase().includes(productSearch.toLowerCase()) ||
+    p.category?.toLowerCase().includes(productSearch.toLowerCase())
+  );
+
+  const filteredVariants = variants.filter((v: any) => {
+    if (!selectedProductId) return false;
+    if (v.productId !== selectedProductId) return false;
+    return v.variantCode?.toLowerCase().includes(variantSearch.toLowerCase()) ||
+           v.variantName?.toLowerCase().includes(variantSearch.toLowerCase()) ||
+           v.color?.toLowerCase().includes(variantSearch.toLowerCase());
+  });
+
+  const selectedProduct = products.find((p: any) => p.id === selectedProductId);
+  const selectedVariant = variants.find((v: any) => v.id === newLineItem.variantId);
+
+  const handleSelectProduct = (product: any) => {
+    setSelectedProductId(product.id);
+    setProductSearch(product.name);
+    setShowProductDropdown(false);
+    setVariantSearch('');
+    setNewLineItem((prev: any) => ({ ...prev, variantId: null, itemName: product.name }));
+  };
+
+  const handleSelectVariant = (variant: any) => {
+    setNewLineItem((prev: any) => ({ 
+      ...prev, 
+      variantId: variant.id,
+      itemName: `${selectedProduct?.name} - ${variant.variantCode}`
+    }));
+    setVariantSearch(variant.variantCode || variant.variantName || '');
+    setShowVariantDropdown(false);
+  };
+
+  const resetProductSelection = () => {
+    setSelectedProductId(null);
+    setProductSearch('');
+    setVariantSearch('');
+    setNewLineItem((prev: any) => ({ ...prev, variantId: null, itemName: '' }));
+  };
 
   return (
     <motion.div
@@ -1414,7 +1462,7 @@ function LineItemsModule({
         </button>
       </div>
 
-      {/* Add Line Item Form */}
+      {/* Add Line Item Form - with Product/Variant Search */}
       {showAddLineItem && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
@@ -1423,37 +1471,185 @@ function LineItemsModule({
           className="p-4 rounded-xl bg-neon-blue/5 border border-neon-blue/20"
         >
           <h4 className="text-sm font-semibold text-white mb-4">Add New Line Item</h4>
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <Label className="text-xs text-white/50">Product Variant</Label>
-              <Select
-                value={newLineItem.variantId?.toString() || ''}
-                onValueChange={(v) => setNewLineItem((prev: any) => ({ ...prev, variantId: parseInt(v) }))}
-              >
-                <SelectTrigger className="mt-1 bg-white/5 border-white/10">
-                  <SelectValue placeholder="Select variant..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {variants.map((variant: any) => {
-                    const product = products.find((p: any) => p.id === variant.productId);
-                    return (
-                      <SelectItem key={variant.id} value={variant.id.toString()}>
-                        {product?.name} - {variant.variantCode}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+          
+          {/* Step 1: Search Product */}
+          <div className="mb-4">
+            <Label className="text-xs text-white/50 mb-2 flex items-center gap-2">
+              <span className="w-5 h-5 rounded-full bg-neon-blue/30 text-neon-blue flex items-center justify-center text-[10px] font-bold">1</span>
+              Search Product
+            </Label>
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                <Input
+                  value={productSearch}
+                  onChange={(e) => {
+                    setProductSearch(e.target.value);
+                    setShowProductDropdown(true);
+                    if (!e.target.value) resetProductSelection();
+                  }}
+                  onFocus={() => setShowProductDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowProductDropdown(false), 200)}
+                  className="pl-10 pr-10 bg-white/5 border-white/10"
+                  placeholder="Type to search products..."
+                  data-testid="input-product-search"
+                />
+                {selectedProductId && (
+                  <button
+                    onClick={resetProductSelection}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              
+              {/* Product Dropdown */}
+              {showProductDropdown && productSearch && !selectedProductId && (
+                <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto rounded-lg bg-[#0f0f2a] border border-white/20 shadow-xl">
+                  {filteredProducts.length > 0 ? (
+                    filteredProducts.slice(0, 10).map((product: any) => (
+                      <button
+                        key={product.id}
+                        onClick={() => handleSelectProduct(product)}
+                        className="w-full px-4 py-3 text-left hover:bg-white/10 transition-colors flex items-center gap-3"
+                      >
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt="" className="w-8 h-8 rounded object-cover" />
+                        ) : (
+                          <div className="w-8 h-8 rounded bg-white/10 flex items-center justify-center">
+                            <Package className="w-4 h-4 text-white/40" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="text-sm text-white font-medium">{product.name}</div>
+                          <div className="text-xs text-white/40">{product.category}</div>
+                        </div>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3 text-sm text-white/40">No products found</div>
+                  )}
+                </div>
+              )}
             </div>
-            <div>
-              <Label className="text-xs text-white/50">Item Name</Label>
-              <Input
-                value={newLineItem.itemName || ''}
-                onChange={(e) => setNewLineItem((prev: any) => ({ ...prev, itemName: e.target.value }))}
-                className="mt-1 bg-white/5 border-white/10"
-                placeholder="Custom item name..."
-              />
-            </div>
+          </div>
+
+          {/* Step 2: Select Variant (only shown after product is selected) */}
+          {selectedProductId && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4"
+            >
+              <Label className="text-xs text-white/50 mb-2 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-neon-purple/30 text-neon-purple flex items-center justify-center text-[10px] font-bold">2</span>
+                Select Variant
+                <span className="text-neon-blue ml-2">({selectedProduct?.name})</span>
+              </Label>
+              <div className="relative">
+                <div className="relative">
+                  <Palette className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                  <Input
+                    value={variantSearch}
+                    onChange={(e) => {
+                      setVariantSearch(e.target.value);
+                      setShowVariantDropdown(true);
+                    }}
+                    onFocus={() => setShowVariantDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowVariantDropdown(false), 200)}
+                    className="pl-10 bg-white/5 border-white/10"
+                    placeholder="Search variants by code, name, or color..."
+                    data-testid="input-variant-search"
+                  />
+                </div>
+                
+                {/* Variant Dropdown */}
+                {showVariantDropdown && (
+                  <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto rounded-lg bg-[#0f0f2a] border border-white/20 shadow-xl">
+                    {filteredVariants.length > 0 ? (
+                      filteredVariants.map((variant: any) => (
+                        <button
+                          key={variant.id}
+                          onClick={() => handleSelectVariant(variant)}
+                          className={cn(
+                            "w-full px-4 py-3 text-left hover:bg-white/10 transition-colors flex items-center justify-between",
+                            newLineItem.variantId === variant.id && "bg-neon-blue/10 border-l-2 border-neon-blue"
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="w-6 h-6 rounded border border-white/20"
+                              style={{ backgroundColor: variant.colorHex || '#666' }}
+                            />
+                            <div>
+                              <div className="text-sm text-white font-medium">{variant.variantCode}</div>
+                              <div className="text-xs text-white/40">{variant.color || variant.variantName}</div>
+                            </div>
+                          </div>
+                          <div className="text-xs text-neon-cyan">${variant.basePrice}</div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-3 text-sm text-white/40">
+                        {variantSearch ? 'No variants match your search' : 'Type to search variants'}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {/* Show all variants if nothing typed */}
+              {!variantSearch && !showVariantDropdown && filteredVariants.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {filteredVariants.slice(0, 8).map((variant: any) => (
+                    <button
+                      key={variant.id}
+                      onClick={() => handleSelectVariant(variant)}
+                      className={cn(
+                        "px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-2",
+                        newLineItem.variantId === variant.id
+                          ? "bg-neon-blue/20 border-neon-blue/50 text-neon-blue"
+                          : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
+                      )}
+                    >
+                      <div 
+                        className="w-3 h-3 rounded-full border border-white/20"
+                        style={{ backgroundColor: variant.colorHex || '#666' }}
+                      />
+                      {variant.variantCode}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Selected Item Preview */}
+          {selectedVariant && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-4 p-3 rounded-lg bg-neon-blue/10 border border-neon-blue/30 flex items-center gap-3"
+            >
+              <CheckCircle2 className="w-5 h-5 text-neon-blue flex-shrink-0" />
+              <div className="flex-1">
+                <div className="text-sm text-white font-medium">{selectedProduct?.name}</div>
+                <div className="text-xs text-white/50">Variant: {selectedVariant.variantCode} • ${selectedVariant.basePrice}/unit</div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Item Name Override */}
+          <div className="mb-4">
+            <Label className="text-xs text-white/50">Custom Item Name (Optional)</Label>
+            <Input
+              value={newLineItem.itemName || ''}
+              onChange={(e) => setNewLineItem((prev: any) => ({ ...prev, itemName: e.target.value }))}
+              className="mt-1 bg-white/5 border-white/10"
+              placeholder="Override the default item name..."
+              data-testid="input-item-name"
+            />
           </div>
           
           {/* Size Grid */}
@@ -1480,15 +1676,19 @@ function LineItemsModule({
               onClick={() => {
                 setShowAddLineItem(false);
                 setNewLineItem({ yxs: 0, ys: 0, ym: 0, yl: 0, xs: 0, s: 0, m: 0, l: 0, xl: 0, xxl: 0, xxxl: 0, xxxxl: 0 });
+                resetProductSelection();
               }}
               className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 text-sm"
             >
               Cancel
             </button>
             <button
-              onClick={handleAddLineItem}
-              disabled={addLineItemMutation.isPending}
-              className="px-3 py-2 rounded-lg bg-neon-blue/20 border border-neon-blue/50 text-neon-blue text-sm"
+              onClick={() => {
+                handleAddLineItem();
+                resetProductSelection();
+              }}
+              disabled={addLineItemMutation.isPending || !newLineItem.variantId}
+              className="px-3 py-2 rounded-lg bg-neon-blue/20 border border-neon-blue/50 text-neon-blue text-sm disabled:opacity-50"
             >
               {addLineItemMutation.isPending ? 'Adding...' : 'Add Item'}
             </button>
@@ -1715,9 +1915,54 @@ function LineItemsModule({
   );
 }
 
-function DesignModule({ designJobs, order }: { designJobs: any[]; order: any }) {
+function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: any[]; order: any; onDesignJobsChange?: () => void }) {
   const [expandedJobs, setExpandedJobs] = useState<Set<number>>(new Set());
   const [showAttachDialog, setShowAttachDialog] = useState(false);
+  const [dialogMode, setDialogMode] = useState<'choose' | 'search' | 'create'>('choose');
+  const [searchQuery, setSearchQuery] = useState('');
+  const { toast } = useToast();
+
+  const { data: allDesignJobs = [], isLoading: isLoadingJobs } = useQuery<any[]>({
+    queryKey: ['/api/design-jobs'],
+    enabled: dialogMode === 'search',
+  });
+
+  const availableJobs = allDesignJobs.filter((job: any) => 
+    !job.orderId || job.orderId === null
+  ).filter((job: any) =>
+    !searchQuery || 
+    job.jobCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    job.brief?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    job.status?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const attachJobMutation = useMutation({
+    mutationFn: async (jobId: number) => {
+      return await apiRequest(`/api/design-jobs/${jobId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ orderId: order.id }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Design job attached",
+        description: "The design job has been linked to this order.",
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/orders/${order.id}/design-jobs`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/design-jobs'] });
+      setShowAttachDialog(false);
+      setDialogMode('choose');
+      setSearchQuery('');
+      onDesignJobsChange?.();
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to attach",
+        description: error.message || "Could not attach the design job.",
+        variant: "destructive",
+      });
+    },
+  });
 
   const toggleJobExpand = (jobId: number) => {
     setExpandedJobs(prev => {
@@ -1741,6 +1986,18 @@ function DesignModule({ designJobs, order }: { designJobs: any[]; order: any }) 
     }
   };
 
+  const handleOpenDialog = () => {
+    setShowAttachDialog(true);
+    setDialogMode('choose');
+    setSearchQuery('');
+  };
+
+  const handleCloseDialog = () => {
+    setShowAttachDialog(false);
+    setDialogMode('choose');
+    setSearchQuery('');
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -1758,7 +2015,7 @@ function DesignModule({ designJobs, order }: { designJobs: any[]; order: any }) 
           <ActionButton
             icon={Plus}
             label="Attach Design Job"
-            onClick={() => setShowAttachDialog(true)}
+            onClick={handleOpenDialog}
             variant="primary"
           />
           <div className={cn(
@@ -2014,40 +2271,184 @@ function DesignModule({ designJobs, order }: { designJobs: any[]; order: any }) 
           <ActionButton
             icon={Plus}
             label="Attach Design Job"
-            onClick={() => setShowAttachDialog(true)}
+            onClick={handleOpenDialog}
             variant="primary"
             className="mx-auto"
           />
         </div>
       )}
 
-      {/* Attach Design Job Dialog (placeholder - would need full implementation) */}
+      {/* Attach Design Job Dialog */}
       {showAttachDialog && (
-        <Dialog open={showAttachDialog} onOpenChange={setShowAttachDialog}>
-          <DialogContent className="bg-[#0a0a1f] border-white/10 max-w-lg">
+        <Dialog open={showAttachDialog} onOpenChange={handleCloseDialog}>
+          <DialogContent className="bg-[#0a0a1f] border-white/10 max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle className="text-white flex items-center gap-2">
                 <Palette className="w-5 h-5 text-neon-blue" />
-                Attach Design Job
+                {dialogMode === 'choose' && 'Attach Design Job'}
+                {dialogMode === 'search' && 'Find Existing Design Job'}
+                {dialogMode === 'create' && 'Create New Design Job'}
               </DialogTitle>
             </DialogHeader>
-            <div className="py-6 text-center text-white/60">
-              <p className="mb-4">Select an existing design job or create a new one to attach to this order.</p>
-              <div className="flex justify-center gap-3">
-                <ActionButton
-                  icon={Search}
-                  label="Find Existing"
-                  onClick={() => setShowAttachDialog(false)}
-                  variant="default"
-                />
-                <ActionButton
-                  icon={Plus}
-                  label="Create New"
-                  onClick={() => setShowAttachDialog(false)}
-                  variant="primary"
-                />
+
+            {dialogMode === 'choose' && (
+              <div className="py-6 text-center text-white/60">
+                <p className="mb-6">Select an existing design job or create a new one to attach to this order.</p>
+                <div className="flex justify-center gap-4">
+                  <ActionButton
+                    icon={Search}
+                    label="Find Existing"
+                    onClick={() => setDialogMode('search')}
+                    variant="default"
+                  />
+                  <ActionButton
+                    icon={Plus}
+                    label="Create New"
+                    onClick={() => setDialogMode('create')}
+                    variant="primary"
+                  />
+                </div>
               </div>
-            </div>
+            )}
+
+            {dialogMode === 'search' && (
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Search Bar */}
+                <div className="relative mb-4">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                  <Input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10 bg-white/5 border-white/10"
+                    placeholder="Search by job code, brief, or status..."
+                    data-testid="input-design-job-search"
+                    autoFocus
+                  />
+                </div>
+
+                {/* Results List */}
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 max-h-[400px]">
+                  {isLoadingJobs ? (
+                    <div className="text-center py-8 text-white/40">
+                      <div className="animate-spin w-8 h-8 border-2 border-neon-blue border-t-transparent rounded-full mx-auto mb-3" />
+                      <p>Loading design jobs...</p>
+                    </div>
+                  ) : availableJobs.length > 0 ? (
+                    availableJobs.map((job: any) => {
+                      const statusConfig = DESIGN_JOB_STATUS_CONFIG[job.status as DesignJobStatus];
+                      return (
+                        <motion.div
+                          key={job.id}
+                          initial={{ opacity: 0, y: 5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className={cn(
+                            "p-4 rounded-lg bg-white/5 border border-white/10 transition-all group",
+                            attachJobMutation.isPending 
+                              ? "opacity-50 cursor-wait" 
+                              : "hover:border-neon-blue/50 cursor-pointer"
+                          )}
+                          onClick={() => !attachJobMutation.isPending && attachJobMutation.mutate(job.id)}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-white font-medium">{job.jobCode || `Job #${job.id}`}</span>
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded text-xs font-medium border",
+                                  statusConfig?.bgClass,
+                                  statusConfig?.textClass,
+                                  statusConfig?.borderClass
+                                )}>
+                                  {statusConfig?.label || job.status}
+                                </span>
+                                {job.urgency && job.urgency !== 'normal' && (
+                                  <span className={cn("px-2 py-0.5 rounded text-xs font-medium border", getUrgencyStyle(job.urgency))}>
+                                    {job.urgency.toUpperCase()}
+                                  </span>
+                                )}
+                              </div>
+                              {job.brief && (
+                                <p className="text-sm text-white/60 line-clamp-2">{job.brief}</p>
+                              )}
+                              <div className="flex items-center gap-4 mt-2 text-xs text-white/40">
+                                {job.deadline && (
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    Due: {format(new Date(job.deadline), 'MMM d, yyyy')}
+                                  </span>
+                                )}
+                                {job.createdAt && (
+                                  <span>Created: {format(new Date(job.createdAt), 'MMM d, yyyy')}</span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              className="px-3 py-1.5 rounded-lg bg-neon-blue/20 border border-neon-blue/50 text-neon-blue text-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                attachJobMutation.mutate(job.id);
+                              }}
+                              disabled={attachJobMutation.isPending}
+                            >
+                              {attachJobMutation.isPending ? (
+                                <div className="w-4 h-4 border-2 border-neon-blue border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <>
+                                  <Plus className="w-3 h-3" />
+                                  Attach
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-8 text-white/40">
+                      <Palette className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                      <p className="mb-2">No unattached design jobs found</p>
+                      <p className="text-sm text-white/30">
+                        {searchQuery ? 'Try a different search term' : 'All design jobs are already attached to orders'}
+                      </p>
+                      <button
+                        onClick={() => setDialogMode('create')}
+                        className="mt-4 text-neon-blue hover:underline text-sm"
+                      >
+                        Create a new design job instead
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Back Button */}
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <button
+                    onClick={() => setDialogMode('choose')}
+                    className="flex items-center gap-2 text-sm text-white/60 hover:text-white"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Back to options
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {dialogMode === 'create' && (
+              <div className="py-6 text-center text-white/60">
+                <Palette className="w-12 h-12 mx-auto mb-4 opacity-40" />
+                <p className="mb-4">Create a new design job for this order.</p>
+                <p className="text-sm text-white/40 mb-6">
+                  This feature will be available soon. For now, create design jobs from the Design Jobs page and attach them here.
+                </p>
+                <button
+                  onClick={() => setDialogMode('choose')}
+                  className="flex items-center gap-2 text-sm text-white/60 hover:text-white mx-auto"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Back to options
+                </button>
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       )}
