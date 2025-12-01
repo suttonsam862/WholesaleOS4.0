@@ -521,9 +521,9 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
   const addLineItemMutation = useMutation({
     mutationFn: (lineItem: any) =>
       apiRequest(`/api/orders/${orderId}/line-items`, { method: "POST", body: lineItem }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}/line-items`] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: [`/api/orders/${orderId}/line-items`] });
+      await queryClient.refetchQueries({ queryKey: [`/api/orders/${orderId}`] });
       toast({ title: "Success", description: "Line item added successfully" });
       setShowAddLineItem(false);
       setNewLineItem({ yxs: 0, ys: 0, ym: 0, yl: 0, xs: 0, s: 0, m: 0, l: 0, xl: 0, xxl: 0, xxxl: 0, xxxxl: 0 });
@@ -536,9 +536,9 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
   const updateLineItemMutation = useMutation({
     mutationFn: ({ itemId, data }: { itemId: number; data: any }) =>
       apiRequest(`/api/orders/${orderId}/line-items/${itemId}`, { method: "PUT", body: data }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}/line-items`] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: [`/api/orders/${orderId}/line-items`] });
+      await queryClient.refetchQueries({ queryKey: [`/api/orders/${orderId}`] });
       toast({ title: "Success", description: "Line item updated successfully" });
       setEditingLineItem(null);
       setEditingLineItemData(null);
@@ -551,9 +551,9 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
   const deleteLineItemMutation = useMutation({
     mutationFn: (itemId: number) =>
       apiRequest(`/api/orders/${orderId}/line-items/${itemId}`, { method: "DELETE" }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}/line-items`] });
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: [`/api/orders/${orderId}/line-items`] });
+      await queryClient.refetchQueries({ queryKey: [`/api/orders/${orderId}`] });
       toast({ title: "Success", description: "Line item deleted" });
     },
     onError: () => {
@@ -1929,6 +1929,7 @@ function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: a
   const [dialogMode, setDialogMode] = useState<'choose' | 'search' | 'create'>('choose');
   const [searchQuery, setSearchQuery] = useState('');
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: allDesignJobs = [], isLoading: isLoadingJobs } = useQuery<any[]>({
     queryKey: ['/api/design-jobs'],
