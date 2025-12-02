@@ -57,6 +57,7 @@ export async function seedPermissions(storage: IStorage): Promise<void> {
     { name: "connectionHealth", displayName: "Connection Health", description: "System connection monitoring", resourceType: "page" as const, path: "/connection-health" },
     { name: "events", displayName: "Events", description: "Event management system", resourceType: "page" as const, path: "/events" },
     { name: "tasks", displayName: "Tasks", description: "Task management system", resourceType: "page" as const, path: "/tasks" },
+    { name: "teamStores", displayName: "Team Stores", description: "Team store management", resourceType: "page" as const, path: "/team-stores" },
   ];
 
   for (const resourceData of resources) {

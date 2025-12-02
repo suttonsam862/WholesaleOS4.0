@@ -54,7 +54,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       'manufacturing', 'salespeople', 'settings', 'users', 'designerManagement',
       'manufacturerManagement', 'userManagement', 'finance', 'quotes', 'salesAnalytics',
       'leadsTracker', 'designPortfolio', 'designResources', 'sizeChecker', 'capacityDashboard',
-      'orderSpecifications', 'systemAnalytics', 'connectionHealth', 'events', 'tasks'
+      'orderSpecifications', 'systemAnalytics', 'connectionHealth', 'events', 'tasks', 'teamStores'
     ];
     const existingResourceNames = new Set(resources.map(r => r.name));
     const missingResources = expectedResources.filter(r => !existingResourceNames.has(r));
