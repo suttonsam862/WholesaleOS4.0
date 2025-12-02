@@ -418,6 +418,26 @@ export default function Orders() {
                   </Card>
                 </div>
 
+                {/* Salesperson Card - Show prominently */}
+                {selectedOrder.salespersonId && (
+                  <Card className="glass-card border-primary/30 bg-primary/5" data-testid="card-salesperson">
+                    <CardContent className="p-4 flex items-center gap-4">
+                      <div className="p-3 rounded-full bg-primary/20 text-primary">
+                        <Users className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wider">Salesperson</p>
+                        <p className="text-lg font-semibold text-foreground" data-testid="text-salesperson-name">
+                          {(() => {
+                            const sp = salespeople.find(s => s.userId === selectedOrder.salespersonId);
+                            return sp?.userName || sp?.userEmail || 'Not assigned';
+                          })()}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Card className="glass-card border-white/10 h-full">
                     <CardHeader className="pb-2">

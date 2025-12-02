@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Calculator, Package, TruckIcon, AlertCircle, CheckCircle, DollarSign, Edit2, Save, X, UserCheck, Mail, Printer, Copy, Truck, Factory, Users, MessageSquare, Settings, AlertTriangle, Image as ImageIcon, Upload, Expand, Palette, Eye } from "lucide-react";
+import { Trash2, Plus, Calculator, Package, TruckIcon, AlertCircle, CheckCircle, DollarSign, Edit2, Save, X, UserCheck, Mail, Printer, Copy, Truck, Factory, Users, MessageSquare, Settings, AlertTriangle, Image as ImageIcon, Upload, Expand, Palette, Eye, FileText, FolderOpen, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -950,6 +950,94 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
 
           <div className="flex-1 overflow-y-auto p-4">
             <TabsContent value="details" className="space-y-4">
+              {/* Prominent Tracking Display for Salespeople */}
+              {trackingNumbers.length > 0 && (
+                <Card className="border-2 border-indigo-500/50 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 shadow-lg" data-testid="prominent-tracking-card">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-bold flex items-center gap-2">
+                      <Truck className="h-5 w-5 text-indigo-500" />
+                      Shipment Tracking
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {trackingNumbers.map((tracking: any) => {
+                        const carrierLower = (tracking.carrierCompany || '').toLowerCase();
+                        const isUPS = carrierLower.includes('ups');
+                        const isFedEx = carrierLower.includes('fedex');
+                        const isUSPS = carrierLower.includes('usps');
+                        
+                        let trackingUrl = '';
+                        if (isUPS) {
+                          trackingUrl = `https://www.ups.com/track?tracknum=${encodeURIComponent(tracking.trackingNumber)}`;
+                        } else if (isFedEx) {
+                          trackingUrl = `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(tracking.trackingNumber)}`;
+                        } else if (isUSPS) {
+                          trackingUrl = `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodeURIComponent(tracking.trackingNumber)}`;
+                        }
+
+                        return (
+                          <div 
+                            key={tracking.id}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-white/50 dark:bg-black/20 rounded-lg border border-indigo-200 dark:border-indigo-800 gap-3"
+                            data-testid={`prominent-tracking-${tracking.id}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-indigo-500/20 rounded-lg">
+                                <Package className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                              </div>
+                              <div>
+                                <p className="font-bold text-lg tracking-wide" data-testid={`prominent-tracking-number-${tracking.id}`}>
+                                  {tracking.trackingNumber}
+                                </p>
+                                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                                  <TruckIcon className="h-3 w-3" />
+                                  {tracking.carrierCompany}
+                                </p>
+                              </div>
+                            </div>
+                            {trackingUrl && (
+                              <a
+                                href={trackingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg transition-colors shadow-md"
+                                data-testid={`track-package-link-${tracking.id}`}
+                              >
+                                <TruckIcon className="h-4 w-4" />
+                                Track on {isUPS ? 'UPS' : isFedEx ? 'FedEx' : 'USPS'}
+                              </a>
+                            )}
+                            {!trackingUrl && (
+                              <div className="flex flex-col sm:flex-row items-center gap-2">
+                                <span className="text-sm text-muted-foreground">
+                                  Visit {tracking.carrierCompany} to track
+                                </span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(tracking.trackingNumber);
+                                    toast({
+                                      title: "Copied!",
+                                      description: "Tracking number copied to clipboard",
+                                    });
+                                  }}
+                                  data-testid={`copy-tracking-${tracking.id}`}
+                                >
+                                  <Copy className="h-4 w-4 mr-1" />
+                                  Copy Number
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card>
                   <CardHeader className="pb-3">
@@ -1300,39 +1388,61 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
 
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Files & Links</CardTitle>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Documents & Links
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Invoice</span>
-                      {order.invoiceUrl ? (
-                        <a href={order.invoiceUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                          View Invoice
+                  <CardContent className="space-y-2">
+                    {/* Available Links */}
+                    <div className="flex flex-wrap gap-2">
+                      {order.invoiceUrl && (
+                        <a
+                          href={order.invoiceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg text-blue-700 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
+                          data-testid="link-invoice"
+                        >
+                          <FileText className="h-4 w-4" />
+                          <span className="text-sm font-medium">Invoice</span>
+                          <ExternalLink className="h-3 w-3" />
                         </a>
-                      ) : (
-                        <span className="text-muted-foreground">Not available</span>
+                      )}
+                      {order.sizeFormLink && (
+                        <a
+                          href={order.sizeFormLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg text-purple-700 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors"
+                          data-testid="link-size-form"
+                        >
+                          <Users className="h-4 w-4" />
+                          <span className="text-sm font-medium">Size Form</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                      {order.orderFolder && (
+                        <a
+                          href={order.orderFolder}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
+                          data-testid="link-order-folder"
+                        >
+                          <FolderOpen className="h-4 w-4" />
+                          <span className="text-sm font-medium">Order Folder</span>
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
                       )}
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Size Form</span>
-                      {order.sizeFormLink ? (
-                        <a href={order.sizeFormLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                          Size Form
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground">Not available</span>
-                      )}
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Order Folder</span>
-                      {order.orderFolder ? (
-                        <a href={order.orderFolder} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                          View Folder
-                        </a>
-                      ) : (
-                        <span className="text-muted-foreground">Not available</span>
-                      )}
-                    </div>
+                    
+                    {/* Show message if no links available */}
+                    {!order.invoiceUrl && !order.sizeFormLink && !order.orderFolder && (
+                      <p className="text-sm text-muted-foreground italic py-2">
+                        No documents or links attached to this order yet.
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </div>

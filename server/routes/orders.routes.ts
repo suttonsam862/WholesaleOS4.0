@@ -1033,6 +1033,9 @@ export function registerOrdersRoutes(app: Express): void {
         return res.status(404).json({ message: "Order not found" });
       }
 
+      // Get tracking numbers for this order
+      const trackingNumbers = await storage.getOrderTrackingNumbers(orderId);
+      
       // Only expose safe fields - no financial data, internal notes, etc.
       const safeOrder = {
         id: formData.order.id,
@@ -1046,6 +1049,14 @@ export function registerOrdersRoutes(app: Express): void {
         shippingAddress: formData.order.shippingAddress,
         billToAddress: formData.order.billToAddress,
       };
+      
+      // Safe tracking info for customers (just tracking number and carrier)
+      const safeTrackingNumbers = trackingNumbers.map(t => ({
+        id: t.id,
+        trackingNumber: t.trackingNumber,
+        carrierCompany: t.carrierCompany,
+        createdAt: t.createdAt,
+      }));
 
       const safeOrganization = formData.organization ? {
         id: formData.organization.id,
@@ -1083,6 +1094,7 @@ export function registerOrdersRoutes(app: Express): void {
         order: safeOrder,
         organization: safeOrganization,
         lineItems: safeLineItems,
+        trackingNumbers: safeTrackingNumbers,
       });
     } catch (error) {
       console.error("Error fetching public order form data:", error);

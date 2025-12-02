@@ -35,6 +35,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Image as ImageIcon,
+  ExternalLink,
 } from "lucide-react";
 
 const SIZE_COLUMNS = [
@@ -138,6 +139,12 @@ interface PublicOrderData {
     productName: string | null;
     variantCode: string | null;
     variantColor: string | null;
+  }>;
+  trackingNumbers?: Array<{
+    id: number;
+    trackingNumber: string;
+    carrierCompany: string;
+    createdAt: string;
   }>;
 }
 
@@ -499,6 +506,27 @@ export default function CustomerOrderForm() {
 
 function WelcomeStep({ orderData, onNext }: { orderData: any; onNext: () => void }) {
   const lineItemsWithImages = orderData.lineItems?.filter((item: any) => item.imageUrl) || [];
+  const trackingNumbers = orderData.trackingNumbers || [];
+  
+  const getTrackingUrl = (tracking: { trackingNumber: string; carrierCompany: string }) => {
+    const carrierLower = (tracking.carrierCompany || '').toLowerCase();
+    if (carrierLower.includes('ups')) {
+      return `https://www.ups.com/track?tracknum=${encodeURIComponent(tracking.trackingNumber)}`;
+    } else if (carrierLower.includes('fedex')) {
+      return `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(tracking.trackingNumber)}`;
+    } else if (carrierLower.includes('usps')) {
+      return `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodeURIComponent(tracking.trackingNumber)}`;
+    }
+    return '';
+  };
+
+  const getCarrierName = (carrierCompany: string) => {
+    const carrierLower = carrierCompany.toLowerCase();
+    if (carrierLower.includes('ups')) return 'UPS';
+    if (carrierLower.includes('fedex')) return 'FedEx';
+    if (carrierLower.includes('usps')) return 'USPS';
+    return carrierCompany;
+  };
   
   return (
     <motion.div
@@ -507,6 +535,64 @@ function WelcomeStep({ orderData, onNext }: { orderData: any; onNext: () => void
       exit={{ opacity: 0, x: -20 }}
       className="space-y-6"
     >
+      {/* Tracking Information - Prominent Display for Customers */}
+      {trackingNumbers.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-6 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 border-2 border-emerald-500/50 backdrop-blur"
+          data-testid="customer-tracking-card"
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-500/30 flex items-center justify-center">
+              <Truck className="w-6 h-6 text-emerald-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">Your Order Has Shipped!</h2>
+              <p className="text-sm text-white/60">Track your package below</p>
+            </div>
+          </div>
+          
+          <div className="space-y-3">
+            {trackingNumbers.map((tracking: any) => {
+              const trackingUrl = getTrackingUrl(tracking);
+              return (
+                <div 
+                  key={tracking.id}
+                  className="p-4 rounded-xl bg-white/10 border border-white/20"
+                  data-testid={`customer-tracking-${tracking.id}`}
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-bold text-white tracking-wider" data-testid={`customer-tracking-number-${tracking.id}`}>
+                        {tracking.trackingNumber}
+                      </p>
+                      <p className="text-sm text-white/60">{tracking.carrierCompany}</p>
+                    </div>
+                    {trackingUrl ? (
+                      <a
+                        href={trackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-lg transition-colors shadow-lg"
+                        data-testid={`customer-track-link-${tracking.id}`}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Track on {getCarrierName(tracking.carrierCompany)}
+                      </a>
+                    ) : (
+                      <span className="text-sm text-white/50">
+                        Visit {tracking.carrierCompany} to track
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </motion.div>
+      )}
+
       <div className="p-6 rounded-2xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 backdrop-blur">
         <div className="text-center mb-6">
           <motion.div

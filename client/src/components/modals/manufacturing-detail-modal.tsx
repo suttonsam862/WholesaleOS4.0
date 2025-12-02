@@ -828,43 +828,113 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                 </Card>
               )}
 
-              {/* Order Tracking Numbers */}
-              {orderTrackingNumbers.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center">
-                      <Truck className="w-4 h-4 mr-2" />
-                      Order Tracking Numbers
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {orderTrackingNumbers.map((tracking: any) => (
-                        <div
-                          key={tracking.id}
-                          className="flex items-center justify-between p-3 bg-muted/50 rounded-md border"
-                          data-testid={`mfg-tracking-item-${tracking.id}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <Truck className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="text-sm font-medium" data-testid={`mfg-tracking-number-${tracking.id}`}>
-                                {tracking.trackingNumber}
-                              </p>
-                              <p className="text-xs text-muted-foreground" data-testid={`mfg-carrier-${tracking.id}`}>
-                                {tracking.carrierCompany}
-                              </p>
-                            </div>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            {tracking.createdAt && format(new Date(tracking.createdAt), "MMM d, yyyy")}
-                          </p>
-                        </div>
-                      ))}
+              {/* Shipping & Tracking Section - Always Visible for Manufacturing */}
+              <Card className="border-2 border-indigo-500/30 bg-gradient-to-r from-indigo-500/5 to-purple-500/5">
+                <CardHeader>
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <div className="p-1.5 bg-indigo-500/20 rounded-lg">
+                      <Truck className="w-4 h-4 text-indigo-500" />
                     </div>
-                  </CardContent>
-                </Card>
-              )}
+                    Shipping & Tracking
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Tracking Input Fields - Always editable */}
+                  {canEdit && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-white/50 dark:bg-black/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+                      <div>
+                        <Label htmlFor="mfg-tracking" className="text-sm font-medium">Tracking Number</Label>
+                        <Input
+                          id="mfg-tracking"
+                          value={trackingNumber}
+                          onChange={(e) => setTrackingNumber(e.target.value)}
+                          placeholder="Enter tracking number"
+                          className="mt-1"
+                          data-testid="input-mfg-tracking"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="mfg-carrier" className="text-sm font-medium">Carrier Company</Label>
+                        <Select value={carrierCompany} onValueChange={setCarrierCompany}>
+                          <SelectTrigger id="mfg-carrier" className="mt-1" data-testid="select-mfg-carrier">
+                            <SelectValue placeholder="Select carrier" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="UPS">UPS</SelectItem>
+                            <SelectItem value="FedEx">FedEx</SelectItem>
+                            <SelectItem value="USPS">USPS</SelectItem>
+                            <SelectItem value="DHL">DHL</SelectItem>
+                            <SelectItem value="Manufacturing Team">Manufacturing Team (Local)</SelectItem>
+                            <SelectItem value="Other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Existing Order Tracking Numbers */}
+                  {orderTrackingNumbers.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">Current Tracking Numbers:</p>
+                      {orderTrackingNumbers.map((tracking: any) => {
+                        const carrierLower = (tracking.carrierCompany || '').toLowerCase();
+                        const isUPS = carrierLower.includes('ups');
+                        const isFedEx = carrierLower.includes('fedex');
+                        const isUSPS = carrierLower.includes('usps');
+                        
+                        let trackingUrl = '';
+                        if (isUPS) {
+                          trackingUrl = `https://www.ups.com/track?tracknum=${encodeURIComponent(tracking.trackingNumber)}`;
+                        } else if (isFedEx) {
+                          trackingUrl = `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(tracking.trackingNumber)}`;
+                        } else if (isUSPS) {
+                          trackingUrl = `https://tools.usps.com/go/TrackConfirmAction?tLabels=${encodeURIComponent(tracking.trackingNumber)}`;
+                        }
+
+                        return (
+                          <div
+                            key={tracking.id}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-white/50 dark:bg-black/20 rounded-lg border gap-2"
+                            data-testid={`mfg-tracking-item-${tracking.id}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-indigo-500/10 rounded-lg">
+                                <Truck className="h-4 w-4 text-indigo-500" />
+                              </div>
+                              <div>
+                                <p className="font-bold tracking-wide" data-testid={`mfg-tracking-number-${tracking.id}`}>
+                                  {tracking.trackingNumber}
+                                </p>
+                                <p className="text-xs text-muted-foreground" data-testid={`mfg-carrier-${tracking.id}`}>
+                                  {tracking.carrierCompany} • Added {tracking.createdAt && format(new Date(tracking.createdAt), "MMM d, yyyy")}
+                                </p>
+                              </div>
+                            </div>
+                            {trackingUrl && (
+                              <a
+                                href={trackingUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-2 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors"
+                                data-testid={`mfg-track-link-${tracking.id}`}
+                              >
+                                <Truck className="h-3 w-3" />
+                                Track on {isUPS ? 'UPS' : isFedEx ? 'FedEx' : 'USPS'}
+                              </a>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                  
+                  {orderTrackingNumbers.length === 0 && !trackingNumber && (
+                    <p className="text-sm text-muted-foreground italic text-center py-2">
+                      No tracking numbers yet. Add one above when shipping.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             <TabsContent value="lineitems" className="space-y-4 mt-6">
