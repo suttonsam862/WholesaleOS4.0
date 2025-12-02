@@ -1015,4 +1015,189 @@ export function registerOrdersRoutes(app: Express): void {
       res.status(500).json({ message: "Failed to fetch order line item manufacturers" });
     }
   });
+
+  // =====================================================
+  // PUBLIC ORDER FORM ENDPOINTS (No authentication required)
+  // =====================================================
+
+  // PUBLIC: Get order data for customer form (no auth required)
+  app.get('/api/public/orders/:orderId/form-data', async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+
+      const formData = await storage.getOrderForPublicForm(orderId);
+      if (!formData || !formData.order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Only expose safe fields - no financial data, internal notes, etc.
+      const safeOrder = {
+        id: formData.order.id,
+        orderCode: formData.order.orderCode,
+        orderName: formData.order.orderName,
+        status: formData.order.status,
+        estDelivery: formData.order.estDelivery,
+        contactName: formData.order.contactName,
+        contactEmail: formData.order.contactEmail,
+        contactPhone: formData.order.contactPhone,
+        shippingAddress: formData.order.shippingAddress,
+        billToAddress: formData.order.billToAddress,
+      };
+
+      const safeOrganization = formData.organization ? {
+        id: formData.organization.id,
+        name: formData.organization.name,
+        logoUrl: formData.organization.logoUrl,
+      } : null;
+
+      const safeLineItems = formData.lineItems.map(item => ({
+        id: item.id,
+        orderId: item.orderId,
+        variantId: item.variantId,
+        itemName: item.itemName,
+        colorNotes: item.colorNotes,
+        imageUrl: item.imageUrl,
+        yxs: item.yxs || 0,
+        ys: item.ys || 0,
+        ym: item.ym || 0,
+        yl: item.yl || 0,
+        xs: item.xs || 0,
+        s: item.s || 0,
+        m: item.m || 0,
+        l: item.l || 0,
+        xl: item.xl || 0,
+        xxl: item.xxl || 0,
+        xxxl: item.xxxl || 0,
+        xxxxl: item.xxxxl || 0,
+        qtyTotal: item.qtyTotal,
+        notes: item.notes,
+        productName: item.product?.name,
+        variantCode: item.variant?.variantCode,
+        variantColor: item.variant?.color,
+      }));
+
+      res.json({
+        order: safeOrder,
+        organization: safeOrganization,
+        lineItems: safeLineItems,
+      });
+    } catch (error) {
+      console.error("Error fetching public order form data:", error);
+      res.status(500).json({ message: "Failed to fetch order data" });
+    }
+  });
+
+  // PUBLIC: Submit customer order form (no auth required)
+  app.post('/api/public/orders/:orderId/submit-form', async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+
+      // Verify order exists
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const { 
+        contactInfo, 
+        shippingAddress, 
+        billingAddress, 
+        additionalInfo,
+        uploadedFiles,
+        lineItemSizes
+      } = req.body;
+
+      // Validate required fields
+      if (!contactInfo?.name || !contactInfo?.email) {
+        return res.status(400).json({ message: "Contact name and email are required" });
+      }
+
+      // Create form submission
+      const submission = await storage.createOrderFormSubmission({
+        orderId,
+        contactName: contactInfo.name,
+        contactEmail: contactInfo.email,
+        contactPhone: contactInfo.phone || null,
+        shippingName: shippingAddress?.name || null,
+        shippingAddress: shippingAddress?.address || null,
+        shippingCity: shippingAddress?.city || null,
+        shippingState: shippingAddress?.state || null,
+        shippingZip: shippingAddress?.zip || null,
+        shippingCountry: shippingAddress?.country || 'USA',
+        billingName: billingAddress?.name || null,
+        billingAddress: billingAddress?.address || null,
+        billingCity: billingAddress?.city || null,
+        billingState: billingAddress?.state || null,
+        billingZip: billingAddress?.zip || null,
+        billingCountry: billingAddress?.country || 'USA',
+        specialInstructions: additionalInfo?.notes || null,
+        uploadedFiles: uploadedFiles ? Object.entries(uploadedFiles).map(([key, value]: [string, any]) => ({
+          fileName: key,
+          fileUrl: value,
+          fileType: key,
+          uploadedAt: new Date().toISOString(),
+        })) : null,
+        status: 'submitted',
+      });
+
+      // Save line item sizes if provided
+      if (lineItemSizes && Array.isArray(lineItemSizes)) {
+        const sizeItems = lineItemSizes.map((item: any) => ({
+          submissionId: submission.id,
+          lineItemId: item.lineItemId,
+          yxs: item.yxs || 0,
+          ys: item.ys || 0,
+          ym: item.ym || 0,
+          yl: item.yl || 0,
+          xs: item.xs || 0,
+          s: item.s || 0,
+          m: item.m || 0,
+          l: item.l || 0,
+          xl: item.xl || 0,
+          xxl: item.xxl || 0,
+          xxxl: item.xxxl || 0,
+          xxxxl: item.xxxxl || 0,
+        }));
+        await storage.bulkCreateOrderFormLineItemSizes(sizeItems);
+      }
+
+      res.status(201).json({ 
+        success: true,
+        submissionId: submission.id,
+        message: "Form submitted successfully" 
+      });
+    } catch (error) {
+      console.error("Error submitting order form:", error);
+      res.status(500).json({ message: "Failed to submit order form" });
+    }
+  });
+
+  // PUBLIC: Get form submission status (no auth required, but needs submission ID)
+  app.get('/api/public/orders/:orderId/form-status', async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+
+      const submissions = await storage.getOrderFormSubmissions(orderId);
+      const latestSubmission = submissions.length > 0 ? submissions[submissions.length - 1] : null;
+
+      res.json({
+        hasSubmission: submissions.length > 0,
+        submissionCount: submissions.length,
+        latestStatus: latestSubmission?.status || null,
+        lastSubmittedAt: latestSubmission?.submittedAt || null,
+      });
+    } catch (error) {
+      console.error("Error fetching form status:", error);
+      res.status(500).json({ message: "Failed to fetch form status" });
+    }
+  });
 }
