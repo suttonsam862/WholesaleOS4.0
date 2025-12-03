@@ -165,7 +165,13 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
         sizesValidated: order.sizesValidated || false,
         depositReceived: order.depositReceived || false,
         invoiceUrl: order.invoiceUrl || '',
-        orderFolder: order.orderFolder || ''
+        orderFolder: order.orderFolder || '',
+        orgId: order.orgId || null,
+        contactName: order.contactName || '',
+        contactEmail: order.contactEmail || '',
+        contactPhone: order.contactPhone || '',
+        shippingAddress: order.shippingAddress || '',
+        billToAddress: order.billToAddress || '',
       });
 
       // Initialize line item images from database
@@ -1046,22 +1052,100 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
                   <CardContent className="space-y-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">Organization</span>
-                      <span className="font-medium" data-testid="text-organization">{org?.name || `Org #${order.orgId}`}</span>
+                      {isEditing ? (
+                        <Select
+                          value={formData.orgId?.toString() || ''}
+                          onValueChange={(value) => handleFormChange('orgId', value ? parseInt(value) : null)}
+                        >
+                          <SelectTrigger className="w-48" data-testid="select-organization">
+                            <SelectValue placeholder="Select organization" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="">No Organization</SelectItem>
+                            {organizations.map((o: any) => (
+                              <SelectItem key={o.id} value={o.id.toString()}>
+                                {o.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <span className="font-medium" data-testid="text-organization">{org?.name || (order.orgId ? `Org #${order.orgId}` : 'No organization')}</span>
+                      )}
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Contact</span>
-                      <span className="font-medium" data-testid="text-contact">{contact?.name || "No contact"}</span>
+                      <span className="text-sm text-muted-foreground">Contact Name</span>
+                      {isEditing ? (
+                        <Input
+                          value={formData.contactName || ''}
+                          onChange={(e) => handleFormChange('contactName', e.target.value)}
+                          className="w-48 h-8"
+                          placeholder="Contact name"
+                          data-testid="input-contact-name"
+                        />
+                      ) : (
+                        <span className="font-medium" data-testid="text-contact">{order.contactName || contact?.name || "No contact"}</span>
+                      )}
                     </div>
-                    {contact?.email && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Email</span>
+                      {isEditing ? (
+                        <Input
+                          type="email"
+                          value={formData.contactEmail || ''}
+                          onChange={(e) => handleFormChange('contactEmail', e.target.value)}
+                          className="w-48 h-8"
+                          placeholder="Email address"
+                          data-testid="input-contact-email"
+                        />
+                      ) : (
+                        <span className="font-medium text-blue-600" data-testid="text-email">
+                          {order.contactEmail || contact?.email || "—"}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">Phone</span>
+                      {isEditing ? (
+                        <Input
+                          type="tel"
+                          value={formData.contactPhone || ''}
+                          onChange={(e) => handleFormChange('contactPhone', e.target.value)}
+                          className="w-48 h-8"
+                          placeholder="Phone number"
+                          data-testid="input-contact-phone"
+                        />
+                      ) : (
+                        <span className="font-medium" data-testid="text-phone">
+                          {order.contactPhone || contact?.phone || "—"}
+                        </span>
+                      )}
+                    </div>
+                    {isAdmin(user) && (
                       <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Email</span>
-                        <span className="font-medium text-blue-600">{contact.email}</span>
-                      </div>
-                    )}
-                    {contact?.phone && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-muted-foreground">Phone</span>
-                        <span className="font-medium">{contact.phone}</span>
+                        <span className="text-sm text-muted-foreground">Salesperson</span>
+                        {isEditing ? (
+                          <Select
+                            value={formData.salespersonId || ''}
+                            onValueChange={(value) => handleFormChange('salespersonId', value || null)}
+                          >
+                            <SelectTrigger className="w-48" data-testid="select-salesperson">
+                              <SelectValue placeholder="Assign salesperson" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">Unassigned</SelectItem>
+                              {salespeople.map((sp: any) => (
+                                <SelectItem key={sp.userId} value={sp.userId}>
+                                  {sp.name || sp.email}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <span className="font-medium" data-testid="text-salesperson">
+                            {assignedSalesperson?.name || assignedSalesperson?.email || order.salespersonName || "Unassigned"}
+                          </span>
+                        )}
                       </div>
                     )}
                     <div className="flex justify-between items-center">
@@ -1374,14 +1458,43 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
 
                 <Card>
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Assignment</CardTitle>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Truck className="h-4 w-4" />
+                      Shipping & Billing
+                    </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-muted-foreground">Salesperson</span>
-                      <span className="font-medium" data-testid="text-salesperson">
-                        {assignedSalesperson ? (assignedSalesperson.userName || assignedSalesperson.userEmail || "Unknown") : "Unassigned"}
-                      </span>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground">Shipping Address</Label>
+                      {isEditing ? (
+                        <Textarea
+                          value={formData.shippingAddress || ''}
+                          onChange={(e) => handleFormChange('shippingAddress', e.target.value)}
+                          placeholder="Enter shipping address..."
+                          className="min-h-[80px]"
+                          data-testid="textarea-shipping-address"
+                        />
+                      ) : (
+                        <div className="text-sm whitespace-pre-line bg-muted/30 rounded-md p-2" data-testid="text-shipping-address">
+                          {order.shippingAddress || "No shipping address set"}
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm text-muted-foreground">Billing Address</Label>
+                      {isEditing ? (
+                        <Textarea
+                          value={formData.billToAddress || ''}
+                          onChange={(e) => handleFormChange('billToAddress', e.target.value)}
+                          placeholder="Enter billing address..."
+                          className="min-h-[80px]"
+                          data-testid="textarea-billing-address"
+                        />
+                      ) : (
+                        <div className="text-sm whitespace-pre-line bg-muted/30 rounded-md p-2" data-testid="text-billing-address">
+                          {order.billToAddress || "No billing address set"}
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1644,10 +1757,10 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
 
                     <div>
                       <Label>Size Quantities</Label>
-                      <div className="grid grid-cols-11 gap-2 mt-2">
+                      <div className="grid grid-cols-12 gap-1 mt-2">
                         {SIZE_COLUMNS.map((size) => (
-                          <div key={size.key}>
-                            <Label className="text-xs">{size.label}</Label>
+                          <div key={size.key} className="min-w-0">
+                            <Label className="text-xs block text-center truncate">{size.label}</Label>
                             <Input
                               type="number"
                               min="0"
@@ -1659,7 +1772,7 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
                                   [size.key]: val === '' ? 0 : parseInt(val) || 0,
                                 });
                               }}
-                              className="h-8 text-sm"
+                              className="h-8 text-sm text-center px-1 w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                               data-testid={`input-size-${size.key}`}
                             />
                           </div>
@@ -1851,19 +1964,26 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
                                     onClick={() => {
                                       if (!editingLineItemData) return;
                                       const unitPrice = calculatePrice(item.variantId);
-                                      const qtyTotal = calculateTotalQuantity(editingLineItemData);
-                                      const lineTotal = (parseFloat(unitPrice) * qtyTotal).toFixed(2);
 
-                                      // Extract only the fields that should be updated, excluding auto-managed fields
-                                      const { id, orderId, createdAt, updatedAt, ...updateFields } = editingLineItemData as any;
+                                      // Extract only the fields that should be updated
+                                      // Exclude auto-managed and computed fields (qtyTotal and lineTotal are generated columns)
+                                      const { 
+                                        id, 
+                                        orderId, 
+                                        createdAt, 
+                                        updatedAt,
+                                        qtyTotal,  // Computed column - don't send
+                                        lineTotal, // Computed column - don't send
+                                        product,   // Joined data - don't send
+                                        variant,   // Joined data - don't send
+                                        ...updateFields 
+                                      } = editingLineItemData as any;
 
                                       updateLineItemMutation.mutate({
                                         itemId: item.id,
                                         data: {
                                           ...updateFields,
                                           unitPrice,
-                                          qtyTotal,
-                                          lineTotal,
                                         },
                                       });
                                     }}
@@ -1888,10 +2008,10 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
                           </div>
                         </CardHeader>
                         <CardContent>
-                          <div className="grid grid-cols-11 gap-2">
+                          <div className="grid grid-cols-12 gap-1">
                             {SIZE_COLUMNS.map((size) => (
-                              <div key={size.key}>
-                                <Label className="text-xs text-muted-foreground">{size.label}</Label>
+                              <div key={size.key} className="min-w-0">
+                                <Label className="text-xs text-muted-foreground block text-center truncate">{size.label}</Label>
                                 {isItemEditing ? (
                                   <Input
                                     type="number"
@@ -1904,11 +2024,11 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
                                         [size.key]: parseInt(e.target.value) || 0,
                                       });
                                     }}
-                                    className="h-8 text-sm"
+                                    className="h-8 text-sm text-center px-1 w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                     data-testid={`input-edit-size-${size.key}-${item.id}`}
                                   />
                                 ) : (
-                                  <div className="h-8 px-2 py-1 text-center text-sm font-medium border rounded">
+                                  <div className="h-8 px-1 py-1 text-center text-sm font-medium border rounded min-w-[2.5rem]">
                                     {(item as any)[size.key] || 0}
                                   </div>
                                 )}

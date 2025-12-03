@@ -1130,7 +1130,106 @@ export function registerOrdersRoutes(app: Express): void {
         return res.status(400).json({ message: "Contact name and email are required" });
       }
 
-      // Create form submission
+      // Match or create organization if organization name is provided
+      let matchedOrgId = order.orgId;
+      const orgName = additionalInfo?.organizationName || shippingAddress?.name;
+      
+      if (orgName && !matchedOrgId) {
+        // Try to find existing organization by name
+        const existingOrg = await storage.findOrganizationByName(orgName);
+        
+        if (existingOrg) {
+          matchedOrgId = existingOrg.id;
+        } else {
+          // Create new organization with shipping address info
+          const newOrg = await storage.createOrganization({
+            name: orgName,
+            city: shippingAddress?.city || null,
+            state: shippingAddress?.state || null,
+            shippingAddress: shippingAddress?.address 
+              ? `${shippingAddress.address}, ${shippingAddress.city || ''} ${shippingAddress.state || ''} ${shippingAddress.zip || ''}`.trim()
+              : null,
+          });
+          matchedOrgId = newOrg.id;
+        }
+      }
+
+      // Match or create contact
+      let matchedContactId: number | null = null;
+      
+      // First try to find by email (most reliable match)
+      const existingContact = await storage.findContactByEmail(contactInfo.email);
+      
+      if (existingContact) {
+        matchedContactId = existingContact.id;
+        
+        // Update contact with latest info if needed (phone, org association)
+        if (contactInfo.phone || (matchedOrgId && !existingContact.orgId)) {
+          await storage.updateContact(existingContact.id, {
+            phone: contactInfo.phone || existingContact.phone,
+            orgId: matchedOrgId || existingContact.orgId,
+          });
+        }
+      } else if (matchedOrgId) {
+        // If no email match, try to find by name within the organization
+        const contactByName = await storage.findContactByNameAndOrg(contactInfo.name, matchedOrgId);
+        
+        if (contactByName) {
+          matchedContactId = contactByName.id;
+          // Update with email if not set
+          if (!contactByName.email) {
+            await storage.updateContact(contactByName.id, {
+              email: contactInfo.email,
+              phone: contactInfo.phone || contactByName.phone,
+            });
+          }
+        }
+      }
+      
+      // Create new contact if no match found
+      if (!matchedContactId) {
+        const newContact = await storage.createContact({
+          name: contactInfo.name,
+          email: contactInfo.email,
+          phone: contactInfo.phone || null,
+          orgId: matchedOrgId || null,
+          role: 'customer',
+          isPrimary: !matchedOrgId, // Make primary if org is new or no org
+        });
+        matchedContactId = newContact.id;
+      }
+
+      // Build shipping address string for order
+      const fullShippingAddress = shippingAddress?.address
+        ? [
+            shippingAddress.name,
+            shippingAddress.address,
+            `${shippingAddress.city || ''}, ${shippingAddress.state || ''} ${shippingAddress.zip || ''}`.trim(),
+            shippingAddress.country || 'USA'
+          ].filter(Boolean).join('\n')
+        : null;
+
+      // Build billing address string for order
+      const fullBillingAddress = billingAddress?.address
+        ? [
+            billingAddress.name,
+            billingAddress.address,
+            `${billingAddress.city || ''}, ${billingAddress.state || ''} ${billingAddress.zip || ''}`.trim(),
+            billingAddress.country || 'USA'
+          ].filter(Boolean).join('\n')
+        : null;
+
+      // Update order with matched/created organization, contact, and address info
+      await storage.updateOrder(orderId, {
+        orgId: matchedOrgId || order.orgId,
+        contactName: contactInfo.name,
+        contactEmail: contactInfo.email,
+        contactPhone: contactInfo.phone || null,
+        shippingAddress: fullShippingAddress || order.shippingAddress,
+        billToAddress: fullBillingAddress || order.billToAddress,
+      });
+
+      // Create form submission with organization name stored
       const submission = await storage.createOrderFormSubmission({
         orderId,
         contactName: contactInfo.name,
@@ -1148,13 +1247,14 @@ export function registerOrdersRoutes(app: Express): void {
         billingState: billingAddress?.state || null,
         billingZip: billingAddress?.zip || null,
         billingCountry: billingAddress?.country || 'USA',
+        organizationName: orgName || null,
         specialInstructions: additionalInfo?.notes || null,
         uploadedFiles: uploadedFiles ? Object.entries(uploadedFiles).map(([key, value]: [string, any]) => ({
           fileName: key,
-          fileUrl: value,
+          fileUrl: String(value),
           fileType: key,
           uploadedAt: new Date().toISOString(),
-        })) : null,
+        })) : undefined,
         status: 'submitted',
       });
 
@@ -1182,6 +1282,8 @@ export function registerOrdersRoutes(app: Express): void {
       res.status(201).json({ 
         success: true,
         submissionId: submission.id,
+        organizationId: matchedOrgId,
+        contactId: matchedContactId,
         message: "Form submitted successfully" 
       });
     } catch (error) {

@@ -212,6 +212,7 @@ export interface IStorage {
   // Organization operations
   getOrganizations(): Promise<Organization[]>;
   getOrganization(id: number): Promise<Organization | undefined>;
+  findOrganizationByName(name: string): Promise<Organization | undefined>;
   createOrganization(org: InsertOrganization): Promise<Organization>;
   updateOrganization(id: number, org: Partial<InsertOrganization>): Promise<Organization>;
   deleteOrganization(id: number): Promise<void>;
@@ -219,6 +220,8 @@ export interface IStorage {
   // Contact operations
   getContacts(): Promise<Contact[]>;
   getContact(id: number): Promise<Contact | undefined>;
+  findContactByEmail(email: string): Promise<Contact | undefined>;
+  findContactByNameAndOrg(name: string, orgId: number): Promise<Contact | undefined>;
   createContact(contact: InsertContact): Promise<Contact>;
   updateContact(id: number, contact: Partial<InsertContact>): Promise<Contact>;
   deleteContact(id: number): Promise<void>;
@@ -817,6 +820,18 @@ export class DatabaseStorage implements IStorage {
     return org;
   }
 
+  async findOrganizationByName(name: string): Promise<Organization | undefined> {
+    const normalizedName = name.trim().toLowerCase();
+    const orgs = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.archived, false));
+    
+    // Find by case-insensitive name match
+    const match = orgs.find(org => org.name.trim().toLowerCase() === normalizedName);
+    return match;
+  }
+
   async createOrganization(org: InsertOrganization): Promise<Organization> {
     try {
       const [created] = await db.insert(organizations).values(org as any).returning();
@@ -1239,6 +1254,27 @@ export class DatabaseStorage implements IStorage {
   async getContact(id: number): Promise<Contact | undefined> {
     const [contact] = await db.select().from(contacts).where(eq(contacts.id, id));
     return contact;
+  }
+
+  async findContactByEmail(email: string): Promise<Contact | undefined> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const [contact] = await db
+      .select()
+      .from(contacts)
+      .where(sql`lower(${contacts.email}) = ${normalizedEmail}`);
+    return contact;
+  }
+
+  async findContactByNameAndOrg(name: string, orgId: number): Promise<Contact | undefined> {
+    const normalizedName = name.trim().toLowerCase();
+    const orgContacts = await db
+      .select()
+      .from(contacts)
+      .where(eq(contacts.orgId, orgId));
+    
+    // Find by case-insensitive name match within the organization
+    const match = orgContacts.find(c => c.name.trim().toLowerCase() === normalizedName);
+    return match;
   }
 
   async createContact(contact: InsertContact): Promise<Contact> {
