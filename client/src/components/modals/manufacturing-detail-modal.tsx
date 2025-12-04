@@ -127,7 +127,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
   const { data: lineItems = [] } = useQuery<any[]>({
     queryKey: ['/api/orders', manufacturingUpdate?.orderId, 'line-items-with-manufacturers'],
     queryFn: async () => {
-      const response = await fetch(`/api/orders/${manufacturingUpdate?.orderId}/line-items-with-manufacturers`);
+      const response = await fetch(`/api/orders/${manufacturingUpdate?.orderId}/line-items-with-manufacturers`, {
+        credentials: 'include',
+      });
       if (!response.ok) return [];
       return response.json();
     },
@@ -149,7 +151,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
   const { data: manufacturingUpdates = [] } = useQuery<any[]>({
     queryKey: ['/api/manufacturing-updates', manufacturingUpdate?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/manufacturing-updates?manufacturingId=${manufacturingUpdate?.id}`);
+      const response = await fetch(`/api/manufacturing-updates?manufacturingId=${manufacturingUpdate?.id}`, {
+        credentials: 'include',
+      });
       if (!response.ok) return [];
       return response.json();
     },
@@ -164,7 +168,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
     queryKey: ['/api/manufacturing-update-line-items', latestUpdate?.id],
     queryFn: async () => {
       if (!latestUpdate?.id) return [];
-      const response = await fetch(`/api/manufacturing-update-line-items?manufacturingUpdateId=${latestUpdate.id}`);
+      const response = await fetch(`/api/manufacturing-update-line-items?manufacturingUpdateId=${latestUpdate.id}`, {
+        credentials: 'include',
+      });
       if (!response.ok) return [];
       const items = await response.json();
       
@@ -324,10 +330,13 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
 
   const archiveMutation = useMutation({
     mutationFn: async (archive: boolean) => {
-      const response = await fetch(`/api/manufacturing/${manufacturingUpdate.id}/archive`, {
-        method: 'PATCH',
+      const endpoint = archive 
+        ? `/api/manufacturing/${manufacturingUpdate.id}/archive`
+        : `/api/manufacturing/${manufacturingUpdate.id}/unarchive`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ archive }),
+        credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to update archive status');
       return response.json();
@@ -395,8 +404,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
   const updateDescriptorsMutation = useMutation({
     mutationFn: async ({ lineItemId, descriptors }: { lineItemId: number; descriptors: string[] }) => {
       const response = await fetch(`/api/manufacturing-update-line-items/${lineItemId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ descriptors }),
       });
       if (!response.ok) throw new Error('Failed to update descriptors');
@@ -437,6 +447,7 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
       const response = await fetch(`/api/order-line-items/${lineItemId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ itemName }),
       });
       if (!response.ok) throw new Error('Failed to update item name');
@@ -473,8 +484,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
   const updateCompletedImagesMutation = useMutation({
     mutationFn: async (images: string[]) => {
       const response = await fetch(`/api/manufacturing/${manufacturingUpdate.id}/completed-images`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ completedProductImages: images }),
       });
       if (!response.ok) throw new Error('Failed to update completed images');
@@ -500,8 +512,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
   const updateMockupImageMutation = useMutation({
     mutationFn: async ({ lineItemId, mockupImageUrl }: { lineItemId: number; mockupImageUrl: string }) => {
       const response = await fetch(`/api/manufacturing-update-line-items/${lineItemId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ mockupImageUrl }),
       });
       if (!response.ok) throw new Error('Failed to update mockup image');
@@ -578,7 +591,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                       });
                       return;
                     }
-                    const response = await fetch(`/api/manufacturing-updates/${latestUpdate.id}/export-pdf`);
+                    const response = await fetch(`/api/manufacturing-updates/${latestUpdate.id}/export-pdf`, {
+                      credentials: 'include',
+                    });
                     if (!response.ok) throw new Error('Export failed');
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);
@@ -618,7 +633,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                       });
                       return;
                     }
-                    const response = await fetch(`/api/manufacturing-updates/${latestUpdate.id}/export-zip`);
+                    const response = await fetch(`/api/manufacturing-updates/${latestUpdate.id}/export-zip`, {
+                      credentials: 'include',
+                    });
                     if (!response.ok) throw new Error('Export failed');
                     const blob = await response.blob();
                     const url = window.URL.createObjectURL(blob);

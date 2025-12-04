@@ -1964,7 +1964,7 @@ function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: a
     mutationFn: async (jobId: number) => {
       return await apiRequest(`/api/design-jobs/${jobId}`, {
         method: 'PUT',
-        body: JSON.stringify({ orderId: order.id }),
+        body: { orderId: order.id },
       });
     },
     onSuccess: () => {

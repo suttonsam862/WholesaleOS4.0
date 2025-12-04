@@ -548,6 +548,44 @@ export function registerManufacturingRoutes(app: Express): void {
     }
   });
 
+  // Update completed product images for manufacturing record
+  app.put('/api/manufacturing/:id/completed-images', isAuthenticated, loadUserData, requirePermission('manufacturing', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const { completedProductImages } = req.body;
+
+      if (!Array.isArray(completedProductImages)) {
+        return res.status(400).json({ message: "completedProductImages must be an array" });
+      }
+
+      const existingRecord = await storage.getManufacturingRecord(id, user);
+      if (!existingRecord) {
+        return res.status(404).json({ message: "Manufacturing record not found" });
+      }
+
+      const updatedRecord = await storage.updateManufacturing(id, {
+        completedProductImages,
+      });
+
+      // Log activity
+      await storage.logActivity(
+        user.id,
+        'manufacturing',
+        id,
+        'updated',
+        { completedProductImages: existingRecord.completedProductImages },
+        { completedProductImages: updatedRecord.completedProductImages }
+      );
+
+      const filteredRecord = stripFinancialData(updatedRecord, user.role);
+      res.json(filteredRecord);
+    } catch (error) {
+      console.error("Error updating completed images:", error);
+      res.status(500).json({ message: "Failed to update completed images" });
+    }
+  });
+
   app.post('/api/manufacturing/:id/archive', isAuthenticated, loadUserData, requirePermission('manufacturing', 'write'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
