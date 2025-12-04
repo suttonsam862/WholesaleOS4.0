@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, User, LogOut, Settings, Bell, Search, Plus } from "lucide-react";
+import { Menu, User, LogOut, Settings, Bell, Search, Plus, LayoutDashboard, Target, ShoppingCart, Palette, Factory, CheckSquare, DollarSign, Building2, Package, Store, Calendar, Briefcase, Paintbrush, Warehouse, Map, GitBranch, Shield, Users, FileText, Contact } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
@@ -21,6 +21,30 @@ import { QuickCreateModal } from "@/components/modals/quick-create-modal";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+
+const NAV_PAGES = [
+  { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Leads", href: "/leads", icon: Target },
+  { name: "Orders", href: "/orders", icon: ShoppingCart },
+  { name: "Design Jobs", href: "/design-jobs", icon: Palette },
+  { name: "Manufacturing", href: "/manufacturing", icon: Factory },
+  { name: "Tasks", href: "/tasks", icon: CheckSquare },
+  { name: "Catalog", href: "/catalog", icon: Package },
+  { name: "Organizations", href: "/organizations", icon: Building2 },
+  { name: "Contacts", href: "/contacts", icon: Contact },
+  { name: "Team Stores", href: "/team-stores", icon: Store },
+  { name: "Events", href: "/events", icon: Calendar },
+  { name: "Salespeople", href: "/salespeople", icon: Briefcase },
+  { name: "Designer Management", href: "/designer-management", icon: Paintbrush },
+  { name: "Manufacturer Management", href: "/manufacturer-management", icon: Warehouse },
+  { name: "Order Map", href: "/order-map", icon: Map },
+  { name: "Pipeline", href: "/pipeline", icon: GitBranch },
+  { name: "Finance", href: "/finance", icon: DollarSign },
+  { name: "Quotes", href: "/quotes", icon: FileText },
+  { name: "User Management", href: "/user-management", icon: Users },
+  { name: "Permissions", href: "/admin/permissions", icon: Shield },
+  { name: "Settings", href: "/settings", icon: Settings },
+];
 
 interface HeaderProps {
   title: string;
@@ -40,6 +64,36 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [, setLocation] = useLocation();
+
+  const filteredPages = useMemo(() => {
+    if (searchQuery.length < 2) return [];
+    const query = searchQuery.toLowerCase();
+    return NAV_PAGES.filter(page => 
+      page.name.toLowerCase().includes(query)
+    );
+  }, [searchQuery]);
+
+  const handleResultClick = (type: string, id?: number, href?: string) => {
+    setShowSearchResults(false);
+    setSearchQuery("");
+    switch (type) {
+      case "lead":
+        setLocation(`/leads?selected=${id}`);
+        break;
+      case "organization":
+        setLocation(`/organizations?selected=${id}`);
+        break;
+      case "order":
+        setLocation(`/orders?selected=${id}`);
+        break;
+      case "product":
+        setLocation(`/catalog?selected=${id}`);
+        break;
+      case "page":
+        if (href) setLocation(href);
+        break;
+    }
+  };
 
   const { data: searchResults, isLoading: searchLoading } = useQuery<SearchResult>({
     queryKey: ["/api/search", searchQuery],
@@ -159,24 +213,51 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
               <div className="absolute top-full left-0 right-0 mt-2 bg-popover border border-border rounded-xl shadow-xl shadow-black/20 z-50 max-h-96 overflow-auto backdrop-blur-xl p-2">
                 {searchLoading ? (
                   <div className="p-4 text-sm text-muted-foreground text-center">Searching...</div>
-                ) : searchResults ? (
+                ) : (
                   <div className="space-y-2">
-                    {searchResults.leads.length > 0 && (
+                    {filteredPages.length > 0 && (
+                      <div>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pages</div>
+                        {filteredPages.map((page) => (
+                          <div 
+                            key={page.href} 
+                            onClick={() => handleResultClick("page", undefined, page.href)}
+                            className="px-3 py-2 hover:bg-muted rounded-lg cursor-pointer transition-colors flex items-center gap-2"
+                            data-testid={`search-result-page-${page.name.toLowerCase().replace(/\s+/g, '-')}`}
+                          >
+                            <page.icon className="h-4 w-4 text-muted-foreground" />
+                            <div className="font-medium text-sm text-foreground">{page.name}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {searchResults && searchResults.leads.length > 0 && (
                       <div>
                         <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Leads</div>
                         {searchResults.leads.map((lead) => (
-                          <div key={lead.id} className="px-3 py-2 hover:bg-muted rounded-lg cursor-pointer transition-colors">
+                          <div 
+                            key={lead.id} 
+                            onClick={() => handleResultClick("lead", lead.id)}
+                            className="px-3 py-2 hover:bg-muted rounded-lg cursor-pointer transition-colors"
+                            data-testid={`search-result-lead-${lead.id}`}
+                          >
                             <div className="font-medium text-sm text-foreground">{lead.leadCode}</div>
                           </div>
                         ))}
                       </div>
                     )}
 
-                    {searchResults.organizations.length > 0 && (
+                    {searchResults && searchResults.organizations.length > 0 && (
                       <div>
                         <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Organizations</div>
                         {searchResults.organizations.map((org) => (
-                          <div key={org.id} className="px-3 py-2 hover:bg-muted rounded-lg cursor-pointer transition-colors">
+                          <div 
+                            key={org.id} 
+                            onClick={() => handleResultClick("organization", org.id)}
+                            className="px-3 py-2 hover:bg-muted rounded-lg cursor-pointer transition-colors"
+                            data-testid={`search-result-org-${org.id}`}
+                          >
                             <div className="font-medium text-sm text-foreground">{org.name}</div>
                             <div className="text-xs text-muted-foreground">{org.city}, {org.state}</div>
                           </div>
@@ -184,11 +265,16 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
                       </div>
                     )}
 
-                    {searchResults.orders.length > 0 && (
+                    {searchResults && searchResults.orders.length > 0 && (
                       <div>
                         <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Orders</div>
                         {searchResults.orders.map((order) => (
-                          <div key={order.id} className="px-3 py-2 hover:bg-muted rounded-lg cursor-pointer transition-colors">
+                          <div 
+                            key={order.id} 
+                            onClick={() => handleResultClick("order", order.id)}
+                            className="px-3 py-2 hover:bg-muted rounded-lg cursor-pointer transition-colors"
+                            data-testid={`search-result-order-${order.id}`}
+                          >
                             <div className="font-medium text-sm text-foreground">{order.orderCode}</div>
                             <div className="text-xs text-muted-foreground">{order.orderName}</div>
                           </div>
@@ -196,11 +282,16 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
                       </div>
                     )}
 
-                    {searchResults.products.length > 0 && (
+                    {searchResults && searchResults.products.length > 0 && (
                       <div>
                         <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Products</div>
                         {searchResults.products.map((product) => (
-                          <div key={product.id} className="px-3 py-2 hover:bg-muted rounded-lg cursor-pointer transition-colors">
+                          <div 
+                            key={product.id} 
+                            onClick={() => handleResultClick("product", product.id)}
+                            className="px-3 py-2 hover:bg-muted rounded-lg cursor-pointer transition-colors"
+                            data-testid={`search-result-product-${product.id}`}
+                          >
                             <div className="font-medium text-sm text-foreground">{product.name}</div>
                             <div className="text-xs text-muted-foreground">{product.sku}</div>
                           </div>
@@ -208,16 +299,19 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
                       </div>
                     )}
 
-                    {searchResults.leads.length === 0 && 
-                     searchResults.organizations.length === 0 && 
-                     searchResults.orders.length === 0 && 
-                     searchResults.products.length === 0 && (
+                    {filteredPages.length === 0 &&
+                     (!searchResults || (
+                       searchResults.leads.length === 0 && 
+                       searchResults.organizations.length === 0 && 
+                       searchResults.orders.length === 0 && 
+                       searchResults.products.length === 0
+                     )) && (
                       <div className="p-8 text-sm text-muted-foreground text-center">
                         No results found for "{searchQuery}"
                       </div>
                     )}
                   </div>
-                ) : null}
+                )}
               </div>
             )}
             </div>
