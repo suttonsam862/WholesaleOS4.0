@@ -1687,7 +1687,7 @@ function LineItemsModule({
                     min="0"
                     value={newLineItem[size.key as keyof typeof newLineItem] || 0}
                     onChange={(e) => setNewLineItem((prev: any) => ({ ...prev, [size.key]: parseInt(e.target.value) || 0 }))}
-                    className="w-12 h-8 text-center bg-white/5 border-white/10 text-sm"
+                    className="w-14 h-8 text-center bg-white/5 border-white/10 text-sm px-1"
                   />
                 </div>
               ))}
@@ -1835,7 +1835,7 @@ function LineItemsModule({
                                       min="0"
                                       value={editingLineItemData?.[size.key as keyof OrderLineItem] || 0}
                                       onChange={(e) => setEditingLineItemData((prev: any) => ({ ...prev, [size.key]: parseInt(e.target.value) || 0 }))}
-                                      className="w-12 h-8 text-center bg-white/5 border-white/10 text-sm"
+                                      className="w-14 h-8 text-center bg-white/5 border-white/10 text-sm px-1"
                                     />
                                   </div>
                                 ))}
@@ -1855,15 +1855,30 @@ function LineItemsModule({
                                 onClick={() => {
                                   if (editingLineItemData) {
                                     const unitPrice = calculatePrice(item.variantId);
-                                    const qtyTotal = calculateTotalQuantity(editingLineItemData);
+                                    // Clean data: only send editable fields, not auto-generated ones
+                                    const cleanedData = {
+                                      variantId: editingLineItemData.variantId,
+                                      itemName: editingLineItemData.itemName,
+                                      colorNotes: editingLineItemData.colorNotes,
+                                      imageUrl: editingLineItemData.imageUrl,
+                                      notes: editingLineItemData.notes,
+                                      yxs: editingLineItemData.yxs || 0,
+                                      ys: editingLineItemData.ys || 0,
+                                      ym: editingLineItemData.ym || 0,
+                                      yl: editingLineItemData.yl || 0,
+                                      xs: editingLineItemData.xs || 0,
+                                      s: editingLineItemData.s || 0,
+                                      m: editingLineItemData.m || 0,
+                                      l: editingLineItemData.l || 0,
+                                      xl: editingLineItemData.xl || 0,
+                                      xxl: editingLineItemData.xxl || 0,
+                                      xxxl: editingLineItemData.xxxl || 0,
+                                      xxxxl: editingLineItemData.xxxxl || 0,
+                                      unitPrice,
+                                    };
                                     updateLineItemMutation.mutate({
                                       itemId: item.id,
-                                      data: {
-                                        ...editingLineItemData,
-                                        unitPrice,
-                                        qtyTotal,
-                                        lineTotal: (parseFloat(unitPrice) * qtyTotal).toFixed(2),
-                                      }
+                                      data: cleanedData
                                     });
                                   }
                                 }}
