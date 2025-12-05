@@ -1841,6 +1841,89 @@ function LineItemsModule({
                                 ))}
                               </div>
                             </div>
+                            
+                            {/* Upload Custom Graphic */}
+                            <div>
+                              <Label className="text-xs text-white/50 mb-2 block">Line Item Graphic</Label>
+                              <div className="flex items-center gap-3">
+                                {editingLineItemData?.imageUrl && (
+                                  <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/20 bg-white/5">
+                                    <img 
+                                      src={editingLineItemData.imageUrl} 
+                                      alt="Line item graphic"
+                                      className="w-full h-full object-cover"
+                                    />
+                                    <button
+                                      onClick={() => setEditingLineItemData((prev: any) => ({ ...prev, imageUrl: '' }))}
+                                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white text-xs hover:bg-red-600"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                )}
+                                <ObjectUploader
+                                  allowedFileTypes={['image/*']}
+                                  maxFileSize={5242880}
+                                  onGetUploadParameters={async (file) => {
+                                    try {
+                                      const response = await apiRequest("POST", "/api/upload/image", {
+                                        filename: file.name,
+                                        size: file.size,
+                                        mimeType: file.type
+                                      }) as any;
+
+                                      (file as any).meta = {
+                                        ...(file as any).meta,
+                                        uploadId: response.uploadId
+                                      };
+
+                                      return {
+                                        method: 'PUT' as const,
+                                        url: response.uploadURL,
+                                        headers: {
+                                          'Content-Type': file.type
+                                        }
+                                      };
+                                    } catch (error) {
+                                      console.error('Error getting upload parameters:', error);
+                                      toast({
+                                        title: "Upload failed",
+                                        description: "Failed to get upload parameters",
+                                        variant: "destructive",
+                                      });
+                                      throw error;
+                                    }
+                                  }}
+                                  onComplete={(result) => {
+                                    const file = result.successful?.[0];
+                                    if (file) {
+                                      const uploadId = (file as any).meta?.uploadId;
+                                      if (!uploadId) {
+                                        console.error("Upload ID missing from file meta:", file);
+                                        toast({
+                                          title: "Upload failed",
+                                          description: "Missing upload information",
+                                          variant: "destructive",
+                                        });
+                                        return;
+                                      }
+                                      const imageUrl = `/public-objects/${uploadId}`;
+                                      setEditingLineItemData((prev: any) => ({ ...prev, imageUrl }));
+                                      toast({
+                                        title: "Success",
+                                        description: "Graphic uploaded successfully",
+                                      });
+                                    }
+                                  }}
+                                  buttonClassName="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors"
+                                >
+                                  <span className="flex items-center gap-2 text-sm">
+                                    <Upload className="w-4 h-4" />
+                                    {editingLineItemData?.imageUrl ? 'Replace Graphic' : 'Upload Graphic'}
+                                  </span>
+                                </ObjectUploader>
+                              </div>
+                            </div>
                             <div className="flex justify-end gap-2">
                               <button
                                 onClick={() => {
