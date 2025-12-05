@@ -1409,6 +1409,7 @@ function LineItemsModule({
   calculateTotalQuantity,
   calculatePrice,
 }: any) {
+  const { toast } = useToast();
   const [productSearch, setProductSearch] = useState('');
   const [variantSearch, setVariantSearch] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
@@ -1938,7 +1939,6 @@ function LineItemsModule({
                                 onClick={() => {
                                   if (editingLineItemData) {
                                     const unitPrice = calculatePrice(item.variantId);
-                                    // Clean data: only send editable fields, not auto-generated ones
                                     const cleanedData = {
                                       variantId: editingLineItemData.variantId,
                                       itemName: editingLineItemData.itemName,
@@ -1959,6 +1959,8 @@ function LineItemsModule({
                                       xxxxl: editingLineItemData.xxxxl || 0,
                                       unitPrice,
                                     };
+                                    console.log('[LineItem Save] Sending data:', JSON.stringify(cleanedData, null, 2));
+                                    console.log('[LineItem Save] Item ID:', item.id);
                                     updateLineItemMutation.mutate({
                                       itemId: item.id,
                                       data: cleanedData
