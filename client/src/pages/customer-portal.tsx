@@ -424,6 +424,9 @@ export default function CustomerPortal() {
       <div className="relative z-10 max-w-6xl mx-auto px-4 py-8">
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+          <div className="text-center mb-6">
+            <p className="text-sm font-medium text-neon-blue tracking-widest uppercase">Rich Habits Custom Order Portal</p>
+          </div>
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               {portalData.organization?.logoUrl && (

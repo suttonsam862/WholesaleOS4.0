@@ -96,11 +96,11 @@ export default function OrderForms() {
     setStep(3);
   };
 
-  // Generate form link
+  // Generate form link - now uses customer portal
   const getFormLink = () => {
     if (!selectedOrder) return "";
     const baseUrl = window.location.origin;
-    return `${baseUrl}/customer-order-form/${selectedOrder.id}`;
+    return `${baseUrl}/customer-portal/${selectedOrder.id}`;
   };
 
   const handleCopyLink = async () => {
@@ -110,7 +110,7 @@ export default function OrderForms() {
       setCopied(true);
       toast({
         title: "Link Copied!",
-        description: "The order form link has been copied to your clipboard.",
+        description: "The customer portal link has been copied to your clipboard.",
       });
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
@@ -126,14 +126,14 @@ export default function OrderForms() {
     if (!selectedContact || !selectedOrder) return;
     
     const link = getFormLink();
-    const subject = encodeURIComponent(`Order Form: ${selectedOrder.orderNumber}`);
+    const subject = encodeURIComponent(`Rich Habits Custom Order Portal: ${selectedOrder.orderNumber}`);
     const body = encodeURIComponent(
       `Hi ${selectedContact.name},\n\n` +
-      `Please review and confirm your order using the link below:\n\n` +
+      `Please access your Rich Habits Custom Order Portal using the link below to view your order details, submit sizes, and track your order:\n\n` +
       `${link}\n\n` +
       `Order Number: ${selectedOrder.orderNumber}\n` +
       `Items: ${selectedOrder.lineItems?.length || 0}\n\n` +
-      `Thank you for your business!`
+      `Thank you for choosing Rich Habits!`
     );
     
     const mailtoLink = `mailto:${selectedContact.email || ""}?subject=${subject}&body=${body}`;
@@ -142,7 +142,7 @@ export default function OrderForms() {
 
   const handlePreview = () => {
     if (selectedOrder) {
-      setLocation(`/customer-order-form/${selectedOrder.id}`);
+      setLocation(`/customer-portal/${selectedOrder.id}`);
     }
   };
 

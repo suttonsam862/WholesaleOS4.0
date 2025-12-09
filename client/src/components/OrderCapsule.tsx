@@ -637,11 +637,11 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
 
   const totalValue = lineItems.reduce((sum: number, item: any) => sum + parseFloat(item.lineTotal || '0'), 0);
 
-  // Form link generation
+  // Form link generation - now uses customer portal
   const getFormLink = () => {
     if (!orderId) return "";
     const baseUrl = window.location.origin;
-    return `${baseUrl}/customer-order-form/${orderId}`;
+    return `${baseUrl}/customer-portal/${orderId}`;
   };
 
   const handleCopyLink = async () => {
@@ -649,7 +649,7 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
     try {
       await navigator.clipboard.writeText(link);
       setCopied(true);
-      toast({ title: "Link Copied!", description: "The order form link has been copied to your clipboard." });
+      toast({ title: "Link Copied!", description: "The customer portal link has been copied to your clipboard." });
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       toast({ title: "Failed to copy", description: "Please copy the link manually.", variant: "destructive" });
@@ -659,21 +659,21 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
   const handleEmailLink = () => {
     const link = getFormLink();
     const contact = contacts.find((c: any) => c.orgId === order?.orgId);
-    const subject = encodeURIComponent(`Order Form: ${order?.orderCode}`);
+    const subject = encodeURIComponent(`Rich Habits Custom Order Portal: ${order?.orderCode}`);
     const body = encodeURIComponent(
       `Hi${contact?.name ? ` ${contact.name}` : ''},\n\n` +
-      `Please review and fill out sizes for your order using the link below:\n\n` +
+      `Please access your Rich Habits Custom Order Portal using the link below to view your order details, submit sizes, and track your order:\n\n` +
       `${link}\n\n` +
       `Order: ${order?.orderCode}\n` +
       `${order?.orderName}\n\n` +
-      `Thank you!`
+      `Thank you for choosing Rich Habits!`
     );
     window.location.href = `mailto:${contact?.email || order?.contactEmail || ""}?subject=${subject}&body=${body}`;
   };
 
   const handlePreviewForm = () => {
     if (orderId) {
-      window.open(`/customer-order-form/${orderId}`, '_blank');
+      window.open(`/customer-portal/${orderId}`, '_blank');
     }
   };
 
