@@ -520,6 +520,10 @@ export default function CustomerPortal() {
               <MessageSquare className="w-4 h-4 mr-2" />
               Messages
             </TabsTrigger>
+            <TabsTrigger value="payment" className="data-[state=active]:bg-neon-blue/20 data-[state=active]:text-white rounded-lg" data-testid="tab-payment">
+              <CreditCard className="w-4 h-4 mr-2" />
+              Payment
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -1023,6 +1027,29 @@ export default function CustomerPortal() {
                     )}
                     Send Message
                   </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Payment Tab */}
+          <TabsContent value="payment" className="space-y-6">
+            <Card className="bg-white/5 border-white/10">
+              <CardContent className="py-16">
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-neon-purple/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <CreditCard className="w-10 h-10 text-neon-purple" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-white mb-3" data-testid="text-payment-coming-soon">
+                    Payment Portal Coming Soon
+                  </h3>
+                  <p className="text-white/60 max-w-md mx-auto mb-6">
+                    We're working on integrating a seamless payment experience. Soon you'll be able to view invoices and make payments directly from this portal.
+                  </p>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white/50">
+                    <Sparkles className="w-4 h-4" />
+                    <span className="text-sm">QuickBooks integration in progress</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
