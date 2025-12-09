@@ -1435,6 +1435,107 @@ export const salesResources = pgTable("sales_resources", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// ==================== FABRIC MANAGEMENT SYSTEM ====================
+
+// Fabrics table - Master fabric library
+export const fabrics = pgTable("fabrics", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  name: varchar("name").notNull(),
+  gsm: integer("gsm"), // Grams per square meter
+  blend: varchar("blend"), // e.g., "60% Cotton, 40% Polyester"
+  vendorName: varchar("vendor_name"),
+  vendorLocation: varchar("vendor_location"),
+  vendorCountry: varchar("vendor_country"),
+  fabricType: varchar("fabric_type"), // e.g., "Jersey", "Fleece", "Mesh"
+  weight: varchar("weight"), // Light, Medium, Heavy
+  stretchType: varchar("stretch_type"), // 2-way, 4-way, None
+  colorOptions: text("color_options").array(),
+  notes: text("notes"),
+  isApproved: boolean("is_approved").default(false),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_fabrics_name").on(table.name),
+  index("idx_fabrics_is_approved").on(table.isApproved),
+  index("idx_fabrics_fabric_type").on(table.fabricType),
+]);
+
+// Product variant fabrics - Links variants to fabrics
+export const productVariantFabrics = pgTable("product_variant_fabrics", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  variantId: integer("variant_id").references(() => productVariants.id).notNull(),
+  fabricId: integer("fabric_id").references(() => fabrics.id).notNull(),
+  assignedAt: timestamp("assigned_at").defaultNow(),
+  assignedBy: varchar("assigned_by").references(() => users.id),
+}, (table) => [
+  index("idx_product_variant_fabrics_variant_id").on(table.variantId),
+  index("idx_product_variant_fabrics_fabric_id").on(table.fabricId),
+]);
+
+// Fabric submissions - Manufacturer submissions pending approval
+export const fabricSubmissions = pgTable("fabric_submissions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id, { onDelete: 'cascade' }),
+  lineItemId: integer("line_item_id").references(() => orderLineItems.id, { onDelete: 'cascade' }),
+  submittedBy: varchar("submitted_by").references(() => users.id).notNull(),
+  // Fabric details submitted
+  fabricName: varchar("fabric_name").notNull(),
+  gsm: integer("gsm"),
+  blend: varchar("blend"),
+  vendorName: varchar("vendor_name"),
+  vendorLocation: varchar("vendor_location"),
+  vendorCountry: varchar("vendor_country"),
+  fabricType: varchar("fabric_type"),
+  weight: varchar("weight"),
+  stretchType: varchar("stretch_type"),
+  notes: text("notes"),
+  // Approval workflow
+  status: varchar("status").$type<"pending" | "approved" | "rejected">().default("pending"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  // If approved, link to created fabric
+  createdFabricId: integer("created_fabric_id").references(() => fabrics.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_fabric_submissions_manufacturing_id").on(table.manufacturingId),
+  index("idx_fabric_submissions_line_item_id").on(table.lineItemId),
+  index("idx_fabric_submissions_status").on(table.status),
+  index("idx_fabric_submissions_submitted_by").on(table.submittedBy),
+]);
+
+// ==================== PANTONE ASSIGNMENT SYSTEM ====================
+
+// Pantone assignments - Links pantone colors to line items with usage tags
+export const pantoneAssignments = pgTable("pantone_assignments", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  lineItemId: integer("line_item_id").references(() => orderLineItems.id, { onDelete: 'cascade' }),
+  manufacturingUpdateId: integer("manufacturing_update_id").references(() => manufacturingUpdates.id, { onDelete: 'cascade' }),
+  pantoneCode: varchar("pantone_code").notNull(), // e.g., "2685 C"
+  pantoneName: varchar("pantone_name"), // e.g., "Deep Purple"
+  pantoneType: varchar("pantone_type").$type<"C" | "TCX" | "TPX" | "U">(), // Coated, Textile, etc.
+  hexValue: varchar("hex_value"), // e.g., "#4A2F82"
+  rgbR: integer("rgb_r"),
+  rgbG: integer("rgb_g"),
+  rgbB: integer("rgb_b"),
+  usageLocation: varchar("usage_location").$type<"main_body" | "side_panel" | "trim" | "numbers" | "text" | "logo" | "other">(),
+  usageNotes: text("usage_notes"),
+  matchQuality: varchar("match_quality").$type<"excellent" | "very_close" | "good" | "approximate" | "not_recommended">(),
+  matchDistance: integer("match_distance"), // Color distance value
+  sampledFromImageUrl: text("sampled_from_image_url"),
+  assignedBy: varchar("assigned_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_pantone_assignments_line_item_id").on(table.lineItemId),
+  index("idx_pantone_assignments_manufacturing_update_id").on(table.manufacturingUpdateId),
+  index("idx_pantone_assignments_pantone_code").on(table.pantoneCode),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   salesperson: one(salespersons, { fields: [users.id], references: [salespersons.userId] }),
@@ -2302,3 +2403,69 @@ export const insertCustomerCommentSchema = createInsertSchema(customerComments, 
 
 export type CustomerComment = typeof customerComments.$inferSelect;
 export type InsertCustomerComment = z.infer<typeof insertCustomerCommentSchema>;
+
+// ==================== FABRIC MANAGEMENT SCHEMAS ====================
+
+export const insertFabricSchema = createInsertSchema(fabrics, {
+  name: z.string().min(1, "Fabric name is required"),
+  gsm: z.number().int().positive().optional(),
+  blend: z.string().optional(),
+  vendorName: z.string().optional(),
+  vendorLocation: z.string().optional(),
+  vendorCountry: z.string().optional(),
+  fabricType: z.string().optional(),
+  weight: z.string().optional(),
+  stretchType: z.string().optional(),
+  colorOptions: z.array(z.string()).optional(),
+  notes: z.string().optional(),
+  isApproved: z.boolean().optional(),
+}).omit({ id: true, createdAt: true, updatedAt: true, approvedAt: true });
+
+export type Fabric = typeof fabrics.$inferSelect;
+export type InsertFabric = z.infer<typeof insertFabricSchema>;
+
+export const insertProductVariantFabricSchema = createInsertSchema(productVariantFabrics, {
+  variantId: z.number().int().positive("Variant ID is required"),
+  fabricId: z.number().int().positive("Fabric ID is required"),
+}).omit({ id: true, assignedAt: true });
+
+export type ProductVariantFabric = typeof productVariantFabrics.$inferSelect;
+export type InsertProductVariantFabric = z.infer<typeof insertProductVariantFabricSchema>;
+
+export const insertFabricSubmissionSchema = createInsertSchema(fabricSubmissions, {
+  fabricName: z.string().min(1, "Fabric name is required"),
+  gsm: z.number().int().positive().optional(),
+  blend: z.string().optional(),
+  vendorName: z.string().optional(),
+  vendorLocation: z.string().optional(),
+  vendorCountry: z.string().optional(),
+  fabricType: z.string().optional(),
+  weight: z.string().optional(),
+  stretchType: z.string().optional(),
+  notes: z.string().optional(),
+  status: z.enum(["pending", "approved", "rejected"]).optional(),
+  reviewNotes: z.string().optional(),
+}).omit({ id: true, createdAt: true, updatedAt: true, reviewedAt: true });
+
+export type FabricSubmission = typeof fabricSubmissions.$inferSelect;
+export type InsertFabricSubmission = z.infer<typeof insertFabricSubmissionSchema>;
+
+// ==================== PANTONE ASSIGNMENT SCHEMAS ====================
+
+export const insertPantoneAssignmentSchema = createInsertSchema(pantoneAssignments, {
+  pantoneCode: z.string().min(1, "Pantone code is required"),
+  pantoneName: z.string().optional(),
+  pantoneType: z.enum(["C", "TCX", "TPX", "U"]).optional(),
+  hexValue: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color").optional(),
+  rgbR: z.number().int().min(0).max(255).optional(),
+  rgbG: z.number().int().min(0).max(255).optional(),
+  rgbB: z.number().int().min(0).max(255).optional(),
+  usageLocation: z.enum(["main_body", "side_panel", "trim", "numbers", "text", "logo", "other"]).optional(),
+  usageNotes: z.string().optional(),
+  matchQuality: z.enum(["excellent", "very_close", "good", "approximate", "not_recommended"]).optional(),
+  matchDistance: z.number().int().optional(),
+  sampledFromImageUrl: z.string().url().optional(),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+
+export type PantoneAssignment = typeof pantoneAssignments.$inferSelect;
+export type InsertPantoneAssignment = z.infer<typeof insertPantoneAssignmentSchema>;
