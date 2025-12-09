@@ -56,7 +56,7 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState("overview");
   const [status, setStatus] = useState(manufacturingUpdate?.status || "awaiting_admin_confirmation");
   const [productionNotes, setProductionNotes] = useState(manufacturingUpdate?.productionNotes || "");
   const [qualityNotes, setQualityNotes] = useState(manufacturingUpdate?.qualityNotes || "");
@@ -669,18 +669,13 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
 
         <ScrollArea className="flex-1 overflow-y-auto px-1">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className={`grid w-full ${manufacturingUpdate?.archived ? 'grid-cols-6' : 'grid-cols-5'}`}>
-              <TabsTrigger value="details" data-testid="tab-details">Details</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
               <TabsTrigger value="lineitems" data-testid="tab-lineitems">Line Items</TabsTrigger>
-              <TabsTrigger value="timeline" data-testid="tab-timeline">Timeline</TabsTrigger>
-              <TabsTrigger value="notes" data-testid="tab-notes">Notes</TabsTrigger>
-              <TabsTrigger value="files" data-testid="tab-files">Files</TabsTrigger>
-              {manufacturingUpdate?.archived && (
-                <TabsTrigger value="completed" data-testid="tab-completed">Completed</TabsTrigger>
-              )}
+              <TabsTrigger value="documents" data-testid="tab-documents">Documents & Notes</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="details" className="space-y-6 mt-6">
+            <TabsContent value="overview" className="space-y-6 mt-6">
               {/* Progress Overview */}
               <Card>
                 <CardHeader>
@@ -951,6 +946,57 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                       No tracking numbers yet. Add one above when shipping.
                     </p>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* Production Timeline */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Production Timeline</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex items-center">
+                        <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
+                        <span className="text-sm">Started Production</span>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {manufacturingUpdate?.createdAt ? format(new Date(manufacturingUpdate.createdAt), "PPP") : "N/A"}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                      <div className="flex items-center">
+                        <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
+                        <span className="text-sm">Estimated Completion</span>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {manufacturingUpdate?.estCompletion ? format(new Date(manufacturingUpdate.estCompletion), "PPP") : "TBD"}
+                      </span>
+                    </div>
+
+                    {actualCompletionDate && (
+                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                        <div className="flex items-center">
+                          <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
+                          <span className="text-sm">Actual Completion</span>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {format(new Date(actualCompletionDate), "PPP")}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="mt-4 p-3 bg-muted rounded">
+                      <p className="text-xs text-muted-foreground">Current Duration</p>
+                      <p className="text-lg font-semibold">
+                        {manufacturingUpdate?.createdAt ? 
+                          Math.ceil((new Date().getTime() - new Date(manufacturingUpdate.createdAt).getTime()) / (1000 * 60 * 60 * 24)) 
+                          : 0} days
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1337,64 +1383,8 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
               </Card>
             </TabsContent>
 
-            <TabsContent value="timeline" className="space-y-4 mt-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Production Timeline</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <div className="flex items-center">
-                        <Calendar className="w-4 h-4 mr-2 text-muted-foreground" />
-                        <span className="text-sm">Started Production</span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {manufacturingUpdate?.createdAt ? format(new Date(manufacturingUpdate.createdAt), "PPP") : "N/A"}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 mr-2 text-muted-foreground" />
-                        <span className="text-sm">Estimated Completion</span>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {manufacturingUpdate?.estCompletion ? format(new Date(manufacturingUpdate.estCompletion), "PPP") : "TBD"}
-                      </span>
-                    </div>
-
-                    {actualCompletionDate && (
-                      <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                        <div className="flex items-center">
-                          <CheckCircle2 className="w-4 h-4 mr-2 text-green-500" />
-                          <span className="text-sm">Actual Completion</span>
-                        </div>
-                        <span className="text-sm text-muted-foreground">
-                          {format(new Date(actualCompletionDate), "PPP")}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="mt-6 space-y-2">
-                      <h4 className="text-sm font-medium">Lead Time Analysis</h4>
-                      <div className="grid grid-cols-1 gap-4">
-                        <div className="p-3 bg-muted rounded">
-                          <p className="text-xs text-muted-foreground">Current Duration</p>
-                          <p className="text-lg font-semibold">
-                            {manufacturingUpdate?.createdAt ? 
-                              Math.ceil((new Date().getTime() - new Date(manufacturingUpdate.createdAt).getTime()) / (1000 * 60 * 60 * 24)) 
-                              : 0} days
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="notes" className="space-y-4 mt-6">
+            <TabsContent value="documents" className="space-y-4 mt-6">
+              {/* Production Notes */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Production Notes</CardTitle>
@@ -1404,13 +1394,14 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                     value={productionNotes}
                     onChange={(e) => setProductionNotes(e.target.value)}
                     placeholder="Add production notes, special instructions, or updates..."
-                    className="min-h-[120px]"
+                    className="min-h-[100px]"
                     disabled={!canEdit}
                     data-testid="textarea-production-notes"
                   />
                 </CardContent>
               </Card>
 
+              {/* Quality Check Results */}
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Quality Check Results</CardTitle>
@@ -1420,79 +1411,78 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                     value={qualityNotes}
                     onChange={(e) => setQualityNotes(e.target.value)}
                     placeholder="Document quality check findings, issues, or approvals..."
-                    className="min-h-[120px]"
+                    className="min-h-[100px]"
                     disabled={!canEdit}
                     data-testid="textarea-quality-notes"
                   />
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            <TabsContent value="files" className="space-y-4 mt-6">
-              <FileAttachmentsTab
-                manufacturingId={manufacturingUpdate.id}
-                canEdit={canEdit}
-                onImageClick={(url) => setFullScreenImage(url)}
-              />
-            </TabsContent>
+              {/* File Attachments - only render when manufacturingUpdate.id exists */}
+              {manufacturingUpdate?.id && (
+                <FileAttachmentsTab
+                  manufacturingId={manufacturingUpdate.id}
+                  canEdit={canEdit}
+                  onImageClick={(url) => setFullScreenImage(url)}
+                />
+              )}
 
-            {manufacturingUpdate?.archived && (
-              <TabsContent value="completed" className="space-y-4 mt-6">
+              {/* Completed Product Images (only visible when archived) */}
+              {manufacturingUpdate?.archived && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">Completed Product Images</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium mb-2 block">Upload Completed Product Images</Label>
-                      <ObjectUploader
-                        maxNumberOfFiles={10}
-                        maxFileSize={10485760}
-                        onGetUploadParameters={async (file: any) => {
-                          try {
-                            const response = await apiRequest("POST", "/api/upload/image", {
-                              filename: file.name,
-                              size: file.size,
-                              mimeType: file.type
-                            }) as any;
-                            // Store the uploadId for later use
-                            file.__uploadId = response.uploadId;
-                            return { method: "PUT" as const, url: response.uploadURL };
-                          } catch (error) {
-                            console.error("Failed to get upload URL:", error);
-                            throw error;
-                          }
-                        }}
-                        onComplete={(result) => {
-                          const uploadedUrls = result.successful?.map((file: any) => {
-                            const uploadId = file.__uploadId;
-                            return uploadId ? `/public-objects/${uploadId}` : null;
-                          }).filter(Boolean) || [];
-                          const currentImages = manufacturingUpdate.completedProductImages || [];
-                          updateCompletedImagesMutation.mutate([...currentImages, ...uploadedUrls]);
-                        }}
-                        buttonClassName="w-full"
-                      >
-                        <div className="flex items-center justify-center gap-2" data-testid="uploader-completed-images">
-                          <Upload className="w-4 h-4" />
-                          Upload Completed Product Images
-                        </div>
-                      </ObjectUploader>
-                    </div>
-
-                    {manufacturingUpdate.completedProductImages && manufacturingUpdate.completedProductImages.length > 0 ? (
+                    {canEdit && (
                       <div>
-                        <Label className="text-sm font-medium mb-2 block">Uploaded Images</Label>
-                        <div className="grid grid-cols-3 gap-4">
-                          {manufacturingUpdate.completedProductImages.map((imageUrl: string, index: number) => (
-                            <div key={index} className="relative group">
-                              <img
-                                src={imageUrl}
-                                alt={`Completed product ${index + 1}`}
-                                className="w-full h-32 object-cover rounded-lg border cursor-pointer hover:opacity-75 transition-opacity"
-                                onClick={() => setFullScreenImage(imageUrl)}
-                                data-testid={`img-completed-${index}`}
-                              />
+                        <ObjectUploader
+                          maxNumberOfFiles={10}
+                          maxFileSize={10485760}
+                          onGetUploadParameters={async (file: any) => {
+                            try {
+                              const response = await apiRequest("POST", "/api/upload/image", {
+                                filename: file.name,
+                                size: file.size,
+                                mimeType: file.type
+                              }) as any;
+                              file.__uploadId = response.uploadId;
+                              return { method: "PUT" as const, url: response.uploadURL };
+                            } catch (error) {
+                              console.error("Failed to get upload URL:", error);
+                              throw error;
+                            }
+                          }}
+                          onComplete={(result) => {
+                            const uploadedUrls = result.successful?.map((file: any) => {
+                              const uploadId = file.__uploadId;
+                              return uploadId ? `/public-objects/${uploadId}` : null;
+                            }).filter(Boolean) || [];
+                            const currentImages = manufacturingUpdate.completedProductImages || [];
+                            updateCompletedImagesMutation.mutate([...currentImages, ...uploadedUrls]);
+                          }}
+                          buttonClassName="w-full"
+                        >
+                          <div className="flex items-center justify-center gap-2" data-testid="uploader-completed-images">
+                            <Upload className="w-4 h-4" />
+                            Upload Completed Product Images
+                          </div>
+                        </ObjectUploader>
+                      </div>
+                    )}
+
+                    {manufacturingUpdate?.completedProductImages && manufacturingUpdate.completedProductImages.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-4">
+                        {manufacturingUpdate.completedProductImages.map((imageUrl: string, index: number) => (
+                          <div key={index} className="relative group">
+                            <img
+                              src={imageUrl}
+                              alt={`Completed product ${index + 1}`}
+                              className="w-full h-32 object-cover rounded-lg border cursor-pointer hover:opacity-75 transition-opacity"
+                              onClick={() => setFullScreenImage(imageUrl)}
+                              data-testid={`img-completed-${index}`}
+                            />
+                            {canEdit && (
                               <Button
                                 size="sm"
                                 variant="destructive"
@@ -1505,20 +1495,20 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                               >
                                 <X className="w-4 h-4" />
                               </Button>
-                            </div>
-                          ))}
-                        </div>
+                            )}
+                          </div>
+                        ))}
                       </div>
                     ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Package className="w-12 h-12 mx-auto mb-2 opacity-20" />
+                      <div className="text-center py-6 text-muted-foreground">
+                        <Package className="w-10 h-10 mx-auto mb-2 opacity-20" />
                         <p className="text-sm">No completed product images uploaded yet</p>
                       </div>
                     )}
                   </CardContent>
                 </Card>
-              </TabsContent>
-            )}
+              )}
+            </TabsContent>
           </Tabs>
         </ScrollArea>
 
