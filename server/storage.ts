@@ -19,6 +19,10 @@ import {
   orderFormSubmissions,
   orderFormLineItemSizes,
   customerComments,
+  fabrics,
+  productVariantFabrics,
+  fabricSubmissions,
+  pantoneAssignments,
   type User,
   type UpsertUser,
   type InsertUser,
@@ -193,6 +197,14 @@ import {
   type InsertDesignPortfolio,
   type VariantSpecification,
   type InsertVariantSpecification,
+  type Fabric,
+  type InsertFabric,
+  type ProductVariantFabric,
+  type InsertProductVariantFabric,
+  type FabricSubmission,
+  type InsertFabricSubmission,
+  type PantoneAssignment,
+  type InsertPantoneAssignment,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, like, or, and, sql, count, getTableColumns, gte, lte, lt, inArray, isNotNull, isNull } from "drizzle-orm";
@@ -709,6 +721,32 @@ export interface IStorage {
   archiveProductVariant(id: number, userId: string): Promise<ProductVariant>;
   unarchiveProductVariant(id: number): Promise<ProductVariant>;
   getArchivedProductVariants(): Promise<ProductVariant[]>;
+
+  // Fabric Management operations
+  getFabrics(approvedOnly?: boolean): Promise<Fabric[]>;
+  getFabric(id: number): Promise<Fabric | undefined>;
+  createFabric(fabric: InsertFabric): Promise<Fabric>;
+  updateFabric(id: number, fabric: Partial<InsertFabric>): Promise<Fabric>;
+  deleteFabric(id: number): Promise<void>;
+  approveFabric(id: number, userId: string): Promise<Fabric>;
+
+  // Product Variant Fabric operations
+  getProductVariantFabrics(variantId: number): Promise<(ProductVariantFabric & { fabric?: Fabric })[]>;
+  assignFabricToVariant(assignment: InsertProductVariantFabric): Promise<ProductVariantFabric>;
+  removeFabricFromVariant(id: number): Promise<void>;
+
+  // Fabric Submission operations
+  getFabricSubmissions(filters?: { manufacturingId?: number; lineItemId?: number; status?: string }): Promise<(FabricSubmission & { submitter?: User; reviewer?: User })[]>;
+  getFabricSubmission(id: number): Promise<(FabricSubmission & { submitter?: User; reviewer?: User }) | undefined>;
+  createFabricSubmission(submission: InsertFabricSubmission): Promise<FabricSubmission>;
+  reviewFabricSubmission(id: number, reviewerId: string, status: "approved" | "rejected", reviewNotes?: string): Promise<FabricSubmission>;
+
+  // Pantone Assignment operations
+  getPantoneAssignments(filters?: { lineItemId?: number; manufacturingUpdateId?: number }): Promise<PantoneAssignment[]>;
+  getPantoneAssignment(id: number): Promise<PantoneAssignment | undefined>;
+  createPantoneAssignment(assignment: InsertPantoneAssignment): Promise<PantoneAssignment>;
+  updatePantoneAssignment(id: number, assignment: Partial<InsertPantoneAssignment>): Promise<PantoneAssignment>;
+  deletePantoneAssignment(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -5636,6 +5674,227 @@ export class DatabaseStorage implements IStorage {
 
   async getArchivedProductVariants(): Promise<ProductVariant[]> {
     return db.select().from(productVariants).where(eq(productVariants.archived, true)).orderBy(desc(productVariants.archivedAt));
+  }
+
+  // Fabric Management operations
+  async getFabrics(approvedOnly: boolean = false): Promise<Fabric[]> {
+    if (approvedOnly) {
+      return db.select().from(fabrics).where(eq(fabrics.isApproved, true)).orderBy(desc(fabrics.createdAt));
+    }
+    return db.select().from(fabrics).orderBy(desc(fabrics.createdAt));
+  }
+
+  async getFabric(id: number): Promise<Fabric | undefined> {
+    const [fabric] = await db.select().from(fabrics).where(eq(fabrics.id, id));
+    return fabric;
+  }
+
+  async createFabric(fabric: InsertFabric): Promise<Fabric> {
+    const [created] = await db.insert(fabrics).values(fabric as any).returning();
+    return created;
+  }
+
+  async updateFabric(id: number, fabric: Partial<InsertFabric>): Promise<Fabric> {
+    const [updated] = await db
+      .update(fabrics)
+      .set({ ...fabric, updatedAt: new Date() })
+      .where(eq(fabrics.id, id))
+      .returning();
+    if (!updated) throw new Error(`Fabric with id ${id} not found`);
+    return updated;
+  }
+
+  async deleteFabric(id: number): Promise<void> {
+    await db.delete(fabrics).where(eq(fabrics.id, id));
+  }
+
+  async approveFabric(id: number, userId: string): Promise<Fabric> {
+    const [approved] = await db
+      .update(fabrics)
+      .set({ isApproved: true, approvedBy: userId, approvedAt: new Date(), updatedAt: new Date() })
+      .where(eq(fabrics.id, id))
+      .returning();
+    if (!approved) throw new Error(`Fabric with id ${id} not found`);
+    return approved;
+  }
+
+  // Product Variant Fabric operations
+  async getProductVariantFabrics(variantId: number): Promise<(ProductVariantFabric & { fabric?: Fabric })[]> {
+    const assignments = await db
+      .select({
+        id: productVariantFabrics.id,
+        variantId: productVariantFabrics.variantId,
+        fabricId: productVariantFabrics.fabricId,
+        assignedAt: productVariantFabrics.assignedAt,
+        assignedBy: productVariantFabrics.assignedBy,
+        fabric: fabrics,
+      })
+      .from(productVariantFabrics)
+      .leftJoin(fabrics, eq(productVariantFabrics.fabricId, fabrics.id))
+      .where(eq(productVariantFabrics.variantId, variantId));
+
+    return assignments.map(a => ({
+      id: a.id,
+      variantId: a.variantId,
+      fabricId: a.fabricId,
+      assignedAt: a.assignedAt,
+      assignedBy: a.assignedBy,
+      fabric: a.fabric || undefined,
+    }));
+  }
+
+  async assignFabricToVariant(assignment: InsertProductVariantFabric): Promise<ProductVariantFabric> {
+    const [created] = await db.insert(productVariantFabrics).values(assignment as any).returning();
+    return created;
+  }
+
+  async removeFabricFromVariant(id: number): Promise<void> {
+    await db.delete(productVariantFabrics).where(eq(productVariantFabrics.id, id));
+  }
+
+  // Fabric Submission operations
+  async getFabricSubmissions(filters?: { manufacturingId?: number; lineItemId?: number; status?: string }): Promise<(FabricSubmission & { submitter?: User; reviewer?: User })[]> {
+    const submitter = db.select().from(users).as('submitter');
+    const reviewer = db.select().from(users).as('reviewer');
+
+    let query = db
+      .select({
+        submission: fabricSubmissions,
+        submitter: users,
+      })
+      .from(fabricSubmissions)
+      .leftJoin(users, eq(fabricSubmissions.submittedBy, users.id))
+      .$dynamic();
+
+    const conditions: any[] = [];
+    if (filters?.manufacturingId) {
+      conditions.push(eq(fabricSubmissions.manufacturingId, filters.manufacturingId));
+    }
+    if (filters?.lineItemId) {
+      conditions.push(eq(fabricSubmissions.lineItemId, filters.lineItemId));
+    }
+    if (filters?.status) {
+      conditions.push(eq(fabricSubmissions.status, filters.status as any));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    const results = await query.orderBy(desc(fabricSubmissions.createdAt));
+
+    return results.map(r => ({
+      ...r.submission,
+      submitter: r.submitter || undefined,
+    }));
+  }
+
+  async getFabricSubmission(id: number): Promise<(FabricSubmission & { submitter?: User; reviewer?: User }) | undefined> {
+    const [result] = await db
+      .select({
+        submission: fabricSubmissions,
+        submitter: users,
+      })
+      .from(fabricSubmissions)
+      .leftJoin(users, eq(fabricSubmissions.submittedBy, users.id))
+      .where(eq(fabricSubmissions.id, id));
+
+    if (!result) return undefined;
+
+    return {
+      ...result.submission,
+      submitter: result.submitter || undefined,
+    };
+  }
+
+  async createFabricSubmission(submission: InsertFabricSubmission): Promise<FabricSubmission> {
+    const [created] = await db.insert(fabricSubmissions).values(submission as any).returning();
+    return created;
+  }
+
+  async reviewFabricSubmission(id: number, reviewerId: string, status: "approved" | "rejected", reviewNotes?: string): Promise<FabricSubmission> {
+    const submission = await this.getFabricSubmission(id);
+    if (!submission) throw new Error(`Fabric submission with id ${id} not found`);
+
+    let createdFabricId: number | null = null;
+
+    // If approved, create a new fabric from the submission
+    if (status === "approved") {
+      const newFabric = await this.createFabric({
+        name: submission.fabricName,
+        gsm: submission.gsm,
+        blend: submission.blend,
+        vendorName: submission.vendorName,
+        vendorLocation: submission.vendorLocation,
+        vendorCountry: submission.vendorCountry,
+        fabricType: submission.fabricType,
+        weight: submission.weight,
+        stretchType: submission.stretchType,
+        notes: submission.notes,
+        isApproved: true,
+        approvedBy: reviewerId,
+        createdBy: submission.submittedBy,
+      });
+      createdFabricId = newFabric.id;
+    }
+
+    const [updated] = await db
+      .update(fabricSubmissions)
+      .set({
+        status,
+        reviewedBy: reviewerId,
+        reviewedAt: new Date(),
+        reviewNotes,
+        createdFabricId,
+        updatedAt: new Date(),
+      })
+      .where(eq(fabricSubmissions.id, id))
+      .returning();
+
+    return updated;
+  }
+
+  // Pantone Assignment operations
+  async getPantoneAssignments(filters?: { lineItemId?: number; manufacturingUpdateId?: number }): Promise<PantoneAssignment[]> {
+    let query = db.select().from(pantoneAssignments).$dynamic();
+
+    const conditions: any[] = [];
+    if (filters?.lineItemId) {
+      conditions.push(eq(pantoneAssignments.lineItemId, filters.lineItemId));
+    }
+    if (filters?.manufacturingUpdateId) {
+      conditions.push(eq(pantoneAssignments.manufacturingUpdateId, filters.manufacturingUpdateId));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions));
+    }
+
+    return query.orderBy(desc(pantoneAssignments.createdAt));
+  }
+
+  async getPantoneAssignment(id: number): Promise<PantoneAssignment | undefined> {
+    const [assignment] = await db.select().from(pantoneAssignments).where(eq(pantoneAssignments.id, id));
+    return assignment;
+  }
+
+  async createPantoneAssignment(assignment: InsertPantoneAssignment): Promise<PantoneAssignment> {
+    const [created] = await db.insert(pantoneAssignments).values(assignment as any).returning();
+    return created;
+  }
+
+  async updatePantoneAssignment(id: number, assignment: Partial<InsertPantoneAssignment>): Promise<PantoneAssignment> {
+    const [updated] = await db
+      .update(pantoneAssignments)
+      .set({ ...assignment, updatedAt: new Date() })
+      .where(eq(pantoneAssignments.id, id))
+      .returning();
+    if (!updated) throw new Error(`Pantone assignment with id ${id} not found`);
+    return updated;
+  }
+
+  async deletePantoneAssignment(id: number): Promise<void> {
+    await db.delete(pantoneAssignments).where(eq(pantoneAssignments.id, id));
   }
 }
 

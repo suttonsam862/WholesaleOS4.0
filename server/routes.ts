@@ -7250,6 +7250,249 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== FABRIC MANAGEMENT ROUTES ====================
+
+  // Fabric routes
+  app.get('/api/fabrics', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const approvedOnly = req.query.approvedOnly === 'true';
+      const fabrics = await storage.getFabrics(approvedOnly);
+      res.json(fabrics);
+    } catch (error) {
+      console.error("Error fetching fabrics:", error);
+      res.status(500).json({ message: "Failed to fetch fabrics" });
+    }
+  });
+
+  app.get('/api/fabrics/:id', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const fabric = await storage.getFabric(id);
+      if (!fabric) {
+        return res.status(404).json({ message: "Fabric not found" });
+      }
+      res.json(fabric);
+    } catch (error) {
+      console.error("Error fetching fabric:", error);
+      res.status(500).json({ message: "Failed to fetch fabric" });
+    }
+  });
+
+  app.post('/api/fabrics', isAuthenticated, loadUserData, requirePermission('products', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const fabric = await storage.createFabric({
+        ...req.body,
+        createdBy: user.id,
+      });
+      res.status(201).json(fabric);
+    } catch (error) {
+      console.error("Error creating fabric:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create fabric" });
+    }
+  });
+
+  app.put('/api/fabrics/:id', isAuthenticated, loadUserData, requirePermission('products', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const fabric = await storage.updateFabric(id, req.body);
+      res.json(fabric);
+    } catch (error) {
+      console.error("Error updating fabric:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update fabric" });
+    }
+  });
+
+  app.delete('/api/fabrics/:id', isAuthenticated, loadUserData, requirePermission('products', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteFabric(id);
+      res.json({ message: "Fabric deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting fabric:", error);
+      res.status(500).json({ message: "Failed to delete fabric" });
+    }
+  });
+
+  app.post('/api/fabrics/:id/approve', isAuthenticated, loadUserData, requirePermission('products', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const id = parseInt(req.params.id);
+      const fabric = await storage.approveFabric(id, user.id);
+      res.json(fabric);
+    } catch (error) {
+      console.error("Error approving fabric:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to approve fabric" });
+    }
+  });
+
+  // Product Variant Fabric routes
+  app.get('/api/product-variants/:variantId/fabrics', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const variantId = parseInt(req.params.variantId);
+      const fabrics = await storage.getProductVariantFabrics(variantId);
+      res.json(fabrics);
+    } catch (error) {
+      console.error("Error fetching variant fabrics:", error);
+      res.status(500).json({ message: "Failed to fetch variant fabrics" });
+    }
+  });
+
+  app.post('/api/product-variants/:variantId/fabrics', isAuthenticated, loadUserData, requirePermission('products', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const variantId = parseInt(req.params.variantId);
+      const assignment = await storage.assignFabricToVariant({
+        variantId,
+        fabricId: req.body.fabricId,
+        assignedBy: user.id,
+      });
+      res.status(201).json(assignment);
+    } catch (error) {
+      console.error("Error assigning fabric to variant:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to assign fabric" });
+    }
+  });
+
+  app.delete('/api/product-variant-fabrics/:id', isAuthenticated, loadUserData, requirePermission('products', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.removeFabricFromVariant(id);
+      res.json({ message: "Fabric assignment removed successfully" });
+    } catch (error) {
+      console.error("Error removing fabric assignment:", error);
+      res.status(500).json({ message: "Failed to remove fabric assignment" });
+    }
+  });
+
+  // Fabric Submission routes
+  app.get('/api/fabric-submissions', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const filters: any = {};
+      if (req.query.manufacturingId) filters.manufacturingId = parseInt(req.query.manufacturingId as string);
+      if (req.query.lineItemId) filters.lineItemId = parseInt(req.query.lineItemId as string);
+      if (req.query.status) filters.status = req.query.status as string;
+
+      const submissions = await storage.getFabricSubmissions(filters);
+      res.json(submissions);
+    } catch (error) {
+      console.error("Error fetching fabric submissions:", error);
+      res.status(500).json({ message: "Failed to fetch fabric submissions" });
+    }
+  });
+
+  app.get('/api/fabric-submissions/:id', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const submission = await storage.getFabricSubmission(id);
+      if (!submission) {
+        return res.status(404).json({ message: "Fabric submission not found" });
+      }
+      res.json(submission);
+    } catch (error) {
+      console.error("Error fetching fabric submission:", error);
+      res.status(500).json({ message: "Failed to fetch fabric submission" });
+    }
+  });
+
+  app.post('/api/fabric-submissions', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const submission = await storage.createFabricSubmission({
+        ...req.body,
+        submittedBy: user.id,
+      });
+      res.status(201).json(submission);
+    } catch (error) {
+      console.error("Error creating fabric submission:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create fabric submission" });
+    }
+  });
+
+  app.post('/api/fabric-submissions/:id/review', isAuthenticated, loadUserData, requirePermission('products', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const id = parseInt(req.params.id);
+      const { status, reviewNotes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: "Status must be 'approved' or 'rejected'" });
+      }
+
+      const submission = await storage.reviewFabricSubmission(id, user.id, status, reviewNotes);
+      res.json(submission);
+    } catch (error) {
+      console.error("Error reviewing fabric submission:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to review fabric submission" });
+    }
+  });
+
+  // ==================== PANTONE ASSIGNMENT ROUTES ====================
+
+  app.get('/api/pantone-assignments', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const filters: any = {};
+      if (req.query.lineItemId) filters.lineItemId = parseInt(req.query.lineItemId as string);
+      if (req.query.manufacturingUpdateId) filters.manufacturingUpdateId = parseInt(req.query.manufacturingUpdateId as string);
+
+      const assignments = await storage.getPantoneAssignments(filters);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching pantone assignments:", error);
+      res.status(500).json({ message: "Failed to fetch pantone assignments" });
+    }
+  });
+
+  app.get('/api/pantone-assignments/:id', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const assignment = await storage.getPantoneAssignment(id);
+      if (!assignment) {
+        return res.status(404).json({ message: "Pantone assignment not found" });
+      }
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error fetching pantone assignment:", error);
+      res.status(500).json({ message: "Failed to fetch pantone assignment" });
+    }
+  });
+
+  app.post('/api/pantone-assignments', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const assignment = await storage.createPantoneAssignment({
+        ...req.body,
+        assignedBy: user.id,
+      });
+      res.status(201).json(assignment);
+    } catch (error) {
+      console.error("Error creating pantone assignment:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create pantone assignment" });
+    }
+  });
+
+  app.put('/api/pantone-assignments/:id', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const assignment = await storage.updatePantoneAssignment(id, req.body);
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error updating pantone assignment:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update pantone assignment" });
+    }
+  });
+
+  app.delete('/api/pantone-assignments/:id', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deletePantoneAssignment(id);
+      res.json({ message: "Pantone assignment deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting pantone assignment:", error);
+      res.status(500).json({ message: "Failed to delete pantone assignment" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
