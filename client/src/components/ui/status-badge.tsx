@@ -52,6 +52,25 @@ export function StatusBadge({ status, children, className, ...props }: StatusBad
       case "invoiced":
         return "bg-purple-900/30 text-purple-300 border-purple-800/50";
       
+      // Manufacturing workflow stages
+      case "awaiting-admin-confirmation":
+        return "bg-amber-900/30 text-amber-300 border-amber-800/50";
+      
+      case "confirmed":
+        return "bg-blue-900/30 text-blue-300 border-blue-800/50";
+      
+      case "cutting":
+        return "bg-purple-900/30 text-purple-300 border-purple-800/50";
+      
+      case "printing":
+        return "bg-pink-900/30 text-pink-300 border-pink-800/50";
+      
+      case "packaging":
+        return "bg-cyan-900/30 text-cyan-300 border-cyan-800/50";
+      
+      case "shipping":
+        return "bg-emerald-900/30 text-emerald-300 border-emerald-800/50";
+      
       case "high":
         return "bg-red-900/30 text-red-300 border-red-800/50";
       

@@ -9,7 +9,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -559,24 +558,34 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
 
   const overdueDays = calculateOverdue();
 
+  const currentStage = statusSteps.find(s => s.key === status);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col" aria-describedby="manufacturing-details-description">
+        <DialogHeader>
+          <DialogTitle className="text-2xl">
+            Manufacturing - {order?.orderCode || manufacturingUpdate?.id}
+          </DialogTitle>
+          <div id="manufacturing-details-description" className="sr-only">
+            Track and manage production progress for this order
+          </div>
           <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="flex items-center">
-                <span>Manufacturing Update - {order?.orderCode || manufacturingUpdate?.id}</span>
-                {overdueDays > 0 && (
-                  <Badge variant="destructive" className="ml-2">
-                    <AlertCircle className="w-3 h-3 mr-1" />
-                    {overdueDays} days overdue
-                  </Badge>
-                )}
-              </DialogTitle>
-              <DialogDescription>
-                Track and manage production progress for this order
-              </DialogDescription>
+            <div className="flex items-center gap-4">
+              <StatusBadge status={status}>
+                {currentStage?.label || status.replace(/_/g, ' ')}
+              </StatusBadge>
+              {order?.priority && (
+                <Badge variant={order.priority === "high" ? "destructive" : order.priority === "low" ? "secondary" : "default"}>
+                  {order.priority} priority
+                </Badge>
+              )}
+              {overdueDays > 0 && (
+                <Badge variant="destructive">
+                  <AlertCircle className="w-3 h-3 mr-1" />
+                  {overdueDays} days overdue
+                </Badge>
+              )}
             </div>
             <div className="flex gap-2">
               <Button
@@ -667,15 +676,15 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
           </div>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 overflow-y-auto px-1">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
-              <TabsTrigger value="lineitems" data-testid="tab-lineitems">Line Items</TabsTrigger>
-              <TabsTrigger value="documents" data-testid="tab-documents">Documents & Notes</TabsTrigger>
-            </TabsList>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
+            <TabsTrigger value="lineitems" data-testid="tab-lineitems">Line Items</TabsTrigger>
+            <TabsTrigger value="documents" data-testid="tab-documents">Documents & Notes</TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="overview" className="space-y-6 mt-6">
+          <div className="flex-1 overflow-y-auto p-4">
+            <TabsContent value="overview" className="space-y-6 mt-0">
               {/* Progress Overview */}
               <Card>
                 <CardHeader>
@@ -1001,7 +1010,7 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
               </Card>
             </TabsContent>
 
-            <TabsContent value="lineitems" className="space-y-4 mt-6">
+            <TabsContent value="lineitems" className="space-y-4 mt-0">
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -1383,7 +1392,7 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
               </Card>
             </TabsContent>
 
-            <TabsContent value="documents" className="space-y-4 mt-6">
+            <TabsContent value="documents" className="space-y-4 mt-0">
               {/* Production Notes */}
               <Card>
                 <CardHeader>
@@ -1509,8 +1518,8 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                 </Card>
               )}
             </TabsContent>
-          </Tabs>
-        </ScrollArea>
+          </div>
+        </Tabs>
 
         <div className="flex justify-between pt-4 border-t">
           <div className="flex gap-2">
