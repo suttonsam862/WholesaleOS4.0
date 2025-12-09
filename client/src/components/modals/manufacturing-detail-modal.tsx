@@ -20,6 +20,7 @@ import { Order, Organization, Manufacturer, ManufacturingUpdateLineItem } from "
 import { CheckCircle2, Clock, Package, Printer, Scissors, Shirt, ShipIcon, AlertCircle, Upload, Calendar, User, Building2, Phone, Mail, FileText, Trash2, DollarSign, Image as ImageIcon, Plus, X, Pencil, Archive, ArchiveRestore, Download, FileArchive, PackageCheck, Truck, RefreshCcw, Copy } from "lucide-react";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
+import { FabricSubmissionForm, FabricStatusIndicator } from "@/components/FabricSubmissionForm";
 
 interface ManufacturingDetailModalProps {
   isOpen: boolean;
@@ -1131,6 +1132,21 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                                     )
                                   ))}
                                 </div>
+                              </div>
+
+                              {/* Fabric Status & Submission */}
+                              <div className="border-t pt-3 mt-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs font-medium">Fabric Information</p>
+                                  <FabricStatusIndicator lineItemId={item.orderLineItemId || item.id} />
+                                </div>
+                                {(user?.role === 'manufacturer' || user?.role === 'admin' || user?.role === 'ops') && manufacturingUpdate?.id && (
+                                  <FabricSubmissionForm
+                                    manufacturingId={manufacturingUpdate.id}
+                                    lineItemId={item.orderLineItemId || item.id}
+                                    lineItemName={displayName}
+                                  />
+                                )}
                               </div>
 
                               {/* Item Image (from order snapshot) */}
