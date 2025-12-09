@@ -20,6 +20,8 @@ import { CheckCircle2, Clock, Package, Printer, Scissors, Shirt, ShipIcon, Alert
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
 import { FabricSubmissionForm, FabricStatusIndicator } from "@/components/FabricSubmissionForm";
+import { PantonePicker, PantoneAssignment } from "@/components/manufacturing/pantone-picker";
+import { Palette } from "lucide-react";
 
 interface ManufacturingDetailModalProps {
   isOpen: boolean;
@@ -67,6 +69,7 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
   const [editingLineItemId, setEditingLineItemId] = useState<number | null>(null);
   const [editedItemName, setEditedItemName] = useState("");
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+  const [showPantonePicker, setShowPantonePicker] = useState<number | null>(null);
   
   // Track which manufacturing record we've initialized carrier for
   const carrierInitializedForId = useRef<number | null>(null);
@@ -185,6 +188,20 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
   const { data: orderTrackingNumbers = [], isFetching: isTrackingFetching } = useQuery<any[]>({
     queryKey: [`/api/orders/${manufacturingUpdate?.orderId}/tracking`],
     enabled: !!manufacturingUpdate?.orderId && isOpen,
+  });
+
+  // Fetch Pantone assignments for this manufacturing update
+  const { data: pantoneAssignments = [] } = useQuery<any[]>({
+    queryKey: ['/api/pantone-assignments', { manufacturingUpdateId: latestUpdate?.id }],
+    queryFn: async () => {
+      if (!latestUpdate?.id) return [];
+      const response = await fetch(`/api/pantone-assignments?manufacturingUpdateId=${latestUpdate.id}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!latestUpdate?.id,
   });
 
   // Reset all state when manufacturing record changes
@@ -531,6 +548,69 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
       toast({
         title: "Error",
         description: "Failed to update mockup image",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create Pantone assignment mutation
+  const createPantoneAssignmentMutation = useMutation({
+    mutationFn: async (assignment: PantoneAssignment & { lineItemId: number }) => {
+      if (!assignment.lineItemId) {
+        throw new Error('Line item ID is required');
+      }
+      const response = await apiRequest('POST', '/api/pantone-assignments', {
+        manufacturingUpdateId: latestUpdate?.id,
+        lineItemId: assignment.lineItemId,
+        pantoneCode: assignment.pantoneCode,
+        pantoneName: assignment.pantoneName,
+        pantoneType: assignment.pantoneType,
+        hexValue: assignment.hexValue,
+        rgbR: assignment.rgbR,
+        rgbG: assignment.rgbG,
+        rgbB: assignment.rgbB,
+        usageLocation: assignment.usageLocation,
+        usageNotes: assignment.usageNotes,
+        matchQuality: assignment.matchQuality,
+        matchDistance: assignment.matchDistance,
+        sampledFromImageUrl: assignment.sampledFromImageUrl,
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pantone-assignments', { manufacturingUpdateId: latestUpdate?.id }] });
+      setShowPantonePicker(null);
+      toast({
+        title: "Success",
+        description: "Pantone color assigned successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to assign Pantone color",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete Pantone assignment mutation
+  const deletePantoneAssignmentMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const response = await apiRequest('DELETE', `/api/pantone-assignments/${id}`, {});
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/pantone-assignments', { manufacturingUpdateId: latestUpdate?.id }] });
+      toast({
+        title: "Success",
+        description: "Pantone color removed successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to remove Pantone color",
         variant: "destructive",
       });
     },
@@ -1372,6 +1452,86 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
 
                                 {(!item.descriptors || item.descriptors.length === 0) && editingDescriptors !== item.id && (
                                   <p className="text-xs text-muted-foreground">No descriptors</p>
+                                )}
+                              </div>
+
+                              {/* Pantone Colors */}
+                              <div className="border-t pt-3 mt-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <p className="text-xs font-medium flex items-center gap-1.5">
+                                    <Palette className="w-3.5 h-3.5" />
+                                    Pantone Colors
+                                  </p>
+                                  {canEdit && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-6 px-2"
+                                      onClick={() => setShowPantonePicker(showPantonePicker === item.id ? null : item.id)}
+                                      data-testid={`button-add-pantone-${item.id}`}
+                                    >
+                                      {showPantonePicker === item.id ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                                    </Button>
+                                  )}
+                                </div>
+
+                                {/* Display existing Pantone assignments for this line item */}
+                                {(() => {
+                                  const lineItemPantones = pantoneAssignments.filter(
+                                    (p: any) => p.lineItemId === item.lineItemId
+                                  );
+                                  return lineItemPantones.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2 mb-3">
+                                      {lineItemPantones.map((pantone: any) => (
+                                        <div
+                                          key={pantone.id}
+                                          className="flex items-center gap-2 px-2 py-1 rounded-md border bg-card"
+                                          data-testid={`pantone-chip-${pantone.id}`}
+                                        >
+                                          <div
+                                            className="w-4 h-4 rounded-sm border"
+                                            style={{ backgroundColor: pantone.hexValue }}
+                                          />
+                                          <div className="text-xs">
+                                            <span className="font-medium">{pantone.pantoneCode}</span>
+                                            {pantone.usageLocation && (
+                                              <span className="text-muted-foreground ml-1">
+                                                ({pantone.usageLocation.replace(/_/g, ' ')})
+                                              </span>
+                                            )}
+                                          </div>
+                                          {canEdit && (
+                                            <button
+                                              onClick={() => deletePantoneAssignmentMutation.mutate(pantone.id)}
+                                              className="ml-1 hover:text-destructive"
+                                              data-testid={`button-delete-pantone-${pantone.id}`}
+                                            >
+                                              <X className="w-3 h-3" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : !showPantonePicker || showPantonePicker !== item.id ? (
+                                    <p className="text-xs text-muted-foreground mb-2">No Pantone colors assigned</p>
+                                  ) : null;
+                                })()}
+
+                                {/* Pantone Picker */}
+                                {showPantonePicker === item.id && (
+                                  <div className="mt-3 p-3 border rounded-lg bg-black/5 dark:bg-white/5">
+                                    <PantonePicker
+                                      mode="wizard"
+                                      lineItemImages={item.imageUrl ? [item.imageUrl] : []}
+                                      initialImage={item.imageUrl}
+                                      onAssign={(assignment) => {
+                                        createPantoneAssignmentMutation.mutate({
+                                          ...assignment,
+                                          lineItemId: item.lineItemId,
+                                        });
+                                      }}
+                                    />
+                                  </div>
                                 )}
                               </div>
 
