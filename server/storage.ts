@@ -18,6 +18,7 @@ import {
   orderTrackingNumbers,
   orderFormSubmissions,
   orderFormLineItemSizes,
+  customerComments,
   type User,
   type UpsertUser,
   type InsertUser,
@@ -194,7 +195,7 @@ import {
   type InsertVariantSpecification,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, like, or, and, sql, count, getTableColumns, gte, lte, lt, inArray, isNotNull, isNull } from "drizzle-orm";
+import { eq, desc, asc, like, or, and, sql, count, getTableColumns, gte, lte, lt, inArray, isNotNull, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (required for Replit Auth)
@@ -1462,6 +1463,37 @@ export class DatabaseStorage implements IStorage {
 
   async deleteOrderTrackingNumber(id: number): Promise<void> {
     await db.delete(orderTrackingNumbers).where(eq(orderTrackingNumbers.id, id));
+  }
+
+  // Alias for portal API
+  async getTrackingNumbersByOrder(orderId: number): Promise<any[]> {
+    return this.getOrderTrackingNumbers(orderId);
+  }
+
+  // Customer comments operations
+  async getCustomerComments(orderId: number): Promise<any[]> {
+    return await db
+      .select()
+      .from(customerComments)
+      .where(eq(customerComments.orderId, orderId))
+      .orderBy(asc(customerComments.createdAt));
+  }
+
+  async createCustomerComment(data: { orderId: number; message: string; isFromCustomer?: boolean }): Promise<any> {
+    const [result] = await db
+      .insert(customerComments)
+      .values({
+        orderId: data.orderId,
+        message: data.message,
+        isFromCustomer: data.isFromCustomer ?? true,
+      })
+      .returning();
+    return result;
+  }
+
+  // Alias for portal API - get order activity log
+  async getOrderActivityLog(orderId: number): Promise<any[]> {
+    return this.getOrderActivity(orderId);
   }
 
   // Order form submissions operations

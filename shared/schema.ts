@@ -438,6 +438,17 @@ export const orderTrackingNumbers = pgTable("order_tracking_numbers", {
   index("idx_order_tracking_order_id").on(table.orderId),
 ]);
 
+// Customer Comments - messages between customers and staff on orders
+export const customerComments = pgTable("customer_comments", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  orderId: integer("order_id").references(() => orders.id, { onDelete: 'cascade' }).notNull(),
+  message: text("message").notNull(),
+  isFromCustomer: boolean("is_from_customer").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_customer_comments_order_id").on(table.orderId),
+]);
+
 // Order Form Submissions - captures customer-submitted information
 export const orderFormSubmissions = pgTable("order_form_submissions", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -2281,3 +2292,13 @@ export const insertOrderFormLineItemSizesSchema = createInsertSchema(orderFormLi
 
 export type OrderFormLineItemSizes = typeof orderFormLineItemSizes.$inferSelect;
 export type InsertOrderFormLineItemSizes = z.infer<typeof insertOrderFormLineItemSizesSchema>;
+
+// Customer Comments Schemas
+export const insertCustomerCommentSchema = createInsertSchema(customerComments, {
+  orderId: z.number().int().positive("Order ID is required"),
+  message: z.string().min(1, "Message is required"),
+  isFromCustomer: z.boolean().optional(),
+}).omit({ createdAt: true });
+
+export type CustomerComment = typeof customerComments.$inferSelect;
+export type InsertCustomerComment = z.infer<typeof insertCustomerCommentSchema>;

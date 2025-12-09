@@ -1314,4 +1314,275 @@ export function registerOrdersRoutes(app: Express): void {
       res.status(500).json({ message: "Failed to fetch form status" });
     }
   });
+
+  // ============================================
+  // PUBLIC CUSTOMER PORTAL ENDPOINTS
+  // ============================================
+
+  // PUBLIC: Get comprehensive portal data for customer order view
+  app.get('/api/public/orders/:orderId/portal-data', async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+
+      // Fetch order with line items
+      const order = await storage.getOrderWithLineItems(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Fetch organization info
+      const organization = order.orgId ? await storage.getOrganization(order.orgId) : null;
+
+      // Fetch tracking numbers
+      const trackingNumbers = await storage.getTrackingNumbersByOrder(orderId);
+
+      // Fetch manufacturing record
+      const manufacturing = await storage.getManufacturingByOrder(orderId);
+
+      // Fetch design jobs for this order
+      const designJobs = await storage.getDesignJobsByOrder(orderId);
+
+      // Fetch customer comments
+      const comments = await storage.getCustomerComments(orderId);
+
+      // Fetch activity log
+      const activityLog = await storage.getOrderActivityLog(orderId);
+
+      // Build line items with product/variant info
+      const lineItemsWithProducts = await Promise.all(
+        (order.lineItems || []).map(async (item: any) => {
+          const variant = item.variantId ? await storage.getProductVariant(item.variantId) : null;
+          const product = variant?.productId ? await storage.getProduct(variant.productId) : null;
+          return {
+            ...item,
+            productName: product?.name || null,
+            variantCode: variant?.variantCode || null,
+            variantColor: variant?.color || null,
+          };
+        })
+      );
+
+      res.json({
+        order: {
+          id: order.id,
+          orderCode: order.orderCode,
+          orderName: order.orderName,
+          status: order.status,
+          estDelivery: order.estDelivery,
+          contactName: order.contactName || null,
+          contactEmail: order.contactEmail || null,
+          contactPhone: order.contactPhone || null,
+          shippingAddress: order.shippingAddress || null,
+          billToAddress: order.billToAddress || null,
+          createdAt: order.createdAt,
+        },
+        organization: organization ? {
+          id: organization.id,
+          name: organization.name,
+          logoUrl: organization.logoUrl || null,
+          brandPrimaryColor: organization.brandPrimaryColor || null,
+          brandSecondaryColor: organization.brandSecondaryColor || null,
+          brandPantoneCode: organization.brandPantoneCode || null,
+        } : null,
+        lineItems: lineItemsWithProducts,
+        trackingNumbers: trackingNumbers.map((t: any) => ({
+          id: t.id,
+          trackingNumber: t.trackingNumber,
+          carrierCompany: t.carrierCompany || 'Unknown',
+          createdAt: t.createdAt,
+        })),
+        manufacturing: manufacturing ? {
+          id: manufacturing.id,
+          status: manufacturing.status,
+          startDate: manufacturing.startDate || null,
+          estCompletion: manufacturing.estCompletion || null,
+          actualCompletion: manufacturing.actualCompletion || null,
+        } : null,
+        designJobs: designJobs.map((job: any) => ({
+          id: job.id,
+          jobCode: job.jobCode,
+          status: job.status,
+          brief: job.brief || null,
+          renditionUrls: job.renditionUrls || null,
+          finalDesignUrls: job.finalDesignUrls || null,
+          createdAt: job.createdAt,
+        })),
+        comments: comments,
+        documents: [],
+        activityLog: activityLog.slice(0, 20),
+      });
+    } catch (error) {
+      console.error("Error fetching portal data:", error);
+      res.status(500).json({ message: "Failed to fetch portal data" });
+    }
+  });
+
+  // PUBLIC: Submit customer comment
+  app.post('/api/public/orders/:orderId/comments', async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+
+      const { message } = req.body;
+      if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      // Verify order exists
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const comment = await storage.createCustomerComment({
+        orderId,
+        message: message.trim(),
+        isFromCustomer: true,
+      });
+
+      res.status(201).json(comment);
+    } catch (error) {
+      console.error("Error creating comment:", error);
+      res.status(500).json({ message: "Failed to create comment" });
+    }
+  });
+
+  // PUBLIC: Submit design request from customer
+  app.post('/api/public/orders/:orderId/design-requests', async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+
+      const { brief } = req.body;
+      if (!brief || typeof brief !== 'string' || brief.trim().length === 0) {
+        return res.status(400).json({ message: "Design brief is required" });
+      }
+
+      // Verify order exists
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Create design job linked to order
+      const designJob = await storage.createDesignJob({
+        orderId,
+        organizationId: order.orgId,
+        brief: brief.trim(),
+        status: 'pending',
+      });
+
+      res.status(201).json(designJob);
+    } catch (error) {
+      console.error("Error creating design request:", error);
+      res.status(500).json({ message: "Failed to create design request" });
+    }
+  });
+
+  // PUBLIC: Submit form data (sizes, contact info, addresses)
+  app.post('/api/public/orders/:orderId/submit-form', async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+
+      const { contactInfo, shippingAddress, billingAddress, additionalInfo, lineItemSizes } = req.body;
+
+      // Verify order exists
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Update order with contact info and addresses
+      const orderUpdates: any = {};
+      
+      if (contactInfo) {
+        if (contactInfo.name) orderUpdates.contactName = contactInfo.name;
+        if (contactInfo.email) orderUpdates.contactEmail = contactInfo.email;
+        if (contactInfo.phone) orderUpdates.contactPhone = contactInfo.phone;
+      }
+
+      if (shippingAddress) {
+        const addrParts = [
+          shippingAddress.name,
+          shippingAddress.address,
+          `${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zip}`,
+          shippingAddress.country
+        ].filter(Boolean);
+        orderUpdates.shippingAddress = addrParts.join('\n');
+      }
+
+      if (billingAddress && !billingAddress.sameAsShipping) {
+        const addrParts = [
+          billingAddress.name,
+          billingAddress.address,
+          `${billingAddress.city}, ${billingAddress.state} ${billingAddress.zip}`,
+          billingAddress.country
+        ].filter(Boolean);
+        orderUpdates.billToAddress = addrParts.join('\n');
+      } else if (billingAddress?.sameAsShipping && orderUpdates.shippingAddress) {
+        orderUpdates.billToAddress = orderUpdates.shippingAddress;
+      }
+
+      if (additionalInfo?.specialInstructions) {
+        orderUpdates.notes = additionalInfo.specialInstructions;
+      }
+
+      // Update order if we have changes
+      if (Object.keys(orderUpdates).length > 0) {
+        await storage.updateOrder(orderId, orderUpdates);
+      }
+
+      // Update line item sizes
+      if (lineItemSizes && Array.isArray(lineItemSizes)) {
+        for (const item of lineItemSizes) {
+          if (item.lineItemId) {
+            await db.update(orderLineItems)
+              .set({
+                yxs: item.yxs || 0,
+                ys: item.ys || 0,
+                ym: item.ym || 0,
+                yl: item.yl || 0,
+                xs: item.xs || 0,
+                s: item.s || 0,
+                m: item.m || 0,
+                l: item.l || 0,
+                xl: item.xl || 0,
+                xxl: item.xxl || 0,
+                xxxl: item.xxxl || 0,
+                xxxxl: item.xxxxl || 0,
+                notes: item.notes || null,
+              })
+              .where(eq(orderLineItems.id, item.lineItemId));
+          }
+        }
+      }
+
+      // Update organization shipping address if applicable
+      if (order.orgId && shippingAddress) {
+        const addrParts = [
+          shippingAddress.address,
+          `${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zip}`,
+          shippingAddress.country
+        ].filter(Boolean);
+        await storage.updateOrganization(order.orgId, {
+          shippingAddress: addrParts.join('\n'),
+        });
+      }
+
+      res.json({ success: true, message: "Form submitted successfully" });
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      res.status(500).json({ message: "Failed to submit form" });
+    }
+  });
 }

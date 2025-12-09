@@ -58,6 +58,7 @@ import { ManufacturerLineItems } from "@/pages/manufacturer-line-items";
 import Tasks from "@/pages/tasks";
 import OrderForms from "@/pages/order-forms";
 import CustomerOrderForm from "@/pages/customer-order-form";
+import CustomerPortal from "@/pages/customer-portal";
 import OrderMap from "@/pages/order-map";
 import PipelineView from "@/pages/pipeline-view";
 import { AnimatePresence } from "framer-motion";
@@ -91,6 +92,7 @@ function Router() {
         <Route path="/setup-account" component={AccountSetup} />
         <Route path="/admin/test-users" component={TestUsers} /> {/* Test mode access without auth */}
         <Route path="/customer-order-form/:id" component={CustomerOrderForm} /> {/* Public order form for customers */}
+        <Route path="/customer-portal/:id" component={CustomerPortal} /> {/* Public customer portal */}
         <Route component={NotFound} />
       </Switch>
     );
