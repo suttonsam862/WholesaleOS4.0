@@ -1585,4 +1585,211 @@ export function registerOrdersRoutes(app: Express): void {
       res.status(500).json({ message: "Failed to submit form" });
     }
   });
+
+  // PUBLIC: Generate Order Summary PDF
+  app.get('/api/public/orders/:orderId/pdf', async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+
+      // Fetch order with line items
+      const order = await storage.getOrderWithLineItems(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Fetch organization info
+      const organization = order.orgId ? await storage.getOrganization(order.orgId) : null;
+
+      // Fetch tracking numbers
+      const trackingNumbers = await storage.getTrackingNumbersByOrder(orderId);
+
+      // Fetch manufacturing record
+      const manufacturing = await storage.getManufacturingByOrder(orderId);
+
+      // Build line items with product info
+      const lineItemsWithProducts = await Promise.all(
+        (order.lineItems || []).map(async (item: any) => {
+          const variant = item.variantId ? await storage.getProductVariant(item.variantId) : null;
+          const product = variant?.productId ? await storage.getProduct(variant.productId) : null;
+          return {
+            ...item,
+            productName: product?.name || 'Unknown Product',
+            variantCode: variant?.variantCode || '',
+            variantColor: variant?.color || '',
+          };
+        })
+      );
+
+      // Import PDFDocument dynamically
+      const PDFDocument = (await import('pdfkit')).default;
+      
+      // Create PDF document
+      const doc = new PDFDocument({ margin: 50 });
+      const chunks: Buffer[] = [];
+
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+      const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        // Header
+        doc.fontSize(24).font('Helvetica-Bold').text('Order Summary', { align: 'center' });
+        doc.moveDown(0.5);
+        
+        // Order details
+        doc.fontSize(12).font('Helvetica');
+        doc.text(`Order #: ${order.orderCode}`, { align: 'center' });
+        doc.text(`Order Name: ${order.orderName}`, { align: 'center' });
+        doc.moveDown();
+
+        // Line separator
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+        doc.moveDown();
+
+        // Organization Info
+        if (organization) {
+          doc.fontSize(14).font('Helvetica-Bold').text('Organization');
+          doc.fontSize(10).font('Helvetica');
+          doc.text(`Name: ${organization.name}`);
+          if (organization.brandPantoneCode) doc.text(`Brand Pantone: ${organization.brandPantoneCode}`);
+          doc.moveDown();
+        }
+
+        // Order Status
+        doc.fontSize(14).font('Helvetica-Bold').text('Order Status');
+        doc.fontSize(10).font('Helvetica');
+        const statusLabels: Record<string, string> = {
+          'new': 'Order Placed',
+          'waiting_sizes': 'Awaiting Sizes',
+          'invoiced': 'Invoiced',
+          'production': 'In Production',
+          'shipped': 'Shipped',
+          'completed': 'Completed'
+        };
+        doc.text(`Status: ${statusLabels[order.status] || order.status}`);
+        if (order.estDelivery) doc.text(`Estimated Delivery: ${new Date(order.estDelivery).toLocaleDateString()}`);
+        if (order.createdAt) doc.text(`Order Date: ${new Date(order.createdAt).toLocaleDateString()}`);
+        doc.moveDown();
+
+        // Contact Information
+        if (order.contactName || order.contactEmail || order.contactPhone) {
+          doc.fontSize(14).font('Helvetica-Bold').text('Contact Information');
+          doc.fontSize(10).font('Helvetica');
+          if (order.contactName) doc.text(`Name: ${order.contactName}`);
+          if (order.contactEmail) doc.text(`Email: ${order.contactEmail}`);
+          if (order.contactPhone) doc.text(`Phone: ${order.contactPhone}`);
+          doc.moveDown();
+        }
+
+        // Shipping Address
+        if (order.shippingAddress) {
+          doc.fontSize(14).font('Helvetica-Bold').text('Shipping Address');
+          doc.fontSize(10).font('Helvetica');
+          doc.text(order.shippingAddress);
+          doc.moveDown();
+        }
+
+        // Manufacturing Status
+        if (manufacturing) {
+          doc.fontSize(14).font('Helvetica-Bold').text('Manufacturing Status');
+          doc.fontSize(10).font('Helvetica');
+          const mfgStatusLabels: Record<string, string> = {
+            'awaiting_admin_confirmation': 'Pending Confirmation',
+            'confirmed_awaiting_manufacturing': 'Confirmed',
+            'cutting_sewing': 'Cutting & Sewing',
+            'printing': 'Printing',
+            'final_packing_press': 'Final Packing',
+            'shipped': 'Shipped',
+            'complete': 'Complete'
+          };
+          doc.text(`Status: ${mfgStatusLabels[manufacturing.status] || manufacturing.status}`);
+          if (manufacturing.estCompletion) doc.text(`Est. Completion: ${new Date(manufacturing.estCompletion).toLocaleDateString()}`);
+          doc.moveDown();
+        }
+
+        // Tracking Information
+        if (trackingNumbers.length > 0) {
+          doc.fontSize(14).font('Helvetica-Bold').text('Tracking Information');
+          doc.fontSize(10).font('Helvetica');
+          trackingNumbers.forEach((t: any) => {
+            doc.text(`${t.carrierCompany || 'Carrier'}: ${t.trackingNumber}`);
+          });
+          doc.moveDown();
+        }
+
+        // Line Items
+        doc.addPage();
+        doc.fontSize(16).font('Helvetica-Bold').text('Order Items', { align: 'center' });
+        doc.moveDown();
+
+        const sizeLabels = ['YXS', 'YS', 'YM', 'YL', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
+        const sizeKeys = ['yxs', 'ys', 'ym', 'yl', 'xs', 's', 'm', 'l', 'xl', 'xxl', 'xxxl', 'xxxxl'];
+
+        lineItemsWithProducts.forEach((item: any, index: number) => {
+          // Item header
+          doc.fontSize(12).font('Helvetica-Bold');
+          doc.text(`${index + 1}. ${item.productName || item.itemName || 'Item'}`);
+          
+          doc.fontSize(9).font('Helvetica');
+          if (item.variantCode) doc.text(`   Variant: ${item.variantCode}`);
+          if (item.variantColor || item.colorNotes) {
+            doc.text(`   Color: ${item.variantColor || item.colorNotes}`);
+          }
+
+          // Size table
+          const sizes: string[] = [];
+          const quantities: number[] = [];
+          sizeKeys.forEach((key, i) => {
+            const qty = item[key] || 0;
+            if (qty > 0) {
+              sizes.push(sizeLabels[i]);
+              quantities.push(qty);
+            }
+          });
+
+          if (sizes.length > 0) {
+            doc.text(`   Sizes: ${sizes.map((s, i) => `${s}(${quantities[i]})`).join(', ')}`);
+            const totalQty = quantities.reduce((sum, q) => sum + q, 0);
+            doc.text(`   Total Units: ${totalQty}`);
+          }
+
+          if (item.notes) {
+            doc.text(`   Notes: ${item.notes}`);
+          }
+          doc.moveDown(0.5);
+        });
+
+        // Calculate grand total
+        let grandTotal = 0;
+        lineItemsWithProducts.forEach((item: any) => {
+          sizeKeys.forEach((key) => {
+            grandTotal += item[key] || 0;
+          });
+        });
+
+        doc.moveDown();
+        doc.fontSize(12).font('Helvetica-Bold');
+        doc.text(`Grand Total Units: ${grandTotal}`, { align: 'right' });
+
+        // Footer
+        doc.moveDown(2);
+        doc.fontSize(8).font('Helvetica').fillColor('gray');
+        doc.text(`Generated on ${new Date().toLocaleString()}`, { align: 'center' });
+
+        doc.end();
+      });
+
+      const filename = `Order-${order.orderCode}-Summary.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      res.status(500).json({ message: "Failed to generate PDF" });
+    }
+  });
 }

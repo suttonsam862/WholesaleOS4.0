@@ -444,6 +444,15 @@ export default function CustomerPortal() {
               )}>
                 {ORDER_STAGES.find(s => s.key === portalData.order.status)?.label || portalData.order.status}
               </Badge>
+              <Button
+                variant="outline"
+                onClick={() => window.open(`/api/public/orders/${orderId}/pdf`, '_blank')}
+                className="border-white/30 text-white/70 hover:bg-white/10"
+                data-testid="button-download-pdf"
+              >
+                <FileDown className="w-4 h-4 mr-2" />
+                Download PDF
+              </Button>
               {portalData.order.status === 'waiting_sizes' && (
                 <Button onClick={() => setShowFormWizard(true)} className="bg-neon-blue hover:bg-neon-blue/90" data-testid="button-fill-form">
                   <PenTool className="w-4 h-4 mr-2" />
