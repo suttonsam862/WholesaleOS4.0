@@ -61,6 +61,7 @@ import CustomerOrderForm from "@/pages/customer-order-form";
 import CustomerPortal from "@/pages/customer-portal";
 import OrderMap from "@/pages/order-map";
 import PipelineView from "@/pages/pipeline-view";
+import FabricManagement from "@/pages/fabric-management";
 import { AnimatePresence } from "framer-motion";
 
 function Router() {
@@ -384,6 +385,12 @@ function Router() {
 
         <Route path="/customer-order-form/:id">
           <CustomerOrderForm />
+        </Route>
+
+        <Route path="/fabric-management">
+          <AppLayout title="Fabric Management">
+            <FabricManagement />
+          </AppLayout>
         </Route>
 
         {/* Fallback to 404 */}

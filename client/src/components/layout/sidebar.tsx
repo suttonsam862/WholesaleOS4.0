@@ -40,7 +40,8 @@ import {
   Wrench,
   TrendingUp,
   Map,
-  GitBranch
+  GitBranch,
+  Layers
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -73,6 +74,7 @@ const ICON_MAP: Record<string, any> = {
   "salespeople": Users,
   "designerManagement": Paintbrush,
   "manufacturerManagement": Warehouse,
+  "fabricManagement": Layers,
   "userManagement": UserCog,
   "finance": DollarSign,
   "quotes": FileText,

@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, User, LogOut, Settings, Bell, Search, Plus, LayoutDashboard, Target, ShoppingCart, Palette, Factory, CheckSquare, DollarSign, Building2, Package, Store, Calendar, Briefcase, Paintbrush, Warehouse, Map, GitBranch, Shield, Users, FileText, Contact } from "lucide-react";
+import { Menu, User, LogOut, Settings, Bell, Search, Plus, LayoutDashboard, Target, ShoppingCart, Palette, Factory, CheckSquare, DollarSign, Building2, Package, Store, Calendar, Briefcase, Paintbrush, Warehouse, Map, GitBranch, Shield, Users, FileText, Contact, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
@@ -37,6 +37,7 @@ const NAV_PAGES = [
   { name: "Salespeople", href: "/salespeople", icon: Briefcase },
   { name: "Designer Management", href: "/designer-management", icon: Paintbrush },
   { name: "Manufacturer Management", href: "/manufacturer-management", icon: Warehouse },
+  { name: "Fabric Management", href: "/fabric-management", icon: Layers },
   { name: "Order Map", href: "/order-map", icon: Map },
   { name: "Pipeline", href: "/pipeline", icon: GitBranch },
   { name: "Finance", href: "/finance", icon: DollarSign },

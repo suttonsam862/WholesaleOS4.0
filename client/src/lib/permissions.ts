@@ -154,6 +154,7 @@ export const NAVIGATION_ITEMS = [
   { name: "Sales Team", href: "/salespeople", icon: "fas fa-users", resource: "salespeople" as Resource },
   { name: "Designer Management", href: "/designer-management", icon: "fas fa-paint-brush", resource: "designerManagement" as Resource },
   { name: "Manufacturer Management", href: "/manufacturer-management", icon: "fas fa-warehouse", resource: "manufacturerManagement" as Resource },
+  { name: "Fabric Management", href: "/fabric-management", icon: "fas fa-layer-group", resource: "catalog" as Resource },
   { name: "User Management", href: "/user-management", icon: "fas fa-user-cog", resource: "userManagement" as Resource },
   { name: "Finance", href: "/finance", icon: "fas fa-dollar-sign", resource: "finance" as Resource },
   { name: "Quote Generator", href: "/quotes", icon: "fas fa-file-invoice-dollar", resource: "quotes" as Resource },
