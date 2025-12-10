@@ -387,6 +387,10 @@ function Router() {
           <CustomerOrderForm />
         </Route>
 
+        <Route path="/customer-portal/:id">
+          <CustomerPortal />
+        </Route>
+
         <Route path="/fabric-management">
           <AppLayout title="Fabric Management">
             <FabricManagement />
