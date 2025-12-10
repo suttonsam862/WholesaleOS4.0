@@ -1929,6 +1929,18 @@ function LineItemsModule({
                       <div className="border-t border-white/10 pt-3">
                         {isItemEditing ? (
                           <div className="space-y-4">
+                            {/* Edit Item Name */}
+                            <div>
+                              <Label className="text-xs text-white/50 mb-2 block">Item Name</Label>
+                              <Input
+                                value={editingLineItemData?.itemName || ''}
+                                onChange={(e) => setEditingLineItemData((prev: any) => ({ ...prev, itemName: e.target.value }))}
+                                className="bg-white/5 border-white/10 text-white"
+                                placeholder="Enter item name"
+                                data-testid={`input-line-item-name-${item.id}`}
+                              />
+                            </div>
+                            
                             {/* Edit Size Grid */}
                             <div>
                               <Label className="text-xs text-white/50 mb-2 block">Edit Sizes</Label>
