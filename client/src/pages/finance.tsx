@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -128,6 +129,51 @@ export default function Finance() {
   const [matchingSortBy, setMatchingSortBy] = useState<string>("newest");
   const [selectedOrderForMatching, setSelectedOrderForMatching] = useState<FinancialMatchingOrder | null>(null);
 
+  // Modal states for creating financial data
+  const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(false);
+  const [showCreatePaymentModal, setShowCreatePaymentModal] = useState(false);
+  const [showCreateCommissionModal, setShowCreateCommissionModal] = useState(false);
+  const [showCreateExpenseModal, setShowCreateExpenseModal] = useState(false);
+
+  // Form states
+  const [invoiceForm, setInvoiceForm] = useState({
+    orderId: null as number | null,
+    orgId: null as number | null,
+    subtotal: "",
+    taxRate: "0",
+    totalAmount: "",
+    issueDate: new Date().toISOString().split('T')[0],
+    dueDate: "",
+    paymentTerms: "Net 30",
+  });
+
+  const [paymentForm, setPaymentForm] = useState({
+    invoiceId: null as number | null,
+    amount: "",
+    paymentDate: new Date().toISOString().split('T')[0],
+    paymentMethod: "check" as "cash" | "check" | "wire" | "ach" | "credit_card" | "other",
+    referenceNumber: "",
+  });
+
+  const [commissionForm, setCommissionForm] = useState({
+    salespersonId: "",
+    totalAmount: "",
+    period: new Date().toISOString().slice(0, 7), // YYYY-MM
+    paymentDate: new Date().toISOString().split('T')[0],
+    paymentMethod: "direct_deposit" as "check" | "direct_deposit" | "wire" | "other",
+    notes: "",
+  });
+
+  const [expenseForm, setExpenseForm] = useState({
+    type: "expense" as "expense" | "refund" | "fee",
+    amount: "",
+    description: "",
+    category: "Operations",
+    paymentMethod: "check",
+    dueDate: "",
+    notes: "",
+  });
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       toast({
@@ -209,6 +255,165 @@ export default function Finance() {
     },
     retry: false,
   });
+
+  // Additional queries for modals
+  const { data: orders = [] } = useQuery<any[]>({
+    queryKey: ["/api/orders"],
+    queryFn: async () => {
+      const response = await fetch('/api/orders', { credentials: 'include' });
+      return response.ok ? response.json() : [];
+    },
+    retry: false,
+  });
+
+  const { data: organizations = [] } = useQuery<any[]>({
+    queryKey: ["/api/organizations"],
+    queryFn: async () => {
+      const response = await fetch('/api/organizations', { credentials: 'include' });
+      return response.ok ? response.json() : [];
+    },
+    retry: false,
+  });
+
+  const { data: salespeople = [] } = useQuery<any[]>({
+    queryKey: ["/api/salespeople"],
+    queryFn: async () => {
+      const response = await fetch('/api/salespeople', { credentials: 'include' });
+      return response.ok ? response.json() : [];
+    },
+    retry: false,
+  });
+
+  // Mutations for creating financial data
+  const createInvoiceMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const payload = {
+        orderId: data.orderId || null,
+        orgId: data.orgId || null,
+        subtotal: data.subtotal || "0",
+        taxRate: data.taxRate || "0",
+        taxAmount: ((parseFloat(data.subtotal) || 0) * (parseFloat(data.taxRate) || 0) / 100).toFixed(2),
+        totalAmount: data.totalAmount || "0",
+        issueDate: data.issueDate,
+        dueDate: data.dueDate,
+        paymentTerms: data.paymentTerms,
+        status: "draft",
+      };
+      return apiRequest("/api/invoices", { method: "POST", body: payload });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/financial/overview"] });
+      toast({ title: "Invoice Created", description: "The invoice has been created successfully." });
+      setShowCreateInvoiceModal(false);
+      resetInvoiceForm();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to create invoice.", variant: "destructive" });
+    },
+  });
+
+  const createPaymentMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const payload = {
+        invoiceId: data.invoiceId,
+        amount: data.amount || "0",
+        paymentDate: data.paymentDate,
+        paymentMethod: data.paymentMethod,
+        referenceNumber: data.referenceNumber || null,
+      };
+      return apiRequest("/api/invoice-payments", { method: "POST", body: payload });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/invoice-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/financial/overview"] });
+      toast({ title: "Payment Recorded", description: "The payment has been recorded successfully." });
+      setShowCreatePaymentModal(false);
+      resetPaymentForm();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to record payment.", variant: "destructive" });
+    },
+  });
+
+  const createCommissionMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const payload = {
+        salespersonId: data.salespersonId,
+        totalAmount: data.totalAmount || "0",
+        period: data.period,
+        paymentDate: data.paymentDate,
+        paymentMethod: data.paymentMethod,
+        notes: data.notes || null,
+      };
+      return apiRequest("/api/commission-payments", { method: "POST", body: payload });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/commission-payments"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/financial/overview"] });
+      toast({ title: "Commission Payment Recorded", description: "The commission payment has been recorded successfully." });
+      setShowCreateCommissionModal(false);
+      resetCommissionForm();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to record commission payment.", variant: "destructive" });
+    },
+  });
+
+  const createExpenseMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const payload = {
+        type: data.type,
+        amount: data.amount || "0",
+        description: data.description || null,
+        category: data.category || null,
+        paymentMethod: data.paymentMethod || null,
+        dueDate: data.dueDate || null,
+        notes: data.notes || null,
+        status: "completed",
+      };
+      return apiRequest("/api/financial/transactions", { method: "POST", body: payload });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/financial/overview"] });
+      toast({ title: "Expense Recorded", description: "The expense has been recorded successfully." });
+      setShowCreateExpenseModal(false);
+      resetExpenseForm();
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to record expense.", variant: "destructive" });
+    },
+  });
+
+  // Reset form functions
+  const resetInvoiceForm = () => {
+    setInvoiceForm({
+      orderId: null, orgId: null, subtotal: "", taxRate: "0", totalAmount: "",
+      issueDate: new Date().toISOString().split('T')[0], dueDate: "", paymentTerms: "Net 30",
+    });
+  };
+
+  const resetPaymentForm = () => {
+    setPaymentForm({
+      invoiceId: null, amount: "", paymentDate: new Date().toISOString().split('T')[0],
+      paymentMethod: "check", referenceNumber: "",
+    });
+  };
+
+  const resetCommissionForm = () => {
+    setCommissionForm({
+      salespersonId: "", totalAmount: "", period: new Date().toISOString().slice(0, 7),
+      paymentDate: new Date().toISOString().split('T')[0], paymentMethod: "direct_deposit", notes: "",
+    });
+  };
+
+  const resetExpenseForm = () => {
+    setExpenseForm({
+      type: "expense", amount: "", description: "", category: "Operations",
+      paymentMethod: "check", dueDate: "", notes: "",
+    });
+  };
 
   const uniqueOrganizations = Array.from(
     new Map(
@@ -484,6 +689,10 @@ export default function Finance() {
           <TabsTrigger value="invoices" data-testid="tab-invoices">Invoices ({invoices.length})</TabsTrigger>
           <TabsTrigger value="payments" data-testid="tab-payments">Payments ({invoicePayments.length})</TabsTrigger>
           <TabsTrigger value="commissions" data-testid="tab-commissions">Commissions ({commissionPayments.length})</TabsTrigger>
+          <TabsTrigger value="expenses" data-testid="tab-expenses">
+            <Receipt className="h-4 w-4 mr-2" />
+            Expenses
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4 mt-4">
@@ -778,6 +987,12 @@ export default function Finance() {
         </TabsContent>
 
         <TabsContent value="invoices" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Invoices</h3>
+            <Button onClick={() => setShowCreateInvoiceModal(true)} className="gap-2" data-testid="button-add-invoice">
+              <Plus className="h-4 w-4" /> Add Invoice
+            </Button>
+          </div>
           <div className="space-y-4">
             {invoices.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground" data-testid="empty-invoices">
@@ -826,6 +1041,12 @@ export default function Finance() {
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Invoice Payments</h3>
+            <Button onClick={() => setShowCreatePaymentModal(true)} className="gap-2" data-testid="button-add-payment">
+              <Plus className="h-4 w-4" /> Add Payment
+            </Button>
+          </div>
           <div className="space-y-4">
             {invoicePayments.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground" data-testid="empty-payments">
@@ -871,6 +1092,12 @@ export default function Finance() {
         </TabsContent>
 
         <TabsContent value="commissions" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Commission Payments</h3>
+            <Button onClick={() => setShowCreateCommissionModal(true)} className="gap-2" data-testid="button-add-commission">
+              <Plus className="h-4 w-4" /> Add Commission Payment
+            </Button>
+          </div>
           <div className="space-y-4">
             {commissionPayments.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground" data-testid="empty-commissions">
@@ -917,6 +1144,19 @@ export default function Finance() {
             )}
           </div>
         </TabsContent>
+
+        <TabsContent value="expenses" className="space-y-4 mt-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Expenses & Transactions</h3>
+            <Button onClick={() => setShowCreateExpenseModal(true)} className="gap-2" data-testid="button-add-expense">
+              <Plus className="h-4 w-4" /> Add Expense
+            </Button>
+          </div>
+          <div className="text-center py-12 text-muted-foreground" data-testid="empty-expenses">
+            <Receipt className="h-12 w-12 mx-auto mb-4 opacity-50" />
+            <p>Click "Add Expense" to record expenses, refunds, or fees.</p>
+          </div>
+        </TabsContent>
       </Tabs>
 
       {selectedOrderForMatching && (
@@ -928,6 +1168,301 @@ export default function Finance() {
           orderCode={selectedOrderForMatching.orderCode}
         />
       )}
+
+      {/* Create Invoice Modal */}
+      <Dialog open={showCreateInvoiceModal} onOpenChange={setShowCreateInvoiceModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Create Invoice</DialogTitle>
+            <DialogDescription>Create a new invoice for an order or organization.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Order (Optional)</Label>
+                <Select value={invoiceForm.orderId?.toString() || ""} onValueChange={(v) => setInvoiceForm({ ...invoiceForm, orderId: v ? parseInt(v) : null })}>
+                  <SelectTrigger data-testid="select-invoice-order">
+                    <SelectValue placeholder="Select order" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {orders.map((order: any) => (
+                      <SelectItem key={order.id} value={order.id.toString()}>{order.orderCode} - {order.orderName}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Organization (Optional)</Label>
+                <Select value={invoiceForm.orgId?.toString() || ""} onValueChange={(v) => setInvoiceForm({ ...invoiceForm, orgId: v ? parseInt(v) : null })}>
+                  <SelectTrigger data-testid="select-invoice-org">
+                    <SelectValue placeholder="Select organization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {organizations.map((org: any) => (
+                      <SelectItem key={org.id} value={org.id.toString()}>{org.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Subtotal</Label>
+                <Input type="number" step="0.01" value={invoiceForm.subtotal} onChange={(e) => {
+                  const subtotal = e.target.value;
+                  const taxRate = parseFloat(invoiceForm.taxRate) || 0;
+                  const total = (parseFloat(subtotal) * (1 + taxRate / 100)).toFixed(2);
+                  setInvoiceForm({ ...invoiceForm, subtotal, totalAmount: total });
+                }} placeholder="0.00" data-testid="input-invoice-subtotal" />
+              </div>
+              <div className="space-y-2">
+                <Label>Tax Rate (%)</Label>
+                <Input type="number" step="0.01" value={invoiceForm.taxRate} onChange={(e) => {
+                  const taxRate = e.target.value;
+                  const subtotal = parseFloat(invoiceForm.subtotal) || 0;
+                  const total = (subtotal * (1 + parseFloat(taxRate) / 100)).toFixed(2);
+                  setInvoiceForm({ ...invoiceForm, taxRate, totalAmount: total });
+                }} placeholder="0" data-testid="input-invoice-tax" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Total Amount</Label>
+              <Input type="number" step="0.01" value={invoiceForm.totalAmount} onChange={(e) => setInvoiceForm({ ...invoiceForm, totalAmount: e.target.value })} placeholder="0.00" data-testid="input-invoice-total" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Issue Date</Label>
+                <Input type="date" value={invoiceForm.issueDate} onChange={(e) => setInvoiceForm({ ...invoiceForm, issueDate: e.target.value })} data-testid="input-invoice-issue-date" />
+              </div>
+              <div className="space-y-2">
+                <Label>Due Date</Label>
+                <Input type="date" value={invoiceForm.dueDate} onChange={(e) => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })} data-testid="input-invoice-due-date" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Payment Terms</Label>
+              <Select value={invoiceForm.paymentTerms} onValueChange={(v) => setInvoiceForm({ ...invoiceForm, paymentTerms: v })}>
+                <SelectTrigger data-testid="select-invoice-terms">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Due on receipt">Due on receipt</SelectItem>
+                  <SelectItem value="Net 15">Net 15</SelectItem>
+                  <SelectItem value="Net 30">Net 30</SelectItem>
+                  <SelectItem value="Net 45">Net 45</SelectItem>
+                  <SelectItem value="Net 60">Net 60</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateInvoiceModal(false)}>Cancel</Button>
+            <Button onClick={() => createInvoiceMutation.mutate(invoiceForm)} disabled={createInvoiceMutation.isPending || !invoiceForm.subtotal || !invoiceForm.totalAmount || !invoiceForm.issueDate || !invoiceForm.dueDate} data-testid="button-submit-invoice">
+              {createInvoiceMutation.isPending ? "Creating..." : "Create Invoice"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Payment Modal */}
+      <Dialog open={showCreatePaymentModal} onOpenChange={setShowCreatePaymentModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Record Payment</DialogTitle>
+            <DialogDescription>Record a payment received against an invoice.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Invoice</Label>
+              <Select value={paymentForm.invoiceId?.toString() || ""} onValueChange={(v) => setPaymentForm({ ...paymentForm, invoiceId: v ? parseInt(v) : null })}>
+                <SelectTrigger data-testid="select-payment-invoice">
+                  <SelectValue placeholder="Select invoice" />
+                </SelectTrigger>
+                <SelectContent>
+                  {invoices.filter(inv => inv.status !== 'paid').map((invoice) => (
+                    <SelectItem key={invoice.id} value={invoice.id.toString()}>
+                      {invoice.invoiceNumber} - {formatCurrency(invoice.totalAmount)} (Due: {formatCurrency(Number(invoice.amountDue) || 0)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Amount</Label>
+                <Input type="number" step="0.01" value={paymentForm.amount} onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })} placeholder="0.00" data-testid="input-payment-amount" />
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Date</Label>
+                <Input type="date" value={paymentForm.paymentDate} onChange={(e) => setPaymentForm({ ...paymentForm, paymentDate: e.target.value })} data-testid="input-payment-date" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select value={paymentForm.paymentMethod} onValueChange={(v: any) => setPaymentForm({ ...paymentForm, paymentMethod: v })}>
+                  <SelectTrigger data-testid="select-payment-method">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="check">Check</SelectItem>
+                    <SelectItem value="wire">Wire Transfer</SelectItem>
+                    <SelectItem value="ach">ACH</SelectItem>
+                    <SelectItem value="credit_card">Credit Card</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Reference Number</Label>
+                <Input value={paymentForm.referenceNumber} onChange={(e) => setPaymentForm({ ...paymentForm, referenceNumber: e.target.value })} placeholder="Check #, Trans ID, etc." data-testid="input-payment-reference" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreatePaymentModal(false)}>Cancel</Button>
+            <Button onClick={() => createPaymentMutation.mutate(paymentForm)} disabled={createPaymentMutation.isPending || !paymentForm.invoiceId || !paymentForm.amount || !paymentForm.paymentDate} data-testid="button-submit-payment">
+              {createPaymentMutation.isPending ? "Recording..." : "Record Payment"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Commission Modal */}
+      <Dialog open={showCreateCommissionModal} onOpenChange={setShowCreateCommissionModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Record Commission Payment</DialogTitle>
+            <DialogDescription>Record a commission payment to a salesperson.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Salesperson</Label>
+              <Select value={commissionForm.salespersonId} onValueChange={(v) => setCommissionForm({ ...commissionForm, salespersonId: v })}>
+                <SelectTrigger data-testid="select-commission-salesperson">
+                  <SelectValue placeholder="Select salesperson" />
+                </SelectTrigger>
+                <SelectContent>
+                  {salespeople.map((sp: any) => (
+                    <SelectItem key={sp.id} value={sp.userId || sp.id.toString()}>
+                      {sp.userName || sp.userEmail || `Salesperson ${sp.id}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Amount</Label>
+                <Input type="number" step="0.01" value={commissionForm.totalAmount} onChange={(e) => setCommissionForm({ ...commissionForm, totalAmount: e.target.value })} placeholder="0.00" data-testid="input-commission-amount" />
+              </div>
+              <div className="space-y-2">
+                <Label>Period (Month)</Label>
+                <Input type="month" value={commissionForm.period} onChange={(e) => setCommissionForm({ ...commissionForm, period: e.target.value })} data-testid="input-commission-period" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Payment Date</Label>
+                <Input type="date" value={commissionForm.paymentDate} onChange={(e) => setCommissionForm({ ...commissionForm, paymentDate: e.target.value })} data-testid="input-commission-date" />
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Select value={commissionForm.paymentMethod} onValueChange={(v: any) => setCommissionForm({ ...commissionForm, paymentMethod: v })}>
+                  <SelectTrigger data-testid="select-commission-method">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="check">Check</SelectItem>
+                    <SelectItem value="direct_deposit">Direct Deposit</SelectItem>
+                    <SelectItem value="wire">Wire Transfer</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes (Optional)</Label>
+              <Textarea value={commissionForm.notes} onChange={(e) => setCommissionForm({ ...commissionForm, notes: e.target.value })} placeholder="Any additional notes..." data-testid="input-commission-notes" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateCommissionModal(false)}>Cancel</Button>
+            <Button onClick={() => createCommissionMutation.mutate(commissionForm)} disabled={createCommissionMutation.isPending || !commissionForm.salespersonId || !commissionForm.totalAmount || !commissionForm.period || !commissionForm.paymentDate} data-testid="button-submit-commission">
+              {createCommissionMutation.isPending ? "Recording..." : "Record Commission"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Expense Modal */}
+      <Dialog open={showCreateExpenseModal} onOpenChange={setShowCreateExpenseModal}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Record Expense</DialogTitle>
+            <DialogDescription>Record an expense, refund, or fee transaction.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Select value={expenseForm.type} onValueChange={(v: any) => setExpenseForm({ ...expenseForm, type: v })}>
+                  <SelectTrigger data-testid="select-expense-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="expense">Expense</SelectItem>
+                    <SelectItem value="refund">Refund</SelectItem>
+                    <SelectItem value="fee">Fee</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Amount</Label>
+                <Input type="number" step="0.01" value={expenseForm.amount} onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })} placeholder="0.00" data-testid="input-expense-amount" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Input value={expenseForm.description} onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })} placeholder="Brief description..." data-testid="input-expense-description" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Category</Label>
+                <Select value={expenseForm.category} onValueChange={(v) => setExpenseForm({ ...expenseForm, category: v })}>
+                  <SelectTrigger data-testid="select-expense-category">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORY_OPTIONS.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Payment Method</Label>
+                <Input value={expenseForm.paymentMethod} onChange={(e) => setExpenseForm({ ...expenseForm, paymentMethod: e.target.value })} placeholder="Check, Card, etc." data-testid="input-expense-method" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Due Date (Optional)</Label>
+              <Input type="date" value={expenseForm.dueDate} onChange={(e) => setExpenseForm({ ...expenseForm, dueDate: e.target.value })} data-testid="input-expense-due-date" />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes (Optional)</Label>
+              <Textarea value={expenseForm.notes} onChange={(e) => setExpenseForm({ ...expenseForm, notes: e.target.value })} placeholder="Any additional notes..." data-testid="input-expense-notes" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateExpenseModal(false)}>Cancel</Button>
+            <Button onClick={() => createExpenseMutation.mutate(expenseForm)} disabled={createExpenseMutation.isPending || !expenseForm.amount} data-testid="button-submit-expense">
+              {createExpenseMutation.isPending ? "Recording..." : "Record Expense"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
