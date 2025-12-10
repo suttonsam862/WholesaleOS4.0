@@ -17,6 +17,7 @@ import {
 import { isAuthenticated } from "./shared/middleware";
 import { stripFinancialData } from "./shared/utils";
 import { ObjectStorageService } from "../objectStorage";
+import { cleanupLineItemName } from "../services/ai-name-cleanup.service";
 
 export function registerOrdersRoutes(app: Express): void {
   // Bulk order reassignment (first occurrence - appears early in routes.ts)
@@ -845,6 +846,165 @@ export function registerOrdersRoutes(app: Express): void {
     }
   });
 
+  // AI-powered line item name cleanup
+  app.post('/api/orders/:id/line-items/:itemId/ai-cleanup-name', isAuthenticated, loadUserData, requirePermission('orders', 'write'), async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+      const itemId = parseInt(req.params.itemId);
+
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Check if user can modify this order
+      const userRole = (req as AuthenticatedRequest).user.userData!.role as UserRole;
+      if (userRole === 'sales' && order.salespersonId !== (req as AuthenticatedRequest).user.userData!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get the line item
+      const lineItems = await storage.getOrderLineItems(orderId);
+      const lineItem = lineItems.find(item => item.id === itemId);
+      
+      if (!lineItem) {
+        return res.status(404).json({ message: "Line item not found" });
+      }
+
+      if (!lineItem.itemName) {
+        return res.status(400).json({ message: "Line item has no name to cleanup" });
+      }
+
+      // Get organization name
+      const organization = order.orgId ? await storage.getOrganization(order.orgId) : null;
+      const orgName = organization?.name || "Custom";
+
+      // Use AI to clean up the name
+      const cleanedName = await cleanupLineItemName(lineItem.itemName, orgName);
+
+      // Update the line item with the cleaned name
+      const updatedLineItem = await storage.updateOrderLineItem(itemId, { itemName: cleanedName });
+
+      // Sync to manufacturing update line items
+      try {
+        const manufacturingLineItems = await storage.getManufacturingUpdateLineItemsByOrderLineItemId(itemId);
+        for (const mfgLineItem of manufacturingLineItems) {
+          await storage.updateManufacturingUpdateLineItem(mfgLineItem.id, {
+            productName: cleanedName,
+          });
+        }
+      } catch (error) {
+        console.error("Error syncing AI-cleaned itemName to manufacturing updates:", error);
+      }
+
+      // Log activity
+      await storage.logActivity(
+        (req as AuthenticatedRequest).user.userData!.id,
+        'order_line_item',
+        itemId,
+        'ai_name_cleanup',
+        { originalName: lineItem.itemName },
+        { cleanedName }
+      );
+
+      res.json({
+        success: true,
+        originalName: lineItem.itemName,
+        cleanedName,
+        lineItem: updatedLineItem,
+      });
+    } catch (error) {
+      console.error("Error in AI name cleanup:", error);
+      res.status(500).json({ 
+        message: "Failed to cleanup line item name",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Bulk AI cleanup for all line items in an order
+  app.post('/api/orders/:id/ai-cleanup-names', isAuthenticated, loadUserData, requirePermission('orders', 'write'), async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Check if user can modify this order
+      const userRole = (req as AuthenticatedRequest).user.userData!.role as UserRole;
+      if (userRole === 'sales' && order.salespersonId !== (req as AuthenticatedRequest).user.userData!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Get organization name
+      const organization = order.orgId ? await storage.getOrganization(order.orgId) : null;
+      const orgName = organization?.name || "Custom";
+
+      // Get all line items for this order
+      const lineItems = await storage.getOrderLineItems(orderId);
+      
+      if (lineItems.length === 0) {
+        return res.status(400).json({ message: "No line items to cleanup" });
+      }
+
+      const results: Array<{ id: number; originalName: string; cleanedName: string }> = [];
+
+      // Process each line item
+      for (const lineItem of lineItems) {
+        if (!lineItem.itemName) continue;
+
+        const cleanedName = await cleanupLineItemName(lineItem.itemName, orgName);
+        
+        if (cleanedName !== lineItem.itemName) {
+          await storage.updateOrderLineItem(lineItem.id, { itemName: cleanedName });
+          
+          // Sync to manufacturing updates
+          try {
+            const manufacturingLineItems = await storage.getManufacturingUpdateLineItemsByOrderLineItemId(lineItem.id);
+            for (const mfgLineItem of manufacturingLineItems) {
+              await storage.updateManufacturingUpdateLineItem(mfgLineItem.id, {
+                productName: cleanedName,
+              });
+            }
+          } catch (error) {
+            console.error("Error syncing AI-cleaned itemName to manufacturing updates:", error);
+          }
+
+          results.push({
+            id: lineItem.id,
+            originalName: lineItem.itemName,
+            cleanedName,
+          });
+        }
+      }
+
+      // Log activity
+      await storage.logActivity(
+        (req as AuthenticatedRequest).user.userData!.id,
+        'order',
+        orderId,
+        'bulk_ai_name_cleanup',
+        { itemCount: lineItems.length },
+        { cleanedCount: results.length, results }
+      );
+
+      res.json({
+        success: true,
+        totalItems: lineItems.length,
+        cleanedItems: results.length,
+        results,
+      });
+    } catch (error) {
+      console.error("Error in bulk AI name cleanup:", error);
+      res.status(500).json({ 
+        message: "Failed to cleanup line item names",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Order-specific activity endpoint
   app.get('/api/orders/:id/activity', isAuthenticated, loadUserData, requirePermission('orders', 'read'), async (req, res) => {
     try {
@@ -1474,7 +1634,7 @@ export function registerOrdersRoutes(app: Express): void {
       // Create design job linked to order
       const designJob = await storage.createDesignJob({
         orderId,
-        organizationId: order.orgId,
+        orgId: order.orgId,
         brief: brief.trim(),
         status: 'pending',
       });

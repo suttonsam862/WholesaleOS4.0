@@ -7,6 +7,16 @@
 
 import { useState, useMemo, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -367,6 +377,7 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
   const [newLineItem, setNewLineItem] = useState<Partial<OrderLineItem>>({
     yxs: 0, ys: 0, ym: 0, yl: 0, xs: 0, s: 0, m: 0, l: 0, xl: 0, xxl: 0, xxxl: 0, xxxxl: 0,
   });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Fetch order data
   const { data: order, isLoading: orderLoading } = useQuery<any>({
@@ -583,6 +594,20 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to add note", variant: "destructive" });
+    },
+  });
+
+  const deleteOrderMutation = useMutation({
+    mutationFn: () =>
+      apiRequest(`/api/orders/${orderId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      toast({ title: "Success", description: "Order deleted successfully" });
+      setShowDeleteConfirm(false);
+      onClose();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete order", variant: "destructive" });
     },
   });
 
@@ -806,6 +831,16 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
                       </button>
                     </>
                   )}
+                  {hasPermission('orders', 'delete') && (
+                    <button
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 text-sm transition-colors"
+                      data-testid="button-delete-order"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </button>
+                  )}
                   <button
                     onClick={onClose}
                     className="p-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
@@ -931,6 +966,7 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
                 {activeModule === 'line-items' && (
                   <LineItemsModule
                     key="line-items"
+                    orderId={orderId}
                     lineItems={lineItems}
                     products={products}
                     variants={variants}
@@ -1007,6 +1043,35 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
           onClose={() => setSelectedImage(null)}
         />
       </DialogContent>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent className="bg-[#1a1a2e] border-white/10">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Delete Order</AlertDialogTitle>
+            <AlertDialogDescription className="text-white/60">
+              Are you sure you want to delete order <span className="font-semibold text-white">{order?.orderCode}</span>? 
+              This action cannot be undone. All line items, manufacturing records, and related data will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              className="bg-white/5 border-white/10 text-white hover:bg-white/10 hover:text-white"
+              data-testid="button-cancel-delete"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteOrderMutation.mutate()}
+              disabled={deleteOrderMutation.isPending}
+              className="bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30"
+              data-testid="button-confirm-delete"
+            >
+              {deleteOrderMutation.isPending ? "Deleting..." : "Delete Order"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
@@ -1387,6 +1452,7 @@ function OverviewModule({
 }
 
 function LineItemsModule({
+  orderId,
   lineItems,
   products,
   variants,
@@ -1410,11 +1476,28 @@ function LineItemsModule({
   calculatePrice,
 }: any) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [productSearch, setProductSearch] = useState('');
   const [variantSearch, setVariantSearch] = useState('');
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [showProductDropdown, setShowProductDropdown] = useState(false);
   const [showVariantDropdown, setShowVariantDropdown] = useState(false);
+
+  // AI Name Cleanup mutation
+  const aiCleanupMutation = useMutation({
+    mutationFn: () => apiRequest(`/api/orders/${orderId}/ai-cleanup-names`, { method: "POST" }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}/line-items`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
+      toast({ 
+        title: "AI Name Cleanup Complete", 
+        description: `Cleaned up ${data.cleanedItems} of ${data.totalItems} line item names` 
+      });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to cleanup names", variant: "destructive" });
+    },
+  });
 
   // Debug: Log received lineItems
   console.log('[LineItemsModule] Received lineItems:', lineItems, 'isArray:', Array.isArray(lineItems), 'length:', lineItems?.length);
@@ -1476,14 +1559,36 @@ function LineItemsModule({
           <h3 className="text-lg font-semibold text-white">Line Items</h3>
           <p className="text-sm text-white/50">{lineItems.length} items • {totalQty} units • ${totalValue.toFixed(2)}</p>
         </div>
-        <button
-          onClick={() => setShowAddLineItem(true)}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-neon-blue/10 border border-neon-blue/30 text-neon-blue hover:bg-neon-blue/20 text-sm transition-colors"
-          data-testid="button-add-line-item"
-        >
-          <Plus className="w-4 h-4" />
-          Add Item
-        </button>
+        <div className="flex items-center gap-2">
+          {lineItems.length > 0 && (
+            <button
+              onClick={() => aiCleanupMutation.mutate()}
+              disabled={aiCleanupMutation.isPending}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 hover:bg-purple-500/20 text-sm transition-colors disabled:opacity-50"
+              data-testid="button-ai-cleanup-names"
+              title="Clean up line item names using AI"
+            >
+              {aiCleanupMutation.isPending ? (
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="w-4 h-4 border-2 border-purple-400/20 border-t-purple-400 rounded-full"
+                />
+              ) : (
+                <Settings className="w-4 h-4" />
+              )}
+              AI Cleanup Names
+            </button>
+          )}
+          <button
+            onClick={() => setShowAddLineItem(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-neon-blue/10 border border-neon-blue/30 text-neon-blue hover:bg-neon-blue/20 text-sm transition-colors"
+            data-testid="button-add-line-item"
+          >
+            <Plus className="w-4 h-4" />
+            Add Item
+          </button>
+        </div>
       </div>
 
       {/* Add Line Item Form - with Product/Variant Search */}
