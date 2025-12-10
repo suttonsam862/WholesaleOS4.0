@@ -449,6 +449,21 @@ export const customerComments = pgTable("customer_comments", {
   index("idx_customer_comments_order_id").on(table.orderId),
 ]);
 
+// Size Adjustment Requests - customer requests for size changes after form submission
+export const sizeAdjustmentRequests = pgTable("size_adjustment_requests", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  orderId: integer("order_id").references(() => orders.id, { onDelete: 'cascade' }).notNull(),
+  requestMessage: text("request_message").notNull(),
+  status: varchar("status").$type<"pending" | "approved" | "rejected" | "completed">().default("pending").notNull(),
+  adminResponse: text("admin_response"),
+  respondedBy: varchar("responded_by").references(() => users.id),
+  respondedAt: timestamp("responded_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_size_adjustment_requests_order_id").on(table.orderId),
+]);
+
 // Order Form Submissions - captures customer-submitted information
 export const orderFormSubmissions = pgTable("order_form_submissions", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -2403,6 +2418,16 @@ export const insertCustomerCommentSchema = createInsertSchema(customerComments, 
 
 export type CustomerComment = typeof customerComments.$inferSelect;
 export type InsertCustomerComment = z.infer<typeof insertCustomerCommentSchema>;
+
+// Size Adjustment Request Schemas
+export const insertSizeAdjustmentRequestSchema = createInsertSchema(sizeAdjustmentRequests, {
+  orderId: z.number().int().positive("Order ID is required"),
+  requestMessage: z.string().min(1, "Request message is required"),
+  status: z.enum(["pending", "approved", "rejected", "completed"]).optional(),
+}).omit({ id: true, createdAt: true, updatedAt: true, respondedAt: true });
+
+export type SizeAdjustmentRequest = typeof sizeAdjustmentRequests.$inferSelect;
+export type InsertSizeAdjustmentRequest = z.infer<typeof insertSizeAdjustmentRequestSchema>;
 
 // ==================== FABRIC MANAGEMENT SCHEMAS ====================
 

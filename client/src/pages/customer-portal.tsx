@@ -62,6 +62,8 @@ import {
   CircleCheck,
   Circle,
   CircleDot,
+  Ruler,
+  Edit3,
 } from "lucide-react";
 
 const SIZE_COLUMNS = [
@@ -234,6 +236,8 @@ export default function CustomerPortal() {
   
   const [activeTab, setActiveTab] = useState("overview");
   const [showFormWizard, setShowFormWizard] = useState(false);
+  const [showSizeAdjustmentModal, setShowSizeAdjustmentModal] = useState(false);
+  const [sizeAdjustmentRequest, setSizeAdjustmentRequest] = useState("");
   const [currentFormStep, setCurrentFormStep] = useState(0);
   const [newComment, setNewComment] = useState("");
   const [designRequestBrief, setDesignRequestBrief] = useState("");
@@ -252,6 +256,23 @@ export default function CustomerPortal() {
     queryFn: async () => {
       const response = await fetch(`/api/public/orders/${orderId}/portal-data`);
       if (!response.ok) throw new Error('Failed to fetch portal data');
+      return response.json();
+    },
+    enabled: !!orderId,
+  });
+
+  // Fetch form submission status
+  const { data: formStatus } = useQuery<{
+    hasSubmission: boolean;
+    submissionCount: number;
+    latestStatus: string | null;
+    lastSubmittedAt: string | null;
+    contactName: string | null;
+  }>({
+    queryKey: ['/api/public/orders', orderId, 'form-status'],
+    queryFn: async () => {
+      const response = await fetch(`/api/public/orders/${orderId}/form-status`);
+      if (!response.ok) throw new Error('Failed to fetch form status');
       return response.json();
     },
     enabled: !!orderId,
@@ -362,6 +383,28 @@ export default function CustomerPortal() {
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to submit design request.", variant: "destructive" });
+    },
+  });
+
+  // Submit size adjustment request mutation
+  const submitSizeAdjustmentMutation = useMutation({
+    mutationFn: async (requestMessage: string) => {
+      const response = await fetch(`/api/public/orders/${orderId}/size-adjustment-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestMessage }),
+      });
+      if (!response.ok) throw new Error('Failed to submit size adjustment request');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Size Adjustment Request Submitted!", description: "Our team will review your request and get back to you." });
+      setSizeAdjustmentRequest("");
+      setShowSizeAdjustmentModal(false);
+      refetch();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to submit size adjustment request.", variant: "destructive" });
     },
   });
 
@@ -659,6 +702,82 @@ export default function CustomerPortal() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Form Status Card */}
+            <Card className={cn(
+              "border-2",
+              formStatus?.hasSubmission 
+                ? "bg-emerald-500/10 border-emerald-500/50" 
+                : "bg-amber-500/10 border-amber-500/50"
+            )}>
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      "w-14 h-14 rounded-full flex items-center justify-center",
+                      formStatus?.hasSubmission ? "bg-emerald-500/20" : "bg-amber-500/20"
+                    )}>
+                      {formStatus?.hasSubmission ? (
+                        <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+                      ) : (
+                        <FileText className="w-7 h-7 text-amber-400" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">
+                        {formStatus?.hasSubmission ? "Order Form Completed" : "Complete Your Order Form"}
+                      </h3>
+                      {formStatus?.hasSubmission ? (
+                        <div className="text-sm text-white/70">
+                          <span>Submitted by </span>
+                          <span className="font-medium text-white">{formStatus.contactName || 'Unknown'}</span>
+                          {formStatus.lastSubmittedAt && (
+                            <span> on {new Date(formStatus.lastSubmittedAt).toLocaleDateString()}</span>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-white/60">
+                          Please fill out your contact info, shipping address, and size quantities
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {formStatus?.hasSubmission ? (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setShowFormWizard(true)}
+                          className="border-white/30 text-white/70 hover:bg-white/10"
+                          data-testid="button-update-form"
+                        >
+                          <Edit3 className="w-4 h-4 mr-2" />
+                          Update Form
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          onClick={() => setShowSizeAdjustmentModal(true)}
+                          className="border-neon-purple/50 text-neon-purple hover:bg-neon-purple/10"
+                          data-testid="button-request-size-adjustment"
+                        >
+                          <Ruler className="w-4 h-4 mr-2" />
+                          Request Size Adjustment
+                        </Button>
+                      </>
+                    ) : (
+                      <Button 
+                        onClick={() => setShowFormWizard(true)}
+                        className="bg-amber-500 hover:bg-amber-600 text-black font-medium"
+                        data-testid="button-fill-form-card"
+                      >
+                        <PenTool className="w-4 h-4 mr-2" />
+                        Fill Out Form
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Order Info & Contact */}
             <div className="grid md:grid-cols-2 gap-6">
@@ -1070,6 +1189,74 @@ export default function CustomerPortal() {
               onSubmit={() => submitFormMutation.mutate(formData)}
               isSubmitting={submitFormMutation.isPending}
             />
+          )}
+        </AnimatePresence>
+
+        {/* Size Adjustment Request Modal */}
+        <AnimatePresence>
+          {showSizeAdjustmentModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+              onClick={() => setShowSizeAdjustmentModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-slate-900 border border-white/10 rounded-xl w-full max-w-lg"
+              >
+                <div className="p-6 border-b border-white/10">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-neon-purple/20 flex items-center justify-center">
+                      <Ruler className="w-5 h-5 text-neon-purple" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-white">Request Size Adjustment</h2>
+                      <p className="text-sm text-white/50">Describe the size changes you need</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <Textarea
+                    value={sizeAdjustmentRequest}
+                    onChange={(e) => setSizeAdjustmentRequest(e.target.value)}
+                    placeholder="Please describe the size adjustments you need. For example: 'I need to change 2 Medium to Large for item Jersey #123' or 'Please add 3 more XL sizes to my order'"
+                    className="bg-white/5 border-white/10 text-white placeholder:text-white/30 min-h-[150px]"
+                    data-testid="input-size-adjustment-request"
+                  />
+                  <p className="text-xs text-white/40 mt-2">
+                    Note: Size adjustments are subject to availability and may affect your order timeline.
+                  </p>
+                </div>
+                <div className="p-6 border-t border-white/10 flex justify-between">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setShowSizeAdjustmentModal(false)}
+                    className="text-white/70 hover:text-white"
+                    data-testid="button-cancel-size-adjustment"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => submitSizeAdjustmentMutation.mutate(sizeAdjustmentRequest)}
+                    disabled={!sizeAdjustmentRequest.trim() || submitSizeAdjustmentMutation.isPending}
+                    className="bg-neon-purple hover:bg-neon-purple/90"
+                    data-testid="button-submit-size-adjustment"
+                  >
+                    {submitSizeAdjustmentMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4 mr-2" />
+                    )}
+                    Submit Request
+                  </Button>
+                </div>
+              </motion.div>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>

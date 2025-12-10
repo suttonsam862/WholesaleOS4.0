@@ -63,6 +63,11 @@ interface Salesperson {
   active?: boolean;
 }
 
+interface Category {
+  id: number;
+  name: string;
+}
+
 const SIZE_COLUMNS = [
   { key: "yxs", label: "YXS" },
   { key: "ys", label: "YS" },
@@ -130,6 +135,26 @@ export function CreateOrderModal({ isOpen, onClose }: CreateOrderModalProps) {
   const { data: salespeople = [] } = useQuery<Salesperson[]>({
     queryKey: ["/api/salespeople"],
     enabled: isOpen,
+  });
+
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+    enabled: isOpen,
+  });
+
+  // Filter variants based on search text
+  const filteredVariants = variants.filter((variant) => {
+    if (!variantSearch.trim()) return true;
+    const product = products.find(p => p.id === variant.productId);
+    const category = product ? categories.find(c => c.id === product.categoryId) : null;
+    const searchLower = variantSearch.toLowerCase();
+    return (
+      product?.name.toLowerCase().includes(searchLower) ||
+      variant.variantCode?.toLowerCase().includes(searchLower) ||
+      variant.color?.toLowerCase().includes(searchLower) ||
+      product?.sku?.toLowerCase().includes(searchLower) ||
+      category?.name?.toLowerCase().includes(searchLower)
+    );
   });
 
   // Filter contacts by organization
@@ -616,46 +641,67 @@ export function CreateOrderModal({ isOpen, onClose }: CreateOrderModalProps) {
                             <GlassButton
                               variant="secondary"
                               role="combobox"
-                              className="w-full justify-between mt-1"
+                              className="w-full justify-between mt-1 h-auto min-h-[40px] py-2"
                               data-testid="button-select-variant"
                             >
                               {currentLineItem.variantId ? (() => {
                                 const variant = variants.find(v => v.id === currentLineItem.variantId);
                                 const product = variant ? products.find(p => p.id === variant.productId) : null;
-                                return `${product?.name || ""} - ${variant?.variantCode} (${variant?.color})`;
-                              })() : "Select product variant..."}
+                                const category = product ? categories.find(c => c.id === product.categoryId) : null;
+                                return (
+                                  <div className="flex flex-col items-start text-left">
+                                    <span className="font-medium">{product?.name || ""}</span>
+                                    <span className="text-xs text-white/60">
+                                      {variant?.variantCode} {variant?.color && `| ${variant.color}`} {category && `| ${category.name}`}
+                                    </span>
+                                  </div>
+                                );
+                              })() : <span className="text-white/50">Select product variant...</span>}
                               <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </GlassButton>
                           </PopoverTrigger>
                           <PopoverContent className="w-[500px] p-0 bg-black/90 border-white/10 backdrop-blur-xl">
-                            <Command className="bg-transparent">
+                            <Command className="bg-transparent" shouldFilter={false}>
                               <CommandInput
-                                placeholder="Search products..."
+                                placeholder="Search by product name, variant, color, or category..."
                                 value={variantSearch}
                                 onValueChange={setVariantSearch}
                                 className="text-white"
+                                data-testid="input-variant-search"
                               />
-                              <CommandList>
+                              <CommandList className="max-h-[300px] overflow-y-auto">
                                 <CommandEmpty>No products found.</CommandEmpty>
                                 <CommandGroup>
-                                  {variants.map((variant) => {
+                                  {filteredVariants.map((variant) => {
                                     const product = products.find(p => p.id === variant.productId);
+                                    const category = product ? categories.find(c => c.id === product.categoryId) : null;
                                     return (
                                       <CommandItem
                                         key={variant.id}
+                                        value={`${product?.name}-${variant.variantCode}-${variant.id}`}
                                         onSelect={() => {
                                           setCurrentLineItem({ ...currentLineItem, variantId: variant.id });
                                           setVariantSearchOpen(false);
                                           setVariantSearch("");
                                         }}
-                                        className="data-[selected=true]:bg-white/10 text-white"
+                                        className="data-[selected=true]:bg-white/10 text-white cursor-pointer py-3"
+                                        data-testid={`variant-option-${variant.id}`}
                                       >
-                                        <div>
-                                          <div className="font-medium">
-                                            {product?.name} - {variant.variantCode}
+                                        <div className="flex flex-col gap-1 w-full">
+                                          <div className="flex items-center justify-between">
+                                            <span className="font-medium text-white">
+                                              {product?.name}
+                                            </span>
+                                            {category && (
+                                              <Badge variant="outline" className="text-xs border-neon-purple/50 text-neon-purple">
+                                                {category.name}
+                                              </Badge>
+                                            )}
                                           </div>
-                                          <div className="text-xs text-muted-foreground">
-                                            Color: {variant.color} | SKU: {product?.sku}
+                                          <div className="flex items-center gap-3 text-xs text-white/60">
+                                            <span className="text-neon-blue">{variant.variantCode}</span>
+                                            {variant.color && <span>Color: {variant.color}</span>}
+                                            <span>SKU: {product?.sku}</span>
                                           </div>
                                         </div>
                                       </CommandItem>

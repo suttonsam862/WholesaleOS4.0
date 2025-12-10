@@ -1468,6 +1468,7 @@ export function registerOrdersRoutes(app: Express): void {
         submissionCount: submissions.length,
         latestStatus: latestSubmission?.status || null,
         lastSubmittedAt: latestSubmission?.submittedAt || null,
+        contactName: latestSubmission?.contactName || null,
       });
     } catch (error) {
       console.error("Error fetching form status:", error);
@@ -1643,6 +1644,54 @@ export function registerOrdersRoutes(app: Express): void {
     } catch (error) {
       console.error("Error creating design request:", error);
       res.status(500).json({ message: "Failed to create design request" });
+    }
+  });
+
+  // PUBLIC: Get size adjustment requests for an order
+  app.get('/api/public/orders/:orderId/size-adjustment-requests', async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+
+      const requests = await storage.getSizeAdjustmentRequests(orderId);
+      res.json(requests);
+    } catch (error) {
+      console.error("Error fetching size adjustment requests:", error);
+      res.status(500).json({ message: "Failed to fetch size adjustment requests" });
+    }
+  });
+
+  // PUBLIC: Submit size adjustment request from customer
+  app.post('/api/public/orders/:orderId/size-adjustment-requests', async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+
+      const { requestMessage } = req.body;
+      if (!requestMessage || typeof requestMessage !== 'string' || requestMessage.trim().length === 0) {
+        return res.status(400).json({ message: "Request message is required" });
+      }
+
+      // Verify order exists
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Create size adjustment request
+      const request = await storage.createSizeAdjustmentRequest({
+        orderId,
+        requestMessage: requestMessage.trim(),
+      });
+
+      res.status(201).json(request);
+    } catch (error) {
+      console.error("Error creating size adjustment request:", error);
+      res.status(500).json({ message: "Failed to create size adjustment request" });
     }
   });
 

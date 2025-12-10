@@ -19,6 +19,7 @@ import {
   orderFormSubmissions,
   orderFormLineItemSizes,
   customerComments,
+  sizeAdjustmentRequests,
   fabrics,
   productVariantFabrics,
   fabricSubmissions,
@@ -1525,6 +1526,40 @@ export class DatabaseStorage implements IStorage {
         message: data.message,
         isFromCustomer: data.isFromCustomer ?? true,
       })
+      .returning();
+    return result;
+  }
+
+  // Size adjustment requests operations
+  async getSizeAdjustmentRequests(orderId: number): Promise<any[]> {
+    return await db
+      .select()
+      .from(sizeAdjustmentRequests)
+      .where(eq(sizeAdjustmentRequests.orderId, orderId))
+      .orderBy(desc(sizeAdjustmentRequests.createdAt));
+  }
+
+  async createSizeAdjustmentRequest(data: { orderId: number; requestMessage: string }): Promise<any> {
+    const [result] = await db
+      .insert(sizeAdjustmentRequests)
+      .values({
+        orderId: data.orderId,
+        requestMessage: data.requestMessage,
+        status: "pending",
+      })
+      .returning();
+    return result;
+  }
+
+  async updateSizeAdjustmentRequest(id: number, data: { status?: string; adminResponse?: string; respondedBy?: string }): Promise<any> {
+    const [result] = await db
+      .update(sizeAdjustmentRequests)
+      .set({
+        ...data,
+        respondedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(sizeAdjustmentRequests.id, id))
       .returning();
     return result;
   }
