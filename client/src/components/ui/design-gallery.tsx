@@ -19,12 +19,33 @@ interface DesignGalleryProps {
 }
 
 /**
- * Checks if URL is an image based on extension or content type hints
+ * Checks if URL is an image based on extension, path patterns, or content type hints
  */
-function isImageUrl(url: string): boolean {
+function isImageUrl(url: string, category?: string): boolean {
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico'];
   const lowerUrl = url.toLowerCase();
-  return imageExtensions.some(ext => lowerUrl.includes(ext));
+  
+  // Check for explicit image extensions
+  if (imageExtensions.some(ext => lowerUrl.includes(ext))) {
+    return true;
+  }
+  
+  // For /public-objects/ or /objects/ URLs without extensions, check the path pattern
+  // These are GCS uploads - if filename contains 'img_' prefix, it's likely an image
+  if ((lowerUrl.includes('/public-objects/') || lowerUrl.includes('/objects/')) && 
+      lowerUrl.includes('img_')) {
+    return true;
+  }
+  
+  // For logos and references categories, assume uploaded files are images
+  // (these categories only accept image/* types)
+  if (category === 'logos' || category === 'references') {
+    if (lowerUrl.includes('/public-objects/') || lowerUrl.includes('/objects/')) {
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 /**
@@ -48,11 +69,13 @@ function extractFileName(url: string): string {
 function ImageThumbnail({ 
   url, 
   onClick, 
-  aspectRatio = "square" 
+  aspectRatio = "square",
+  category
 }: { 
   url: string; 
   onClick: () => void;
   aspectRatio?: "square" | "wide" | "tall";
+  category?: string;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
@@ -63,7 +86,7 @@ function ImageThumbnail({
     tall: "aspect-[3/4]",
   };
 
-  if (error || !isImageUrl(url)) {
+  if (error || !isImageUrl(url, category)) {
     // Show file icon for non-images
     return (
       <a
@@ -161,8 +184,8 @@ export function DesignGallery({
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
 
-  const imageFiles = files.filter(isImageUrl);
-  const otherFiles = files.filter(f => !isImageUrl(f));
+  const imageFiles = files.filter(f => isImageUrl(f, category));
+  const otherFiles = files.filter(f => !isImageUrl(f, category));
 
   const categoryIcons = {
     logos: <Layers className="w-5 h-5" />,
@@ -252,6 +275,7 @@ export function DesignGallery({
               key={url}
               url={url}
               onClick={() => handleImageClick(index)}
+              category={category}
               aspectRatio={
                 imageFiles.length === 1 ? "wide" : 
                 index === 0 && imageFiles.length === 3 ? "tall" : 
