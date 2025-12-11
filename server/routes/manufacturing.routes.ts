@@ -1912,4 +1912,133 @@ Failed Files: ${failedFiles}
       res.status(500).json({ message: "Failed to update manufacturer" });
     }
   });
+
+  // ==================== FABRIC SUBMISSION ROUTES ====================
+
+  app.get('/api/fabric-submissions', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const filters: any = {};
+      if (req.query.manufacturingId) filters.manufacturingId = parseInt(req.query.manufacturingId as string);
+      if (req.query.lineItemId) filters.lineItemId = parseInt(req.query.lineItemId as string);
+      if (req.query.status) filters.status = req.query.status as string;
+
+      const submissions = await storage.getFabricSubmissions(filters);
+      res.json(submissions);
+    } catch (error) {
+      console.error("Error fetching fabric submissions:", error);
+      res.status(500).json({ message: "Failed to fetch fabric submissions" });
+    }
+  });
+
+  app.get('/api/fabric-submissions/:id', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const submission = await storage.getFabricSubmission(id);
+      if (!submission) {
+        return res.status(404).json({ message: "Fabric submission not found" });
+      }
+      res.json(submission);
+    } catch (error) {
+      console.error("Error fetching fabric submission:", error);
+      res.status(500).json({ message: "Failed to fetch fabric submission" });
+    }
+  });
+
+  app.post('/api/fabric-submissions', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const submission = await storage.createFabricSubmission({
+        ...req.body,
+        submittedBy: user.id,
+      });
+      res.status(201).json(submission);
+    } catch (error) {
+      console.error("Error creating fabric submission:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create fabric submission" });
+    }
+  });
+
+  app.post('/api/fabric-submissions/:id/review', isAuthenticated, loadUserData, requirePermission('manufacturing', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const id = parseInt(req.params.id);
+      const { status, reviewNotes } = req.body;
+
+      if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ message: "Status must be 'approved' or 'rejected'" });
+      }
+
+      const submission = await storage.reviewFabricSubmission(id, user.id, status, reviewNotes);
+      res.json(submission);
+    } catch (error) {
+      console.error("Error reviewing fabric submission:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to review fabric submission" });
+    }
+  });
+
+  // ==================== PANTONE ASSIGNMENT ROUTES ====================
+
+  app.get('/api/pantone-assignments', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const filters: any = {};
+      if (req.query.lineItemId) filters.lineItemId = parseInt(req.query.lineItemId as string);
+      if (req.query.manufacturingUpdateId) filters.manufacturingUpdateId = parseInt(req.query.manufacturingUpdateId as string);
+
+      const assignments = await storage.getPantoneAssignments(filters);
+      res.json(assignments);
+    } catch (error) {
+      console.error("Error fetching pantone assignments:", error);
+      res.status(500).json({ message: "Failed to fetch pantone assignments" });
+    }
+  });
+
+  app.get('/api/pantone-assignments/:id', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const assignment = await storage.getPantoneAssignment(id);
+      if (!assignment) {
+        return res.status(404).json({ message: "Pantone assignment not found" });
+      }
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error fetching pantone assignment:", error);
+      res.status(500).json({ message: "Failed to fetch pantone assignment" });
+    }
+  });
+
+  app.post('/api/pantone-assignments', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const assignment = await storage.createPantoneAssignment({
+        ...req.body,
+        assignedBy: user.id,
+      });
+      res.status(201).json(assignment);
+    } catch (error) {
+      console.error("Error creating pantone assignment:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create pantone assignment" });
+    }
+  });
+
+  app.put('/api/pantone-assignments/:id', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const assignment = await storage.updatePantoneAssignment(id, req.body);
+      res.json(assignment);
+    } catch (error) {
+      console.error("Error updating pantone assignment:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update pantone assignment" });
+    }
+  });
+
+  app.delete('/api/pantone-assignments/:id', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deletePantoneAssignment(id);
+      res.json({ message: "Pantone assignment deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting pantone assignment:", error);
+      res.status(500).json({ message: "Failed to delete pantone assignment" });
+    }
+  });
 }
