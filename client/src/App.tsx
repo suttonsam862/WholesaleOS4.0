@@ -70,7 +70,6 @@ import OpsHome from "@/pages/ops-home";
 import ManufacturerHome from "@/pages/manufacturer-home";
 import { FeatureFlagProvider, useFeatureFlags } from "@/contexts/FeatureFlagContext";
 import { RoleGuard } from "@/components/role-home/RoleGuard";
-import { AnimatePresence } from "framer-motion";
 
 function Router() {
   const { isAuthenticated, isLoading, isError, error } = useAuth();
@@ -111,13 +110,12 @@ function Router() {
 
   // Authenticated routes with layout
   return (
-    <AnimatePresence mode="wait">
-      <Switch location={location} key={location}>
-        <Route path="/">
-          <AppLayout title="Dashboard">
-            <Dashboard />
-          </AppLayout>
-        </Route>
+    <Switch>
+      <Route path="/">
+        <AppLayout title="Dashboard">
+          <Dashboard />
+        </AppLayout>
+      </Route>
 
         {/* Role Home Pages - Feature Flag Gated */}
         {enableRoleHome && (
@@ -461,7 +459,6 @@ function Router() {
         {/* Fallback to 404 */}
         <Route component={NotFound} />
       </Switch>
-    </AnimatePresence>
   );
 }
 
