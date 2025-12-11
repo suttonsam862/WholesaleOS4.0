@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, User, LogOut, Settings, Bell, Search, Plus, LayoutDashboard, Target, ShoppingCart, Palette, Factory, CheckSquare, DollarSign, Building2, Package, Store, Calendar, Briefcase, Paintbrush, Warehouse, Map, GitBranch, Shield, Users, FileText, Contact, Layers } from "lucide-react";
+import { Menu, User, LogOut, Settings, Bell, Search, Plus, LayoutDashboard, Target, ShoppingCart, Palette, Factory, CheckSquare, DollarSign, Building2, Package, Store, Calendar, Briefcase, Paintbrush, Warehouse, Map, GitBranch, Shield, Users, FileText, Contact, Layers, Home, ChevronDown, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
@@ -21,6 +21,7 @@ import { QuickCreateModal } from "@/components/modals/quick-create-modal";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
+import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
 
 const NAV_PAGES = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -65,6 +66,8 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [, setLocation] = useLocation();
+  const { isEnabled } = useFeatureFlags();
+  const enableRoleHome = isEnabled("enableRoleHome");
 
   const filteredPages = useMemo(() => {
     if (searchQuery.length < 2) return [];
@@ -327,6 +330,29 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
               data-testid="button-mobile-search"
             >
               <Search className="h-5 w-5" />
+            </Button>
+          )}
+
+          {/* Quick Nav to Role Home - Feature Flag Gated */}
+          {enableRoleHome && !isMobile && user?.role && (
+            <Button
+              variant="outline"
+              size="default"
+              onClick={() => {
+                const roleHomePaths: Record<string, string> = {
+                  admin: "/admin/home",
+                  sales: "/sales/home",
+                  designer: "/designer/home",
+                  ops: "/ops/home",
+                  manufacturer: "/manufacturer/home",
+                };
+                setLocation(roleHomePaths[user.role] || "/");
+              }}
+              className="border-white/10 hover:border-white/20 hover:bg-white/5"
+              data-testid="button-go-to-home"
+            >
+              <Home className="h-4 w-4 mr-2" />
+              Home
             </Button>
           )}
 

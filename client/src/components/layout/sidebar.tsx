@@ -4,6 +4,7 @@ import { NAVIGATION_ITEMS, BOTTOM_NAVIGATION } from "@/lib/permissions";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
 import { 
   Collapsible, 
   CollapsibleContent, 
@@ -41,7 +42,8 @@ import {
   TrendingUp,
   Map,
   GitBranch,
-  Layers
+  Layers,
+  Home
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -60,6 +62,7 @@ interface DesignJob {
 
 // Icon mapping for resources
 const ICON_MAP: Record<string, any> = {
+  "home": Home,
   "dashboard": LayoutDashboard,
   "leads": Target,
   "organizations": Building2,
@@ -80,6 +83,15 @@ const ICON_MAP: Record<string, any> = {
   "quotes": FileText,
   "users": FlaskConical,
   "settings": Settings
+};
+
+// Role home page paths
+const ROLE_HOME_PATHS: Record<string, string> = {
+  admin: "/admin/home",
+  sales: "/sales/home",
+  designer: "/designer/home",
+  ops: "/ops/home",
+  manufacturer: "/manufacturer/home",
 };
 
 // Navigation Groups Configuration
@@ -198,6 +210,8 @@ export function Sidebar({ user, isMobile = false, onNavigate }: SidebarProps) {
   const [location] = useLocation();
   const badges = useBadgeCounts();
   const { isPageVisible, isLoading } = usePermissions();
+  const { isEnabled } = useFeatureFlags();
+  const enableRoleHome = isEnabled("enableRoleHome");
   
   // State for collapsible groups - default all open
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
@@ -273,6 +287,31 @@ export function Sidebar({ user, isMobile = false, onNavigate }: SidebarProps) {
       {/* Main Navigation */}
       <ScrollArea className="flex-1 px-4 py-4">
         <div className="space-y-6">
+          {/* Role Home Link - Feature Flag Gated */}
+          {enableRoleHome && user?.role && ROLE_HOME_PATHS[user.role] && (
+            <div className="space-y-1">
+              <Link
+                href={ROLE_HOME_PATHS[user.role]}
+                onClick={() => isMobile && onNavigate?.()}
+              >
+                <div className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden",
+                  location === ROLE_HOME_PATHS[user.role]
+                    ? "bg-gradient-to-r from-primary/20 to-primary/10 text-primary shadow-sm border border-primary/20" 
+                    : "text-muted-foreground hover:text-foreground hover:bg-white/10 border border-transparent"
+                )}
+                data-testid="link-role-home"
+                >
+                  <Home className={cn(
+                    "w-5 h-5 transition-colors",
+                    location === ROLE_HOME_PATHS[user.role] ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                  )} />
+                  <span className="flex-1">Home</span>
+                </div>
+              </Link>
+            </div>
+          )}
+
           {groupedNavigation.map((group) => (
             <div key={group.title} className="space-y-1">
               <button

@@ -63,11 +63,20 @@ import OrderMap from "@/pages/order-map";
 import PipelineView from "@/pages/pipeline-view";
 import FabricManagement from "@/pages/fabric-management";
 import ManufacturerPortal from "@/pages/manufacturer-portal";
+import AdminHome from "@/pages/admin-home";
+import SalesHome from "@/pages/sales-home";
+import DesignerHome from "@/pages/designer-home";
+import OpsHome from "@/pages/ops-home";
+import ManufacturerHome from "@/pages/manufacturer-home";
+import { FeatureFlagProvider, useFeatureFlags } from "@/contexts/FeatureFlagContext";
+import { RoleGuard } from "@/components/role-home/RoleGuard";
 import { AnimatePresence } from "framer-motion";
 
 function Router() {
   const { isAuthenticated, isLoading, isError, error } = useAuth();
+  const { isEnabled } = useFeatureFlags();
   const [location] = useLocation();
+  const enableRoleHome = isEnabled("enableRoleHome");
 
   // Development mode logging for router state
   if (process.env.NODE_ENV === 'development') {
@@ -109,6 +118,51 @@ function Router() {
             <Dashboard />
           </AppLayout>
         </Route>
+
+        {/* Role Home Pages - Feature Flag Gated */}
+        {enableRoleHome && (
+          <>
+            <Route path="/admin/home">
+              <AppLayout title="Admin Home">
+                <RoleGuard allowedRole="admin">
+                  <AdminHome />
+                </RoleGuard>
+              </AppLayout>
+            </Route>
+
+            <Route path="/sales/home">
+              <AppLayout title="Sales Home">
+                <RoleGuard allowedRole="sales">
+                  <SalesHome />
+                </RoleGuard>
+              </AppLayout>
+            </Route>
+
+            <Route path="/designer/home">
+              <AppLayout title="Designer Home">
+                <RoleGuard allowedRole="designer">
+                  <DesignerHome />
+                </RoleGuard>
+              </AppLayout>
+            </Route>
+
+            <Route path="/ops/home">
+              <AppLayout title="Ops Home">
+                <RoleGuard allowedRole="ops">
+                  <OpsHome />
+                </RoleGuard>
+              </AppLayout>
+            </Route>
+
+            <Route path="/manufacturer/home">
+              <AppLayout title="Manufacturer Home">
+                <RoleGuard allowedRole="manufacturer">
+                  <ManufacturerHome />
+                </RoleGuard>
+              </AppLayout>
+            </Route>
+          </>
+        )}
 
         <Route path="/leads">
           <AppLayout title="Leads">
@@ -415,13 +469,15 @@ function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <TestModeProvider>
-          <TooltipProvider>
-            <TestModeBanner />
-            <Toaster />
-            <Router />
-          </TooltipProvider>
-        </TestModeProvider>
+        <FeatureFlagProvider>
+          <TestModeProvider>
+            <TooltipProvider>
+              <TestModeBanner />
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </TestModeProvider>
+        </FeatureFlagProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );
