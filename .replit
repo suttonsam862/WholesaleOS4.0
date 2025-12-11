@@ -15,46 +15,6 @@ externalPort = 3002
 localPort = 5002
 externalPort = 3000
 
-[[ports]]
-localPort = 34903
-externalPort = 6000
-
-[[ports]]
-localPort = 35137
-externalPort = 8008
-
-[[ports]]
-localPort = 37033
-externalPort = 5000
-
-[[ports]]
-localPort = 38459
-externalPort = 3001
-
-[[ports]]
-localPort = 40021
-externalPort = 8080
-
-[[ports]]
-localPort = 41317
-externalPort = 6800
-
-[[ports]]
-localPort = 42119
-externalPort = 3003
-
-[[ports]]
-localPort = 43845
-externalPort = 8000
-
-[[ports]]
-localPort = 44009
-externalPort = 5173
-
-[[ports]]
-localPort = 44905
-externalPort = 4200
-
 [deployment]
 run = ["sh", "-c", "npm run start"]
 deploymentTarget = "cloudrun"
