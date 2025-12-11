@@ -130,6 +130,139 @@ export const MANUFACTURING_STATUS_TRANSITIONS: Record<ManufacturingStatus, Manuf
 export const MANUFACTURING_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
 export type ManufacturingPriority = typeof MANUFACTURING_PRIORITIES[number];
 
+// ==================== MANUFACTURER FUNNEL STATUSES (Fine-grained) ====================
+// These are internal statuses used only by manufacturer role
+export const MANUFACTURER_FUNNEL_STATUSES = [
+  'intake_pending',
+  'specs_lock_review',
+  'specs_locked',
+  'materials_reserved',
+  'samples_in_progress',
+  'samples_awaiting_approval',
+  'samples_approved',
+  'samples_revise',
+  'bulk_cutting',
+  'bulk_print_emb_sublim',
+  'bulk_stitching',
+  'bulk_qc',
+  'packing_complete',
+  'handed_to_carrier',
+  'delivered_confirmed'
+] as const;
+export type ManufacturerFunnelStatus = typeof MANUFACTURER_FUNNEL_STATUSES[number];
+
+export const MANUFACTURER_FUNNEL_STATUS_LABELS: Record<ManufacturerFunnelStatus, string> = {
+  intake_pending: 'Intake Pending',
+  specs_lock_review: 'Specs Lock Review',
+  specs_locked: 'Specs Locked',
+  materials_reserved: 'Materials Reserved',
+  samples_in_progress: 'Samples In Progress',
+  samples_awaiting_approval: 'Samples Awaiting Approval',
+  samples_approved: 'Samples Approved',
+  samples_revise: 'Samples Revise',
+  bulk_cutting: 'Bulk Cutting',
+  bulk_print_emb_sublim: 'Bulk Print/Emb/Sublim',
+  bulk_stitching: 'Bulk Stitching',
+  bulk_qc: 'Bulk QC',
+  packing_complete: 'Packing Complete',
+  handed_to_carrier: 'Handed to Carrier',
+  delivered_confirmed: 'Delivered Confirmed'
+};
+
+// Valid manufacturer funnel status transitions
+export const MANUFACTURER_FUNNEL_TRANSITIONS: Record<ManufacturerFunnelStatus, ManufacturerFunnelStatus[]> = {
+  intake_pending: ['specs_lock_review'],
+  specs_lock_review: ['specs_locked'],
+  specs_locked: ['materials_reserved'],
+  materials_reserved: ['samples_in_progress', 'bulk_cutting'],
+  samples_in_progress: ['samples_awaiting_approval'],
+  samples_awaiting_approval: ['samples_approved', 'samples_revise'],
+  samples_approved: ['bulk_cutting'],
+  samples_revise: ['samples_in_progress'],
+  bulk_cutting: ['bulk_print_emb_sublim', 'bulk_stitching'],
+  bulk_print_emb_sublim: ['bulk_stitching'],
+  bulk_stitching: ['bulk_qc'],
+  bulk_qc: ['packing_complete'],
+  packing_complete: ['handed_to_carrier'],
+  handed_to_carrier: ['delivered_confirmed'],
+  delivered_confirmed: []
+};
+
+// Mapping from fine-grained manufacturer status to public 7-stage status
+export const MANUFACTURER_TO_PUBLIC_STATUS_MAP: Record<ManufacturerFunnelStatus, ManufacturingStatus> = {
+  intake_pending: 'awaiting_admin_confirmation',
+  specs_lock_review: 'awaiting_admin_confirmation',
+  specs_locked: 'confirmed_awaiting_manufacturing',
+  materials_reserved: 'confirmed_awaiting_manufacturing',
+  samples_in_progress: 'confirmed_awaiting_manufacturing',
+  samples_awaiting_approval: 'confirmed_awaiting_manufacturing',
+  samples_approved: 'confirmed_awaiting_manufacturing',
+  samples_revise: 'confirmed_awaiting_manufacturing',
+  bulk_cutting: 'cutting_sewing',
+  bulk_print_emb_sublim: 'printing',
+  bulk_stitching: 'cutting_sewing',
+  bulk_qc: 'final_packing_press',
+  packing_complete: 'final_packing_press',
+  handed_to_carrier: 'shipped',
+  delivered_confirmed: 'complete'
+};
+
+// Get public status from manufacturer funnel status
+export function getPublicStatusFromManufacturerStatus(manufacturerStatus: ManufacturerFunnelStatus): ManufacturingStatus {
+  return MANUFACTURER_TO_PUBLIC_STATUS_MAP[manufacturerStatus];
+}
+
+// Check if manufacturer funnel status transition is valid
+export function isValidManufacturerFunnelTransition(from: ManufacturerFunnelStatus, to: ManufacturerFunnelStatus): boolean {
+  return MANUFACTURER_FUNNEL_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+// Type guard for manufacturer funnel status
+export function isManufacturerFunnelStatus(value: string): value is ManufacturerFunnelStatus {
+  return MANUFACTURER_FUNNEL_STATUSES.includes(value as ManufacturerFunnelStatus);
+}
+
+// Manufacturer funnel status config for UI (colors, icons, zones)
+export const MANUFACTURER_FUNNEL_STATUS_CONFIG: Record<ManufacturerFunnelStatus, {
+  color: string;
+  icon: string;
+  zone: 'intake' | 'specs' | 'samples' | 'production' | 'shipping';
+  order: number;
+}> = {
+  intake_pending: { color: '#f59e0b', icon: 'Inbox', zone: 'intake', order: 1 },
+  specs_lock_review: { color: '#f59e0b', icon: 'FileSearch', zone: 'intake', order: 2 },
+  specs_locked: { color: '#3b82f6', icon: 'Lock', zone: 'specs', order: 3 },
+  materials_reserved: { color: '#3b82f6', icon: 'Package', zone: 'specs', order: 4 },
+  samples_in_progress: { color: '#8b5cf6', icon: 'Beaker', zone: 'samples', order: 5 },
+  samples_awaiting_approval: { color: '#8b5cf6', icon: 'Clock', zone: 'samples', order: 6 },
+  samples_approved: { color: '#22c55e', icon: 'CheckCircle', zone: 'samples', order: 7 },
+  samples_revise: { color: '#ef4444', icon: 'RefreshCw', zone: 'samples', order: 8 },
+  bulk_cutting: { color: '#ec4899', icon: 'Scissors', zone: 'production', order: 9 },
+  bulk_print_emb_sublim: { color: '#ec4899', icon: 'Printer', zone: 'production', order: 10 },
+  bulk_stitching: { color: '#ec4899', icon: 'Shirt', zone: 'production', order: 11 },
+  bulk_qc: { color: '#06b6d4', icon: 'ClipboardCheck', zone: 'production', order: 12 },
+  packing_complete: { color: '#06b6d4', icon: 'PackageCheck', zone: 'production', order: 13 },
+  handed_to_carrier: { color: '#10b981', icon: 'Truck', zone: 'shipping', order: 14 },
+  delivered_confirmed: { color: '#22c55e', icon: 'CheckCircle2', zone: 'shipping', order: 15 }
+};
+
+// Event types for manufacturer job events
+export const MANUFACTURER_EVENT_TYPES = [
+  'status_change',
+  'spec_update',
+  'pantone_update',
+  'sample_approved',
+  'sample_rejected',
+  'deadline_changed',
+  'note_added',
+  'attachment_added',
+  'shipment_created',
+  'shipment_split',
+  'issue_flagged',
+  'issue_resolved'
+] as const;
+export type ManufacturerEventType = typeof MANUFACTURER_EVENT_TYPES[number];
+
 // ==================== QUOTE STATUS ====================
 export const QUOTE_STATUSES = ['draft', 'sent', 'accepted', 'rejected', 'expired'] as const;
 export type QuoteStatus = typeof QUOTE_STATUSES[number];

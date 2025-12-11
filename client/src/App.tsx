@@ -62,6 +62,7 @@ import CustomerPortal from "@/pages/customer-portal";
 import OrderMap from "@/pages/order-map";
 import PipelineView from "@/pages/pipeline-view";
 import FabricManagement from "@/pages/fabric-management";
+import ManufacturerPortal from "@/pages/manufacturer-portal";
 import { AnimatePresence } from "framer-motion";
 
 function Router() {
@@ -394,6 +395,12 @@ function Router() {
         <Route path="/fabric-management">
           <AppLayout title="Fabric Management">
             <FabricManagement />
+          </AppLayout>
+        </Route>
+
+        <Route path="/manufacturer-portal">
+          <AppLayout title="Manufacturer Portal">
+            <ManufacturerPortal />
           </AppLayout>
         </Route>
 

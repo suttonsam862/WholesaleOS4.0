@@ -24,6 +24,8 @@ import {
   productVariantFabrics,
   fabricSubmissions,
   pantoneAssignments,
+  manufacturerJobs,
+  manufacturerEvents,
   type User,
   type UpsertUser,
   type InsertUser,
@@ -206,6 +208,10 @@ import {
   type InsertFabricSubmission,
   type PantoneAssignment,
   type InsertPantoneAssignment,
+  type ManufacturerJob,
+  type InsertManufacturerJob,
+  type ManufacturerEvent,
+  type InsertManufacturerEvent,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, like, or, and, sql, count, getTableColumns, gte, lte, lt, inArray, isNotNull, isNull } from "drizzle-orm";
@@ -748,6 +754,18 @@ export interface IStorage {
   createPantoneAssignment(assignment: InsertPantoneAssignment): Promise<PantoneAssignment>;
   updatePantoneAssignment(id: number, assignment: Partial<InsertPantoneAssignment>): Promise<PantoneAssignment>;
   deletePantoneAssignment(id: number): Promise<void>;
+
+  // Manufacturer Portal - Job operations
+  getManufacturerJobs(manufacturerId?: number): Promise<(ManufacturerJob & { manufacturing?: Manufacturing; order?: Order; manufacturer?: Manufacturer })[]>;
+  getManufacturerJob(id: number): Promise<(ManufacturerJob & { manufacturing?: Manufacturing; order?: Order; manufacturer?: Manufacturer; events?: ManufacturerEvent[] }) | undefined>;
+  getManufacturerJobByManufacturingId(manufacturingId: number): Promise<ManufacturerJob | undefined>;
+  createManufacturerJob(job: InsertManufacturerJob): Promise<ManufacturerJob>;
+  updateManufacturerJob(id: number, job: Partial<InsertManufacturerJob>): Promise<ManufacturerJob>;
+  deleteManufacturerJob(id: number): Promise<void>;
+
+  // Manufacturer Portal - Event operations
+  getManufacturerEvents(jobId: number): Promise<(ManufacturerEvent & { createdByUser?: User })[]>;
+  createManufacturerEvent(event: InsertManufacturerEvent): Promise<ManufacturerEvent>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -5930,6 +5948,111 @@ export class DatabaseStorage implements IStorage {
 
   async deletePantoneAssignment(id: number): Promise<void> {
     await db.delete(pantoneAssignments).where(eq(pantoneAssignments.id, id));
+  }
+
+  // ==================== MANUFACTURER PORTAL OPERATIONS ====================
+
+  async getManufacturerJobs(manufacturerId?: number): Promise<(ManufacturerJob & { manufacturing?: Manufacturing; order?: Order; manufacturer?: Manufacturer })[]> {
+    let query = db
+      .select({
+        job: manufacturerJobs,
+        manufacturing: manufacturing,
+        order: orders,
+        manufacturer: manufacturers,
+      })
+      .from(manufacturerJobs)
+      .leftJoin(manufacturing, eq(manufacturerJobs.manufacturingId, manufacturing.id))
+      .leftJoin(orders, eq(manufacturerJobs.orderId, orders.id))
+      .leftJoin(manufacturers, eq(manufacturerJobs.manufacturerId, manufacturers.id))
+      .orderBy(desc(manufacturerJobs.createdAt));
+
+    if (manufacturerId) {
+      query = query.where(eq(manufacturerJobs.manufacturerId, manufacturerId)) as any;
+    }
+
+    const results = await query;
+    return results.map(r => ({
+      ...r.job,
+      manufacturing: r.manufacturing || undefined,
+      order: r.order || undefined,
+      manufacturer: r.manufacturer || undefined,
+    }));
+  }
+
+  async getManufacturerJob(id: number): Promise<(ManufacturerJob & { manufacturing?: Manufacturing; order?: Order; manufacturer?: Manufacturer; events?: ManufacturerEvent[] }) | undefined> {
+    const [result] = await db
+      .select({
+        job: manufacturerJobs,
+        manufacturing: manufacturing,
+        order: orders,
+        manufacturer: manufacturers,
+      })
+      .from(manufacturerJobs)
+      .leftJoin(manufacturing, eq(manufacturerJobs.manufacturingId, manufacturing.id))
+      .leftJoin(orders, eq(manufacturerJobs.orderId, orders.id))
+      .leftJoin(manufacturers, eq(manufacturerJobs.manufacturerId, manufacturers.id))
+      .where(eq(manufacturerJobs.id, id));
+
+    if (!result) return undefined;
+
+    const events = await this.getManufacturerEvents(id);
+
+    return {
+      ...result.job,
+      manufacturing: result.manufacturing || undefined,
+      order: result.order || undefined,
+      manufacturer: result.manufacturer || undefined,
+      events,
+    };
+  }
+
+  async getManufacturerJobByManufacturingId(manufacturingId: number): Promise<ManufacturerJob | undefined> {
+    const [job] = await db
+      .select()
+      .from(manufacturerJobs)
+      .where(eq(manufacturerJobs.manufacturingId, manufacturingId));
+    return job;
+  }
+
+  async createManufacturerJob(job: InsertManufacturerJob): Promise<ManufacturerJob> {
+    const [created] = await db.insert(manufacturerJobs).values(job as any).returning();
+    return created;
+  }
+
+  async updateManufacturerJob(id: number, job: Partial<InsertManufacturerJob>): Promise<ManufacturerJob> {
+    const [updated] = await db
+      .update(manufacturerJobs)
+      .set({ ...job, updatedAt: new Date() })
+      .where(eq(manufacturerJobs.id, id))
+      .returning();
+    if (!updated) throw new Error(`Manufacturer job with id ${id} not found`);
+    return updated;
+  }
+
+  async deleteManufacturerJob(id: number): Promise<void> {
+    await db.delete(manufacturerJobs).where(eq(manufacturerJobs.id, id));
+  }
+
+  async getManufacturerEvents(jobId: number): Promise<(ManufacturerEvent & { createdByUser?: User })[]> {
+    const results = await db
+      .select({
+        event: manufacturerEvents,
+        createdByUser: users,
+      })
+      .from(manufacturerEvents)
+      .leftJoin(users, eq(manufacturerEvents.createdBy, users.id))
+      .where(eq(manufacturerEvents.manufacturerJobId, jobId))
+      .orderBy(desc(manufacturerEvents.createdAt));
+
+    return results.map(r => ({
+      ...r.event,
+      createdByUser: r.createdByUser || undefined,
+    }));
+  }
+
+  async createManufacturerEvent(event: InsertManufacturerEvent): Promise<ManufacturerEvent> {
+    const [created] = await db.insert(manufacturerEvents).values(event as any).returning();
+    return created;
   }
 }
 

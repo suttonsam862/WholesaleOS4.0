@@ -755,6 +755,70 @@ export const productionSchedules = pgTable("production_schedules", {
   index("idx_production_schedules_manufacturer_id").on(table.manufacturerId),
 ]);
 
+// ==================== MANUFACTURER PORTAL TABLES ====================
+// These tables support the manufacturer-specific workflow with fine-grained statuses
+
+// Manufacturer Jobs - parallel tracking for manufacturer's internal workflow
+export const manufacturerJobs = pgTable("manufacturer_jobs", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id).notNull().unique(),
+  orderId: integer("order_id").references(() => orders.id).notNull(),
+  manufacturerId: integer("manufacturer_id").references(() => manufacturers.id),
+  manufacturerStatus: varchar("manufacturer_status").notNull().$type<
+    "intake_pending" | "specs_lock_review" | "specs_locked" | "materials_reserved" |
+    "samples_in_progress" | "samples_awaiting_approval" | "samples_approved" | "samples_revise" |
+    "bulk_cutting" | "bulk_print_emb_sublim" | "bulk_stitching" | "bulk_qc" |
+    "packing_complete" | "handed_to_carrier" | "delivered_confirmed"
+  >().default("intake_pending"),
+  publicStatus: varchar("public_status").notNull().default("awaiting_admin_confirmation"),
+  requiredDeliveryDate: date("required_delivery_date"),
+  promisedShipDate: date("promised_ship_date"),
+  eventDate: date("event_date"),
+  latestArrivalDate: date("latest_arrival_date"),
+  manufacturingStartDeadline: date("manufacturing_start_deadline"),
+  sampleRequired: boolean("sample_required").default(false),
+  specsLocked: boolean("specs_locked").default(false),
+  specsLockedAt: timestamp("specs_locked_at"),
+  specsLockedBy: varchar("specs_locked_by").references(() => users.id),
+  artworkUrls: text("artwork_urls").array(),
+  pantoneCodesJson: text("pantone_codes_json"),
+  fabricType: varchar("fabric_type"),
+  printMethod: varchar("print_method").$type<"screen" | "plastisol" | "water_based" | "sublimation" | "embroidery" | "dtg" | "other">(),
+  specialInstructions: text("special_instructions"),
+  internalNotes: text("internal_notes"),
+  priority: varchar("priority").notNull().$type<"low" | "normal" | "high" | "urgent">().default("normal"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_manufacturer_jobs_manufacturing_id").on(table.manufacturingId),
+  index("idx_manufacturer_jobs_order_id").on(table.orderId),
+  index("idx_manufacturer_jobs_manufacturer_id").on(table.manufacturerId),
+  index("idx_manufacturer_jobs_status").on(table.manufacturerStatus),
+  index("idx_manufacturer_jobs_public_status").on(table.publicStatus),
+]);
+
+// Manufacturer Events - structured event log replacing chat-based updates
+export const manufacturerEvents = pgTable("manufacturer_events", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  manufacturerJobId: integer("manufacturer_job_id").references(() => manufacturerJobs.id).notNull(),
+  eventType: varchar("event_type").notNull().$type<
+    "status_change" | "spec_update" | "pantone_update" | "sample_approved" | "sample_rejected" |
+    "deadline_changed" | "note_added" | "attachment_added" | "shipment_created" | "shipment_split" |
+    "issue_flagged" | "issue_resolved"
+  >(),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  previousValue: text("previous_value"),
+  newValue: text("new_value"),
+  metadata: jsonb("metadata"),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_manufacturer_events_job_id").on(table.manufacturerJobId),
+  index("idx_manufacturer_events_type").on(table.eventType),
+  index("idx_manufacturer_events_created_at").on(table.createdAt),
+]);
+
 // Team Stores - for managing team gear stores
 export const teamStores = pgTable("team_stores", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -1661,6 +1725,20 @@ export const manufacturingUpdateLineItemsRelations = relations(manufacturingUpda
   manufacturerCompletedByUser: one(users, { fields: [manufacturingUpdateLineItems.manufacturerCompletedBy], references: [users.id] }),
 }));
 
+// Manufacturer Portal Relations
+export const manufacturerJobsRelations = relations(manufacturerJobs, ({ one, many }) => ({
+  manufacturing: one(manufacturing, { fields: [manufacturerJobs.manufacturingId], references: [manufacturing.id] }),
+  order: one(orders, { fields: [manufacturerJobs.orderId], references: [orders.id] }),
+  manufacturer: one(manufacturers, { fields: [manufacturerJobs.manufacturerId], references: [manufacturers.id] }),
+  specsLockedByUser: one(users, { fields: [manufacturerJobs.specsLockedBy], references: [users.id] }),
+  events: many(manufacturerEvents),
+}));
+
+export const manufacturerEventsRelations = relations(manufacturerEvents, ({ one }) => ({
+  manufacturerJob: one(manufacturerJobs, { fields: [manufacturerEvents.manufacturerJobId], references: [manufacturerJobs.id] }),
+  createdByUser: one(users, { fields: [manufacturerEvents.createdBy], references: [users.id] }),
+}));
+
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   actor: one(users, { fields: [auditLogs.actorUserId], references: [users.id] }),
 }));
@@ -1866,6 +1944,35 @@ export const insertProductionScheduleSchema = createInsertSchema(productionSched
   status: z.enum(["active", "inactive", "full"]).optional(),
 });
 
+// Manufacturer Portal Schemas
+export const insertManufacturerJobSchema = createInsertSchema(manufacturerJobs, {
+  manufacturerStatus: z.enum([
+    "intake_pending", "specs_lock_review", "specs_locked", "materials_reserved",
+    "samples_in_progress", "samples_awaiting_approval", "samples_approved", "samples_revise",
+    "bulk_cutting", "bulk_print_emb_sublim", "bulk_stitching", "bulk_qc",
+    "packing_complete", "handed_to_carrier", "delivered_confirmed"
+  ]).optional(),
+  priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
+  printMethod: z.enum(["screen", "plastisol", "water_based", "sublimation", "embroidery", "dtg", "other"]).optional(),
+  sampleRequired: z.boolean().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertManufacturerEventSchema = createInsertSchema(manufacturerEvents, {
+  eventType: z.enum([
+    "status_change", "spec_update", "pantone_update", "sample_approved", "sample_rejected",
+    "deadline_changed", "note_added", "attachment_added", "shipment_created", "shipment_split",
+    "issue_flagged", "issue_resolved"
+  ]),
+  title: z.string().min(1, "Title is required"),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Team Store Schemas
 export const insertTeamStoreSchema = createInsertSchema(teamStores, {
   storeCode: z.string().optional(),
@@ -2038,6 +2145,10 @@ export type ManufacturingAttachment = typeof manufacturingAttachments.$inferSele
 export type InsertManufacturingAttachment = z.infer<typeof insertManufacturingAttachmentSchema>;
 export type ProductionSchedule = typeof productionSchedules.$inferSelect;
 export type InsertProductionSchedule = z.infer<typeof insertProductionScheduleSchema>;
+export type ManufacturerJob = typeof manufacturerJobs.$inferSelect;
+export type InsertManufacturerJob = z.infer<typeof insertManufacturerJobSchema>;
+export type ManufacturerEvent = typeof manufacturerEvents.$inferSelect;
+export type InsertManufacturerEvent = z.infer<typeof insertManufacturerEventSchema>;
 export type TeamStore = typeof teamStores.$inferSelect;
 export type InsertTeamStore = z.infer<typeof insertTeamStoreSchema>;
 export type TeamStoreLineItem = typeof teamStoreLineItems.$inferSelect;
