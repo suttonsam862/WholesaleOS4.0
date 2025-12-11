@@ -13,6 +13,7 @@ interface AttachmentCategory {
   urls: string[];
   maxFiles?: number;
   acceptedTypes?: string[];
+  maxFileSize?: number;
 }
 
 interface DesignAttachmentManagerProps {
@@ -52,28 +53,32 @@ export function DesignAttachmentManager({
       label: "Logos",
       urls: logoUrls,
       maxFiles: 10,
-      acceptedTypes: ["image/*"]
+      acceptedTypes: ["image/*"],
+      maxFileSize: 10 * 1024 * 1024
     },
     {
       id: "references",
       label: "Design References",
       urls: designReferenceUrls,
       maxFiles: 20,
-      acceptedTypes: ["image/*"]
+      acceptedTypes: ["image/*"],
+      maxFileSize: 10 * 1024 * 1024
     },
     {
       id: "files",
       label: "Additional Files",
       urls: additionalFileUrls,
       maxFiles: 20,
-      acceptedTypes: ["image/*", "application/pdf", ".pdf", ".ai", ".psd", ".svg"]
+      acceptedTypes: ["image/*", "application/pdf", ".pdf", ".ai", ".psd", ".svg"],
+      maxFileSize: 100 * 1024 * 1024
     },
     {
       id: "final",
       label: "Final Design",
       urls: finalDesignUrls,
       maxFiles: 10,
-      acceptedTypes: ["image/*", "application/pdf", ".pdf", ".ai", ".psd", ".svg", ".eps", ".psb", ".indd"]
+      acceptedTypes: ["image/*", "application/pdf", ".pdf", ".ai", ".psd", ".svg", ".eps", ".psb", ".indd"],
+      maxFileSize: 100 * 1024 * 1024
     }
   ];
 
@@ -83,9 +88,21 @@ export function DesignAttachmentManager({
     }
 
     const uploadedUrls = result.successful.map((file: any) => {
-      const uploadId = file.__uploadId;
-      return uploadId ? `/public-objects/${uploadId}` : null;
+      const uploadId = file.uploadId;
+      if (uploadId) {
+        return `/public-objects/${uploadId}`;
+      }
+      return null;
     }).filter(Boolean) as string[];
+    
+    if (uploadedUrls.length === 0) {
+      toast({
+        title: "Upload failed",
+        description: "Could not process uploaded files",
+        variant: "destructive"
+      });
+      return;
+    }
     
     const updates: any = {};
     if (categoryId === "logos") {
@@ -105,8 +122,15 @@ export function DesignAttachmentManager({
     });
   };
 
-  const handleGetUploadUrl = async (file: any) => {
-    const response = await fetch('/api/upload/image', {
+  const handleGetUploadUrl = async (file: any, categoryId?: string) => {
+    const isDesignFile = /\.(psd|ai|eps|psb|indd|pdf|sketch|fig)$/i.test(file.name) ||
+      ['application/x-photoshop', 'image/vnd.adobe.photoshop', 'application/photoshop',
+       'application/postscript', 'application/illustrator', 'application/pdf',
+       'application/octet-stream', 'application/x-indesign'].includes(file.type);
+    
+    const endpoint = isDesignFile ? '/api/upload/file' : '/api/upload/image';
+    
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -122,11 +146,10 @@ export function DesignAttachmentManager({
     }
 
     const data = await response.json();
-    // Store the uploadId for later use
-    file.__uploadId = data.uploadId;
     return {
       method: 'PUT' as const,
       url: data.uploadURL,
+      uploadId: data.uploadId,
       headers: {
         'Content-Type': file.type
       }
@@ -201,11 +224,23 @@ export function DesignAttachmentManager({
           </CardHeader>
           <CardContent className="space-y-3">
             {category.urls.length > 0 && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {category.urls.map((url, index) => (
+              <div className="flex flex-wrap gap-3">
+                {category.urls.map((url, index) => {
+                  const count = category.urls.length;
+                  const sizeClass = count === 1 
+                    ? 'w-full max-w-xs h-48' 
+                    : count === 2 
+                    ? 'w-[calc(50%-0.375rem)] h-40' 
+                    : count === 3 
+                    ? 'w-[calc(33.333%-0.5rem)] h-36'
+                    : count === 4
+                    ? 'w-[calc(25%-0.5625rem)] h-32'
+                    : 'w-[calc(20%-0.6rem)] h-28';
+                  
+                  return (
                   <div
                     key={index}
-                    className="relative group rounded-lg border overflow-hidden aspect-square bg-muted"
+                    className={`relative group rounded-lg border overflow-hidden bg-muted flex-shrink-0 ${sizeClass}`}
                     data-testid={`attachment-${category.id}-${index}`}
                   >
                     {isImageFile(url, category.id) ? (
@@ -254,14 +289,15 @@ export function DesignAttachmentManager({
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             
             {!readonly && (
               <ObjectUploader
                 maxNumberOfFiles={category.maxFiles || 10}
-                maxFileSize={10485760}
+                maxFileSize={category.maxFileSize || 10485760}
                 allowedFileTypes={category.acceptedTypes}
                 onGetUploadParameters={handleGetUploadUrl}
                 onComplete={(result) => handleUploadComplete(category.id, result)}

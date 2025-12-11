@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import type { ReactNode } from "react";
 import Uppy from "@uppy/core";
 import { Dashboard } from "@uppy/react";
@@ -15,6 +15,7 @@ interface ObjectUploaderProps {
     method: "PUT";
     url: string;
     headers?: Record<string, string>;
+    uploadId?: string;
   }>;
   onComplete?: (
     result: UploadResult<Record<string, unknown>, Record<string, unknown>>
@@ -61,6 +62,8 @@ export function ObjectUploader({
   children,
 }: ObjectUploaderProps) {
   const [showModal, setShowModal] = useState(false);
+  const uploadIdMapRef = useRef<Map<string, string>>(new Map());
+  
   const [uppy] = useState(() =>
     new Uppy({
       restrictions: {
@@ -72,10 +75,28 @@ export function ObjectUploader({
     })
       .use(AwsS3, {
         shouldUseMultipart: false,
-        getUploadParameters: onGetUploadParameters,
+        getUploadParameters: async (file) => {
+          const result = await onGetUploadParameters(file);
+          if (result.uploadId) {
+            uploadIdMapRef.current.set(file.id, result.uploadId);
+          }
+          return {
+            method: result.method,
+            url: result.url,
+            headers: result.headers,
+          };
+        },
       })
       .on("complete", (result) => {
-        onComplete?.(result);
+        const enhancedResult = {
+          ...result,
+          successful: result.successful?.map((file) => ({
+            ...file,
+            uploadId: uploadIdMapRef.current.get(file.id),
+          })),
+        };
+        uploadIdMapRef.current.clear();
+        onComplete?.(enhancedResult as any);
         setShowModal(false);
       })
   );
