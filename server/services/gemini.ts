@@ -272,13 +272,13 @@ Keep the message friendly, professional, and under 150 words.`;
 };
 
 async function callGeminiAPI(prompt: string): Promise<AIInteractionResult> {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
   
   if (!apiKey) {
     return {
       success: false,
-      error: "GEMINI_API_KEY not configured",
-      message: "AI features require a Gemini API key. Please add GEMINI_API_KEY to your environment variables.",
+      error: "GOOGLE_API_KEY not configured",
+      message: "AI features require a Google API key. Please add GOOGLE_API_KEY to your secrets.",
     };
   }
 
