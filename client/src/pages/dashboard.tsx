@@ -7,11 +7,20 @@ import { DashboardSkeleton } from "@/components/ui/loading-skeletons";
 import { HelpButton } from "@/components/help-button";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { CreateLeadModal } from "@/components/modals/create-lead-modal";
 import { formatNumber, formatPercentage } from "@/lib/format";
 import { formatDistanceToNow } from "date-fns";
+
+const ROLE_HOME_PATHS: Record<string, string> = {
+  admin: "/admin/home",
+  sales: "/sales/home",
+  designer: "/designer/home",
+  ops: "/ops/home",
+  manufacturer: "/manufacturer/home",
+};
 import { 
   Users, DollarSign, ShoppingCart, Activity, TrendingUp, 
   Target, Award, Briefcase, BarChart3, Palette, Clock, 
@@ -70,6 +79,19 @@ interface ActivityItem {
 export default function Dashboard() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
+  const { isEnabled } = useFeatureFlags();
+  const [, setLocation] = useLocation();
+
+  // Redirect to role-specific home page if feature flag is enabled
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && user?.role && isEnabled("enableRoleHome")) {
+      const roleHomePath = ROLE_HOME_PATHS[user.role];
+      if (roleHomePath) {
+        setLocation(roleHomePath);
+        return;
+      }
+    }
+  }, [isLoading, isAuthenticated, user?.role, isEnabled, setLocation]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
