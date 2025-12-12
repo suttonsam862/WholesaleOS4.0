@@ -13,10 +13,13 @@ export interface RouteConfig {
 }
 
 const Dashboard = lazy(() => import("@/pages/dashboard"));
-const Leads = lazy(() => import("@/pages/leads"));
+const LeadsHub = lazy(() => import("@/pages/leads-hub"));
+const LeadsList = lazy(() => import("@/pages/leads"));
 const CompletedLeads = lazy(() => import("@/pages/completed-leads"));
-const Organizations = lazy(() => import("@/pages/organizations"));
+const OrganizationsHub = lazy(() => import("@/pages/organizations-hub"));
+const OrganizationsList = lazy(() => import("@/pages/organizations"));
 const Contacts = lazy(() => import("@/pages/contacts"));
+const CatalogHub = lazy(() => import("@/pages/catalog-hub"));
 const Catalog = lazy(() => import("@/pages/catalog"));
 const CategoryPage = lazy(() => import("@/pages/category-page"));
 const CategoryProducts = lazy(() => import("@/pages/category-products"));
@@ -25,23 +28,32 @@ const VariantDesignArchive = lazy(() => import("@/pages/variant-design-archive")
 const ArchivedCategories = lazy(() => import("@/pages/archived-categories"));
 const ArchivedProducts = lazy(() => import("@/pages/archived-products"));
 const ArchivedVariants = lazy(() => import("@/pages/archived-variants"));
+const DesignJobsHub = lazy(() => import("@/pages/design-jobs-hub"));
 const DesignJobs = lazy(() => import("@/pages/design-jobs"));
 const DesignJobDetail = lazy(() => import("@/pages/design-job-detail"));
 const OrdersHub = lazy(() => import("@/pages/orders-hub"));
 const OrdersList = lazy(() => import("@/pages/orders-list"));
 const OrderDetail = lazy(() => import("@/pages/order-detail"));
 const OrdersLegacy = lazy(() => import("@/pages/orders"));
+const ManufacturingHub = lazy(() => import("@/pages/manufacturing-hub"));
 const Manufacturing = lazy(() => import("@/pages/manufacturing"));
+const TeamStoresHub = lazy(() => import("@/pages/team-stores-hub"));
 const TeamStores = lazy(() => import("@/pages/team-stores"));
 const ManufacturerLineItems = lazy(() => import("@/pages/manufacturer-line-items").then(m => ({ default: m.ManufacturerLineItems })));
 const Events = lazy(() => import("@/pages/events"));
 const EventWizard = lazy(() => import("@/pages/event-wizard"));
 const EventDetail = lazy(() => import("@/pages/event-detail"));
-const Salespeople = lazy(() => import("@/pages/salespeople"));
+const SalespeopleHub = lazy(() => import("@/pages/salespeople-hub"));
+const SalespeopleList = lazy(() => import("@/pages/salespeople"));
+const SettingsHub = lazy(() => import("@/pages/settings-hub"));
 const Settings = lazy(() => import("@/pages/settings"));
+const NotificationsHub = lazy(() => import("@/pages/notifications-hub"));
 const Notifications = lazy(() => import("@/pages/notifications"));
+const DesignerManagementHub = lazy(() => import("@/pages/designer-management-hub"));
 const DesignerManagement = lazy(() => import("@/pages/designer-management"));
+const ManufacturerManagementHub = lazy(() => import("@/pages/manufacturer-management-hub"));
 const ManufacturerManagement = lazy(() => import("@/pages/manufacturer-management"));
+const UserManagementHub = lazy(() => import("@/pages/user-management-hub"));
 const UserManagement = lazy(() => import("@/pages/user-management"));
 const Finance = lazy(() => import("@/pages/finance"));
 const FinanceHub = lazy(() => import("@/pages/finance-hub"));
@@ -51,7 +63,8 @@ const FinancePayments = lazy(() => import("@/pages/finance/index").then(m => ({ 
 const FinanceCommissions = lazy(() => import("@/pages/finance/index").then(m => ({ default: m.FinanceCommissions })));
 const FinanceMatching = lazy(() => import("@/pages/finance/index").then(m => ({ default: m.FinanceMatching })));
 const FinanceExpenses = lazy(() => import("@/pages/finance/index").then(m => ({ default: m.FinanceExpenses })));
-const Quotes = lazy(() => import("@/pages/quotes"));
+const QuotesHub = lazy(() => import("@/pages/quotes-hub"));
+const QuotesList = lazy(() => import("@/pages/quotes"));
 const TestUsers = lazy(() => import("@/pages/test-users"));
 const PermissionManagement = lazy(() => import("@/pages/permission-management"));
 const SalesAnalytics = lazy(() => import("@/pages/sales-analytics").then(m => ({ default: m.SalesAnalytics })));
@@ -66,8 +79,10 @@ const SystemAnalytics = lazy(() => import("@/pages/system-analytics").then(m => 
 const ConnectionHealth = lazy(() => import("@/pages/connection-health").then(m => ({ default: m.ConnectionHealth })));
 const OrderMap = lazy(() => import("@/pages/order-map"));
 const PipelineView = lazy(() => import("@/pages/pipeline-view"));
-const Tasks = lazy(() => import("@/pages/tasks"));
+const TasksHub = lazy(() => import("@/pages/tasks-hub"));
+const TasksList = lazy(() => import("@/pages/tasks"));
 const OrderForms = lazy(() => import("@/pages/order-forms"));
+const FabricManagementHub = lazy(() => import("@/pages/fabric-management-hub"));
 const FabricManagement = lazy(() => import("@/pages/fabric-management"));
 const ManufacturerPortal = lazy(() => import("@/pages/manufacturer-portal"));
 const ManufacturerQueue = lazy(() => import("@/pages/manufacturer-queue"));
@@ -104,11 +119,14 @@ export const roleHomeRoutes: RouteConfig[] = [
 
 export const authenticatedRoutes: RouteConfig[] = [
   { path: "/", title: "Dashboard", component: Dashboard, requiresAuth: true, requiresLayout: true, resource: "dashboard" },
-  { path: "/leads", title: "Leads", component: Leads, requiresAuth: true, requiresLayout: true, resource: "leads" },
+  { path: "/leads", title: "Leads Hub", component: LeadsHub, requiresAuth: true, requiresLayout: true, resource: "leads" },
+  { path: "/leads/list", title: "Leads List", component: LeadsList, requiresAuth: true, requiresLayout: true, resource: "leads" },
   { path: "/completed-leads", title: "Completed Leads", component: CompletedLeads, requiresAuth: true, requiresLayout: true, resource: "leads" },
-  { path: "/organizations", title: "Organizations", component: Organizations, requiresAuth: true, requiresLayout: true, resource: "organizations" },
+  { path: "/organizations", title: "Organizations Hub", component: OrganizationsHub, requiresAuth: true, requiresLayout: true, resource: "organizations" },
+  { path: "/organizations/list", title: "Organizations List", component: OrganizationsList, requiresAuth: true, requiresLayout: true, resource: "organizations" },
   { path: "/contacts", title: "Contacts", component: Contacts, requiresAuth: true, requiresLayout: true, resource: "contacts" },
-  { path: "/catalog", title: "Catalog", component: Catalog, requiresAuth: true, requiresLayout: true, resource: "catalog" },
+  { path: "/catalog", title: "Catalog Hub", component: CatalogHub, requiresAuth: true, requiresLayout: true, resource: "catalog" },
+  { path: "/catalog/list", title: "Catalog List", component: Catalog, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/catalog/category/:categoryId", title: "Category Products", component: CategoryProducts, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/catalog/product/:productId", title: "Product Variants", component: ProductVariants, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/catalog/variant/:variantId/designs", title: "Design Archive", component: VariantDesignArchive, requiresAuth: true, requiresLayout: true, resource: "catalog" },
@@ -116,24 +134,33 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/catalog/archived/categories", title: "Archived Categories", component: ArchivedCategories, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/catalog/archived/products", title: "Archived Products", component: ArchivedProducts, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/catalog/archived/variants", title: "Archived Variants", component: ArchivedVariants, requiresAuth: true, requiresLayout: true, resource: "catalog" },
-  { path: "/design-jobs", title: "Design Jobs", component: DesignJobs, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
+  { path: "/design-jobs", title: "Design Jobs Hub", component: DesignJobsHub, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
+  { path: "/design-jobs/list", title: "Design Jobs List", component: DesignJobs, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
   { path: "/design-jobs/:id", title: "Design Job Detail", component: DesignJobDetail, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
   { path: "/orders", title: "Orders Hub", component: OrdersHub, requiresAuth: true, requiresLayout: true, resource: "orders" },
   { path: "/orders/list", title: "Orders List", component: OrdersList, requiresAuth: true, requiresLayout: true, resource: "orders" },
   { path: "/orders/:id", title: "Order Detail", component: OrderDetail, requiresAuth: true, requiresLayout: false, resource: "orders" },
   { path: "/orders/legacy", title: "Orders (Legacy)", component: OrdersLegacy, requiresAuth: true, requiresLayout: true, resource: "orders" },
-  { path: "/manufacturing", title: "Manufacturing", component: Manufacturing, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
-  { path: "/team-stores", title: "Team Stores", component: TeamStores, requiresAuth: true, requiresLayout: true, resource: "teamStores" },
+  { path: "/manufacturing", title: "Manufacturing Hub", component: ManufacturingHub, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
+  { path: "/manufacturing/list", title: "Manufacturing List", component: Manufacturing, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
+  { path: "/team-stores", title: "Team Stores Hub", component: TeamStoresHub, requiresAuth: true, requiresLayout: true, resource: "teamStores" },
+  { path: "/team-stores/list", title: "Team Stores List", component: TeamStores, requiresAuth: true, requiresLayout: true, resource: "teamStores" },
   { path: "/manufacturer/line-items", title: "My Line Items", component: ManufacturerLineItems, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
   { path: "/events", title: "Events", component: Events, requiresAuth: true, requiresLayout: true, resource: "events" },
   { path: "/events/:id/wizard", title: "Event Wizard", component: EventWizard, requiresAuth: true, requiresLayout: false, resource: "events" },
   { path: "/events/:id", title: "Event Detail", component: EventDetail, requiresAuth: true, requiresLayout: true, resource: "events" },
-  { path: "/salespeople", title: "Sales Team", component: Salespeople, requiresAuth: true, requiresLayout: true, resource: "salespeople" },
-  { path: "/settings", title: "Settings", component: Settings, requiresAuth: true, requiresLayout: true, resource: "settings" },
-  { path: "/notifications", title: "Notifications", component: Notifications, requiresAuth: true, requiresLayout: true },
-  { path: "/designer-management", title: "Designer Management", component: DesignerManagement, requiresAuth: true, requiresLayout: true, resource: "designerManagement" },
-  { path: "/manufacturer-management", title: "Manufacturer Management", component: ManufacturerManagement, requiresAuth: true, requiresLayout: true, resource: "manufacturerManagement" },
-  { path: "/user-management", title: "User Management", component: UserManagement, requiresAuth: true, requiresLayout: true, roles: ["admin"], resource: "userManagement" },
+  { path: "/salespeople", title: "Salespeople Hub", component: SalespeopleHub, requiresAuth: true, requiresLayout: true, resource: "salespeople" },
+  { path: "/salespeople/list", title: "Salespeople List", component: SalespeopleList, requiresAuth: true, requiresLayout: true, resource: "salespeople" },
+  { path: "/settings", title: "Settings Hub", component: SettingsHub, requiresAuth: true, requiresLayout: true, resource: "settings" },
+  { path: "/settings/account", title: "Account Settings", component: Settings, requiresAuth: true, requiresLayout: true, resource: "settings" },
+  { path: "/notifications", title: "Notifications Hub", component: NotificationsHub, requiresAuth: true, requiresLayout: true },
+  { path: "/notifications/list", title: "Notifications", component: Notifications, requiresAuth: true, requiresLayout: true },
+  { path: "/designer-management", title: "Designer Management Hub", component: DesignerManagementHub, requiresAuth: true, requiresLayout: true, resource: "designerManagement" },
+  { path: "/designer-management/list", title: "Designer Management List", component: DesignerManagement, requiresAuth: true, requiresLayout: true, resource: "designerManagement" },
+  { path: "/manufacturer-management", title: "Manufacturer Management Hub", component: ManufacturerManagementHub, requiresAuth: true, requiresLayout: true, resource: "manufacturerManagement" },
+  { path: "/manufacturer-management/list", title: "Manufacturer Management List", component: ManufacturerManagement, requiresAuth: true, requiresLayout: true, resource: "manufacturerManagement" },
+  { path: "/user-management", title: "User Management Hub", component: UserManagementHub, requiresAuth: true, requiresLayout: true, roles: ["admin"], resource: "userManagement" },
+  { path: "/user-management/list", title: "User Management List", component: UserManagement, requiresAuth: true, requiresLayout: true, roles: ["admin"], resource: "userManagement" },
   { path: "/finance", title: "Finance Hub", component: FinanceHub, requiresAuth: true, requiresLayout: true, resource: "finance" },
   { path: "/finance/overview", title: "Financial Overview", component: FinanceOverview, requiresAuth: true, requiresLayout: true, resource: "finance" },
   { path: "/finance/invoices", title: "Invoices", component: FinanceInvoices, requiresAuth: true, requiresLayout: true, resource: "finance" },
@@ -142,7 +169,8 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/finance/matching", title: "Financial Matching", component: FinanceMatching, requiresAuth: true, requiresLayout: true, resource: "finance" },
   { path: "/finance/expenses", title: "Expenses", component: FinanceExpenses, requiresAuth: true, requiresLayout: true, resource: "finance" },
   { path: "/finance/legacy", title: "Finance (Legacy)", component: Finance, requiresAuth: true, requiresLayout: true, resource: "finance" },
-  { path: "/quotes", title: "Quote Generator", component: Quotes, requiresAuth: true, requiresLayout: true, resource: "quotes" },
+  { path: "/quotes", title: "Quotes Hub", component: QuotesHub, requiresAuth: true, requiresLayout: true, resource: "quotes" },
+  { path: "/quotes/list", title: "Quotes List", component: QuotesList, requiresAuth: true, requiresLayout: true, resource: "quotes" },
   { path: "/admin/test-users", title: "Test User Access", component: TestUsers, requiresAuth: true, requiresLayout: true, roles: ["admin"], resource: "users" },
   { path: "/admin/permissions", title: "Permission Management", component: PermissionManagement, requiresAuth: true, requiresLayout: true, roles: ["admin"], resource: "users" },
   { path: "/sales-analytics", title: "Sales Analytics", component: SalesAnalytics, requiresAuth: true, requiresLayout: true, roles: ["admin", "sales"] },
@@ -157,9 +185,11 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/connection-health", title: "Connection Health", component: ConnectionHealth, requiresAuth: true, requiresLayout: true, roles: ["admin"] },
   { path: "/order-map", title: "Order Map", component: OrderMap, requiresAuth: true, requiresLayout: true, resource: "orders" },
   { path: "/pipeline", title: "Pipeline View", component: PipelineView, requiresAuth: true, requiresLayout: true, resource: "orders" },
-  { path: "/tasks", title: "Tasks", component: Tasks, requiresAuth: true, requiresLayout: true, resource: "tasks" },
+  { path: "/tasks", title: "Tasks Hub", component: TasksHub, requiresAuth: true, requiresLayout: true, resource: "tasks" },
+  { path: "/tasks/list", title: "Tasks List", component: TasksList, requiresAuth: true, requiresLayout: true, resource: "tasks" },
   { path: "/order-forms", title: "Order Forms", component: OrderForms, requiresAuth: true, requiresLayout: true, resource: "orders" },
-  { path: "/fabric-management", title: "Fabric Management", component: FabricManagement, requiresAuth: true, requiresLayout: true, resource: "catalog" },
+  { path: "/fabric-management", title: "Fabric Management Hub", component: FabricManagementHub, requiresAuth: true, requiresLayout: true, resource: "catalog" },
+  { path: "/fabric-management/list", title: "Fabric Management List", component: FabricManagement, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/manufacturer-portal", title: "Manufacturer Portal", component: ManufacturerPortal, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
   { path: "/manufacturer-portal/queue", title: "Manufacturer Queue", component: ManufacturerQueue, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
   { path: "/manufacturer-portal/job/:id", title: "Job Detail", component: ManufacturerJobDetail, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
