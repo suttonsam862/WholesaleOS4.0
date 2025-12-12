@@ -161,10 +161,17 @@ export default function ManufacturerPortal() {
 
   const statusMutation = useMutation({
     mutationFn: async ({ jobId, status, notes }: { jobId: number; status: string; notes?: string }) => {
-      return apiRequest(`/api/manufacturer-portal/jobs/${jobId}/status`, {
+      const response = await fetch(`/api/manufacturer-portal/jobs/${jobId}/status`, {
         method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ manufacturerStatus: status, notes }),
       });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to update status");
+      }
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/manufacturer-portal/jobs"] });
@@ -184,7 +191,9 @@ export default function ManufacturerPortal() {
 
   const zones = useMemo(() => {
     if (!config?.statuses) return [];
-    const uniqueZones = [...new Set(config.statuses.map(s => s.zone))];
+    const zoneSet = new Set(config.statuses.map(s => s.zone));
+    const uniqueZones: string[] = [];
+    zoneSet.forEach(zone => uniqueZones.push(zone));
     return uniqueZones;
   }, [config]);
 

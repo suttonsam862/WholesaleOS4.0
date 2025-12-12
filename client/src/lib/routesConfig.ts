@@ -70,6 +70,8 @@ const Tasks = lazy(() => import("@/pages/tasks"));
 const OrderForms = lazy(() => import("@/pages/order-forms"));
 const FabricManagement = lazy(() => import("@/pages/fabric-management"));
 const ManufacturerPortal = lazy(() => import("@/pages/manufacturer-portal"));
+const ManufacturerQueue = lazy(() => import("@/pages/manufacturer-queue"));
+const ManufacturerJobDetail = lazy(() => import("@/pages/manufacturer-job-detail"));
 
 const AdminHome = lazy(() => import("@/pages/admin-home"));
 const SalesHome = lazy(() => import("@/pages/sales-home"));
@@ -159,6 +161,8 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/order-forms", title: "Order Forms", component: OrderForms, requiresAuth: true, requiresLayout: true, resource: "orders" },
   { path: "/fabric-management", title: "Fabric Management", component: FabricManagement, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/manufacturer-portal", title: "Manufacturer Portal", component: ManufacturerPortal, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
+  { path: "/manufacturer-portal/queue", title: "Manufacturer Queue", component: ManufacturerQueue, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
+  { path: "/manufacturer-portal/job/:id", title: "Job Detail", component: ManufacturerJobDetail, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
 ];
 
 export const notFoundRoute: RouteConfig = {

@@ -13,34 +13,54 @@ import {
   AlertTriangle,
   Clock,
   Package,
-  Activity
+  Inbox,
+  Lock,
+  Beaker,
+  Scissors
 } from "lucide-react";
+import {
+  ZONE_CONFIGS,
+  computeZoneCounts,
+  type ManufacturerFunnelStatus,
+} from "@/lib/manufacturerFunnelConfig";
+
+interface ManufacturerJob {
+  id: number;
+  manufacturerStatus: string;
+  publicStatus: string;
+  requiredDeliveryDate: string | null;
+  priority: string;
+  order?: any;
+}
 
 export default function ManufacturerHome() {
   const { user } = useAuth();
+
+  const { data: jobs = [] } = useQuery<ManufacturerJob[]>({
+    queryKey: ["/api/manufacturer-portal/jobs"],
+    retry: false,
+  });
 
   const { data: manufacturing = [] } = useQuery<any[]>({
     queryKey: ["/api/manufacturing"],
     retry: false,
   });
 
-  const todayJobsCount = manufacturing.filter((m: any) => {
-    if (!m.estDelivery) return false;
-    const delivery = new Date(m.estDelivery);
-    const today = new Date();
-    return delivery.toDateString() === today.toDateString();
+  const zoneCounts = computeZoneCounts(jobs);
+
+  const urgentJobsCount = jobs.filter((j) => j.priority === "urgent" || j.priority === "high").length;
+  
+  const overdueJobsCount = jobs.filter((j) => {
+    if (!j.requiredDeliveryDate) return false;
+    return new Date(j.requiredDeliveryDate) < new Date();
   }).length;
 
-  const specsReviewCount = manufacturing.filter((m: any) => 
-    m.status === 'awaiting_admin_confirmation'
+  const activeJobsCount = jobs.filter((j) => 
+    !["delivered_confirmed", "handed_to_carrier"].includes(j.manufacturerStatus)
   ).length;
 
-  const readyToShipCount = manufacturing.filter((m: any) => 
-    m.status === 'packing_shipping'
-  ).length;
-
-  const activeProductionsCount = manufacturing.filter((m: any) => 
-    m.status !== 'complete' && m.status !== 'cancelled'
+  const readyToShipCount = jobs.filter((j) => 
+    j.manufacturerStatus === "packing_complete"
   ).length;
 
   return (
@@ -50,130 +70,156 @@ export default function ManufacturerHome() {
     >
       <WorkflowGrid>
         <WorkflowTile
-          id="today-production"
-          title="Today's Production Jobs"
-          description="Active manufacturing today"
-          icon={Factory}
-          bgGradient="from-orange-500/10 to-orange-500/5"
-          iconColor="text-orange-400"
-          primaryAction={{ label: "View Today", href: "/manufacturing?filter=today" }}
-          subActions={[
-            { label: "All Jobs", href: "/manufacturing" },
-            { label: "My Line Items", href: "/manufacturer/line-items" },
-          ]}
-          badge={{ count: todayJobsCount, label: "Today" }}
-        />
-
-        <WorkflowTile
-          id="spec-review"
-          title="Spec Review Queue"
-          description="Jobs awaiting specification review"
-          icon={ClipboardCheck}
+          id="intake-queue"
+          title="Intake Queue"
+          description="New jobs awaiting spec review"
+          icon={Inbox}
           bgGradient="from-amber-500/10 to-amber-500/5"
           iconColor="text-amber-400"
-          primaryAction={{ label: "Review Specs", href: "/manufacturing?status=awaiting_admin_confirmation" }}
-          badge={specsReviewCount > 0 ? { count: specsReviewCount, label: "Pending", variant: "warning" } : undefined}
-        />
-
-        <WorkflowTile
-          id="samples-qc"
-          title="Samples & Quality Control"
-          description="Sample preparation and QC"
-          icon={CheckCircle}
-          bgGradient="from-emerald-500/10 to-emerald-500/5"
-          iconColor="text-emerald-400"
-          primaryAction={{ label: "QC Dashboard", href: "/manufacturing?status=quality_control" }}
+          primaryAction={{ label: "Review Intake", href: "/manufacturer-portal/queue?zone=intake" }}
           subActions={[
-            { label: "Sample Prep", href: "/manufacturing?status=sample_prep" },
-            { label: "Client Approval", href: "/manufacturing?status=sample_sent" },
+            { label: "Pending Specs", href: "/manufacturer-portal/queue?status=intake_pending" },
+            { label: "Spec Review", href: "/manufacturer-portal/queue?status=specs_lock_review" },
           ]}
+          badge={zoneCounts.intake > 0 ? { count: zoneCounts.intake, label: "Pending", variant: "warning" } : undefined}
         />
 
         <WorkflowTile
-          id="packing-shipment"
-          title="Packing & Shipment"
-          description="Ready to pack and ship"
-          icon={Truck}
+          id="specs-materials"
+          title="Specs & Materials"
+          description="Lock specs and reserve materials"
+          icon={Lock}
           bgGradient="from-blue-500/10 to-blue-500/5"
           iconColor="text-blue-400"
-          primaryAction={{ label: "Shipping Queue", href: "/manufacturing?status=packing_shipping" }}
-          badge={readyToShipCount > 0 ? { count: readyToShipCount, label: "Ready" } : undefined}
+          primaryAction={{ label: "View Queue", href: "/manufacturer-portal/queue?zone=specs" }}
+          subActions={[
+            { label: "Specs Locked", href: "/manufacturer-portal/queue?status=specs_locked" },
+            { label: "Materials Reserved", href: "/manufacturer-portal/queue?status=materials_reserved" },
+          ]}
+          badge={zoneCounts.specs > 0 ? { count: zoneCounts.specs, label: "Active" } : undefined}
+        />
+
+        <WorkflowTile
+          id="samples-queue"
+          title="Samples & Approval"
+          description="First piece samples and client approval"
+          icon={Beaker}
+          bgGradient="from-purple-500/10 to-purple-500/5"
+          iconColor="text-purple-400"
+          primaryAction={{ label: "Sample Queue", href: "/manufacturer-portal/queue?zone=samples" }}
+          subActions={[
+            { label: "In Progress", href: "/manufacturer-portal/queue?status=samples_in_progress" },
+            { label: "Awaiting Approval", href: "/manufacturer-portal/queue?status=samples_awaiting_approval" },
+          ]}
+          badge={zoneCounts.samples > 0 ? { count: zoneCounts.samples, label: "Samples", variant: "default" } : undefined}
+        />
+
+        <WorkflowTile
+          id="production-queue"
+          title="Bulk Production"
+          description="Cutting, printing, stitching, and QC"
+          icon={Scissors}
+          bgGradient="from-pink-500/10 to-pink-500/5"
+          iconColor="text-pink-400"
+          primaryAction={{ label: "Production Queue", href: "/manufacturer-portal/queue?zone=production" }}
+          subActions={[
+            { label: "Cutting", href: "/manufacturer-portal/queue?status=bulk_cutting" },
+            { label: "Print/Embroidery", href: "/manufacturer-portal/queue?status=bulk_print_emb_sublim" },
+            { label: "QC", href: "/manufacturer-portal/queue?status=bulk_qc" },
+          ]}
+          badge={zoneCounts.production > 0 ? { count: zoneCounts.production, label: "Active" } : undefined}
+        />
+
+        <WorkflowTile
+          id="shipping-queue"
+          title="Packing & Shipping"
+          description="Ready to pack and ship"
+          icon={Truck}
+          bgGradient="from-emerald-500/10 to-emerald-500/5"
+          iconColor="text-emerald-400"
+          primaryAction={{ label: "Shipping Queue", href: "/manufacturer-portal/queue?zone=shipping" }}
+          subActions={[
+            { label: "Packing Complete", href: "/manufacturer-portal/queue?status=packing_complete" },
+            { label: "Handed to Carrier", href: "/manufacturer-portal/queue?status=handed_to_carrier" },
+          ]}
+          badge={readyToShipCount > 0 ? { count: readyToShipCount, label: "Ready", variant: "success" } : undefined}
         />
 
         <WorkflowTile
           id="manufacturer-portal"
-          title="Manufacturer Portal"
-          description="Unified manufacturing view"
+          title="Full Portal View"
+          description="Kanban board and all jobs"
           icon={Map}
           bgGradient="from-violet-500/10 to-violet-500/5"
           iconColor="text-violet-400"
           primaryAction={{ label: "Open Portal", href: "/manufacturer-portal" }}
           subActions={[
-            { label: "Order Specifications", href: "/order-specifications" },
-            { label: "Capacity Dashboard", href: "/capacity-dashboard" },
-          ]}
-        />
-
-        <WorkflowTile
-          id="resources-tools"
-          title="Resources & Tools"
-          description="Pantone, fabrics, and specs"
-          icon={Wrench}
-          bgGradient="from-slate-500/10 to-slate-500/5"
-          iconColor="text-slate-400"
-          primaryAction={{ label: "Tools", href: "/manufacturing" }}
-          subActions={[
-            { label: "Fabric Management", href: "/fabric-management" },
-            { label: "Size Checker", href: "/size-checker" },
+            { label: "Legacy Manufacturing", href: "/manufacturing" },
+            { label: "My Line Items", href: "/manufacturer/line-items" },
           ]}
         />
       </WorkflowGrid>
 
       <QueuesSection>
         <QueueWidget
-          id="at-risk-jobs"
-          title="Jobs at Risk"
+          id="urgent-jobs"
+          title="Urgent & High Priority"
           icon={AlertTriangle}
-          queryKey={["/api/manufacturing"]}
-          filter={(jobs) => {
-            const threeDaysFromNow = new Date();
-            threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-            return jobs.filter((j: any) => 
-              j.estDelivery &&
-              new Date(j.estDelivery) <= threeDaysFromNow &&
-              j.status !== 'complete'
-            );
-          }}
+          queryKey={["/api/manufacturer-portal/jobs"]}
+          filter={(allJobs) => allJobs.filter((j: ManufacturerJob) => 
+            j.priority === "urgent" || j.priority === "high"
+          )}
           columns={[
-            { key: "batchNumber", label: "Batch", className: "w-24 font-medium text-white" },
-            { key: "order.orderCode", label: "Order", className: "w-24" },
+            { key: "order.orderCode", label: "Order", className: "w-24 font-medium text-white" },
+            { key: "order.organization.name", label: "Client", className: "flex-1" },
           ]}
-          rowAction={{ href: (job) => `/manufacturing?selected=${job.id}` }}
-          viewAllHref="/manufacturing"
-          emptyState={{ message: "No at-risk jobs", icon: CheckCircle }}
+          rowAction={{ href: (job) => `/manufacturer-portal/job/${job.id}` }}
+          viewAllHref="/manufacturer-portal/queue?priority=high"
+          emptyState={{ message: "No urgent jobs", icon: CheckCircle }}
         />
 
         <QueueWidget
-          id="awaiting-materials"
-          title="Awaiting Materials"
-          icon={Package}
-          queryKey={["/api/manufacturing"]}
-          filter={(jobs) => jobs.filter((j: any) => j.status === 'intake_pending')}
+          id="overdue-jobs"
+          title="Overdue Delivery"
+          icon={Clock}
+          queryKey={["/api/manufacturer-portal/jobs"]}
+          filter={(allJobs) => allJobs.filter((j: ManufacturerJob) => {
+            if (!j.requiredDeliveryDate) return false;
+            return new Date(j.requiredDeliveryDate) < new Date() && 
+                   j.manufacturerStatus !== "delivered_confirmed";
+          })}
           columns={[
-            { key: "batchNumber", label: "Batch", className: "w-24 font-medium text-white" },
+            { key: "order.orderCode", label: "Order", className: "w-24 font-medium text-white" },
+            { key: "requiredDeliveryDate", label: "Due", className: "w-24 text-red-400" },
+          ]}
+          rowAction={{ href: (job) => `/manufacturer-portal/job/${job.id}` }}
+          viewAllHref="/manufacturer-portal"
+          emptyState={{ message: "No overdue jobs", icon: CheckCircle }}
+        />
+
+        <QueueWidget
+          id="awaiting-approval"
+          title="Awaiting Sample Approval"
+          icon={Beaker}
+          queryKey={["/api/manufacturer-portal/jobs"]}
+          filter={(allJobs) => allJobs.filter((j: ManufacturerJob) => 
+            j.manufacturerStatus === "samples_awaiting_approval"
+          )}
+          columns={[
+            { key: "order.orderCode", label: "Order", className: "w-24 font-medium text-white" },
             { key: "order.organization.name", label: "Client", className: "flex-1" },
           ]}
-          rowAction={{ href: (job) => `/manufacturing?selected=${job.id}` }}
-          viewAllHref="/manufacturing?status=intake_pending"
-          emptyState={{ message: "No jobs awaiting materials", icon: Package }}
+          rowAction={{ href: (job) => `/manufacturer-portal/job/${job.id}` }}
+          viewAllHref="/manufacturer-portal/queue?status=samples_awaiting_approval"
+          emptyState={{ message: "No samples awaiting approval", icon: CheckCircle }}
         />
       </QueuesSection>
 
-      <MetricsSnapshot dashboardLink="/">
-        <MetricCard label="Active Productions" value={activeProductionsCount} icon={Factory} />
+      <MetricsSnapshot dashboardLink="/manufacturer-portal">
+        <MetricCard label="Active Jobs" value={activeJobsCount} icon={Factory} />
         <MetricCard label="Ready to Ship" value={readyToShipCount} icon={Truck} />
-        <MetricCard label="Today's Jobs" value={todayJobsCount} icon={Clock} />
-        <MetricCard label="Spec Review" value={specsReviewCount} icon={ClipboardCheck} />
+        <MetricCard label="Urgent" value={urgentJobsCount} icon={AlertTriangle} />
+        <MetricCard label="Overdue" value={overdueJobsCount} icon={Clock} />
       </MetricsSnapshot>
     </RoleHomeLayout>
   );
