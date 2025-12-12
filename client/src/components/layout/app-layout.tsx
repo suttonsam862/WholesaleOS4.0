@@ -64,7 +64,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           isMobile={isMobile}
         />
         
-        <main className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent pb-24 md:pb-24">
+        <main className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent pb-28 md:pb-32">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
