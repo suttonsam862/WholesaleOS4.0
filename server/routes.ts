@@ -7493,6 +7493,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== AI INTERACTIONS ROUTE ====================
+  const { processAIInteraction } = await import("./services/gemini");
+
+  app.post('/api/ai/interactions', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const { actionId, hubId, context } = req.body;
+
+      if (!actionId) {
+        return res.status(400).json({ message: "actionId is required" });
+      }
+
+      const result = await processAIInteraction({ actionId, hubId, context });
+
+      if (!result.success) {
+        return res.status(400).json({
+          message: result.message || "AI processing failed",
+          error: result.error,
+        });
+      }
+
+      res.json({
+        success: true,
+        content: result.content,
+        message: result.message,
+      });
+    } catch (error) {
+      console.error("Error processing AI interaction:", error);
+      res.status(500).json({
+        message: error instanceof Error ? error.message : "Failed to process AI interaction",
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

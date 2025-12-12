@@ -7,6 +7,7 @@ import { useEffect, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { ArrowRight, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ActionDeck } from "@/components/actions";
 import {
   STAGE_CONFIGS,
   getVisibleStages,
@@ -84,6 +85,8 @@ export default function OrdersHub() {
           </Button>
         </Link>
       </div>
+
+      <ActionDeck hubId="orders" />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {visibleStages.map((stage) => {

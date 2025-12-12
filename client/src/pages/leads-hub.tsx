@@ -143,6 +143,7 @@ export default function LeadsHub() {
       isLoading={leadsLoading}
       tip="Click on any stage above to see leads in that pipeline state. Use 'View All Leads' for a complete list with advanced filters."
       testIdPrefix="leads"
+      hubId="leads"
     />
   );
 }

@@ -101,6 +101,7 @@ export default function OrganizationsHub() {
       isLoading={orgsLoading}
       tip="Click on any category above to filter organizations. Use 'View All Organizations' for the complete list with advanced filters."
       testIdPrefix="organizations"
+      hubId="organizations"
     />
   );
 }

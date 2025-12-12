@@ -115,6 +115,7 @@ export default function QuotesHub() {
       isLoading={quotesLoading}
       tip="Click on any status above to filter quotes. Use 'View All Quotes' for a complete list with advanced filters."
       testIdPrefix="quotes"
+      hubId="quotes"
     />
   );
 }

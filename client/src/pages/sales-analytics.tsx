@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { HelpButton } from "@/components/help-button";
+import { ActionDeck } from "@/components/actions";
 import { TrendingUp, DollarSign, Target, Users, Award } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
@@ -98,6 +99,8 @@ export function SalesAnalytics() {
         </div>
         <HelpButton pageTitle="Sales Analytics" helpItems={helpItems} />
       </div>
+
+      <ActionDeck hubId="sales-analytics" />
 
       {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

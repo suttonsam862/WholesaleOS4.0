@@ -126,6 +126,7 @@ export default function EventsHub() {
       isLoading={eventsLoading || isLoading}
       tip="Click on any status card to see events in that state. Use 'View All Events' for a complete list with advanced filters."
       testIdPrefix="events"
+      hubId="events"
     />
   );
 }

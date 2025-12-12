@@ -102,6 +102,7 @@ export default function ContactsHub() {
       isLoading={contactsLoading}
       tip="Click on any category above to filter contacts. Use 'View All Contacts' for a complete list with advanced filters."
       testIdPrefix="contacts"
+      hubId="contacts"
     />
   );
 }

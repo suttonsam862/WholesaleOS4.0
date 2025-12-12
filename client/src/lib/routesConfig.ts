@@ -90,6 +90,21 @@ const ManufacturerPortal = lazy(() => import("@/pages/manufacturer-portal"));
 const ManufacturerQueue = lazy(() => import("@/pages/manufacturer-queue"));
 const ManufacturerJobDetail = lazy(() => import("@/pages/manufacturer-job-detail"));
 
+const OrdersActions = lazy(() => import("@/pages/actions/orders-actions"));
+const OrdersActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.OrdersActionDetail })));
+const SalesAnalyticsActions = lazy(() => import("@/pages/actions/sales-analytics-actions"));
+const SalesAnalyticsActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.SalesAnalyticsActionDetail })));
+const OrganizationsActions = lazy(() => import("@/pages/actions/organizations-actions"));
+const OrganizationsActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.OrganizationsActionDetail })));
+const ContactsActions = lazy(() => import("@/pages/actions/contacts-actions"));
+const ContactsActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.ContactsActionDetail })));
+const LeadsActions = lazy(() => import("@/pages/actions/leads-actions"));
+const LeadsActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.LeadsActionDetail })));
+const EventsActions = lazy(() => import("@/pages/actions/events-actions"));
+const EventsActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.EventsActionDetail })));
+const QuotesActions = lazy(() => import("@/pages/actions/quotes-actions"));
+const QuotesActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.QuotesActionDetail })));
+
 const AdminHome = lazy(() => import("@/pages/admin-home"));
 const SalesHome = lazy(() => import("@/pages/sales-home"));
 const DesignerHome = lazy(() => import("@/pages/designer-home"));
@@ -123,11 +138,17 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/", title: "Dashboard", component: Dashboard, requiresAuth: true, requiresLayout: true, resource: "dashboard" },
   { path: "/leads", title: "Leads Hub", component: LeadsHub, requiresAuth: true, requiresLayout: true, resource: "leads" },
   { path: "/leads/list", title: "Leads List", component: LeadsList, requiresAuth: true, requiresLayout: true, resource: "leads" },
+  { path: "/leads/actions", title: "Leads Actions", component: LeadsActions, requiresAuth: true, requiresLayout: true, resource: "leads" },
+  { path: "/leads/actions/:actionId", title: "Lead Action", component: LeadsActionDetail, requiresAuth: true, requiresLayout: true, resource: "leads" },
   { path: "/completed-leads", title: "Completed Leads", component: CompletedLeads, requiresAuth: true, requiresLayout: true, resource: "leads" },
   { path: "/organizations", title: "Organizations Hub", component: OrganizationsHub, requiresAuth: true, requiresLayout: true, resource: "organizations" },
   { path: "/organizations/list", title: "Organizations List", component: OrganizationsList, requiresAuth: true, requiresLayout: true, resource: "organizations" },
+  { path: "/organizations/actions", title: "Organizations Actions", component: OrganizationsActions, requiresAuth: true, requiresLayout: true, resource: "organizations" },
+  { path: "/organizations/actions/:actionId", title: "Organization Action", component: OrganizationsActionDetail, requiresAuth: true, requiresLayout: true, resource: "organizations" },
   { path: "/contacts", title: "Contacts Hub", component: ContactsHub, requiresAuth: true, requiresLayout: true, resource: "contacts" },
   { path: "/contacts/list", title: "Contacts List", component: ContactsList, requiresAuth: true, requiresLayout: true, resource: "contacts" },
+  { path: "/contacts/actions", title: "Contacts Actions", component: ContactsActions, requiresAuth: true, requiresLayout: true, resource: "contacts" },
+  { path: "/contacts/actions/:actionId", title: "Contact Action", component: ContactsActionDetail, requiresAuth: true, requiresLayout: true, resource: "contacts" },
   { path: "/catalog", title: "Catalog Hub", component: CatalogHub, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/catalog/list", title: "Catalog List", component: Catalog, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/catalog/category/:categoryId", title: "Category Products", component: CategoryProducts, requiresAuth: true, requiresLayout: true, resource: "catalog" },
@@ -142,6 +163,8 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/design-jobs/:id", title: "Design Job Detail", component: DesignJobDetail, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
   { path: "/orders", title: "Orders Hub", component: OrdersHub, requiresAuth: true, requiresLayout: true, resource: "orders" },
   { path: "/orders/list", title: "Orders List", component: OrdersList, requiresAuth: true, requiresLayout: true, resource: "orders" },
+  { path: "/orders/actions", title: "Orders Actions", component: OrdersActions, requiresAuth: true, requiresLayout: true, resource: "orders" },
+  { path: "/orders/actions/:actionId", title: "Order Action", component: OrdersActionDetail, requiresAuth: true, requiresLayout: true, resource: "orders" },
   { path: "/orders/:id", title: "Order Detail", component: OrderDetail, requiresAuth: true, requiresLayout: false, resource: "orders" },
   { path: "/orders/legacy", title: "Orders (Legacy)", component: OrdersLegacy, requiresAuth: true, requiresLayout: true, resource: "orders" },
   { path: "/manufacturing", title: "Manufacturing Hub", component: ManufacturingHub, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
@@ -151,6 +174,8 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/manufacturer/line-items", title: "My Line Items", component: ManufacturerLineItems, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
   { path: "/events", title: "Events Hub", component: EventsHub, requiresAuth: true, requiresLayout: true, resource: "events" },
   { path: "/events/list", title: "Events List", component: EventsList, requiresAuth: true, requiresLayout: true, resource: "events" },
+  { path: "/events/actions", title: "Events Actions", component: EventsActions, requiresAuth: true, requiresLayout: true, resource: "events" },
+  { path: "/events/actions/:actionId", title: "Event Action", component: EventsActionDetail, requiresAuth: true, requiresLayout: true, resource: "events" },
   { path: "/events/:id/wizard", title: "Event Wizard", component: EventWizard, requiresAuth: true, requiresLayout: false, resource: "events" },
   { path: "/events/:id", title: "Event Detail", component: EventDetail, requiresAuth: true, requiresLayout: true, resource: "events" },
   { path: "/salespeople", title: "Salespeople Hub", component: SalespeopleHub, requiresAuth: true, requiresLayout: true, resource: "salespeople" },
@@ -175,9 +200,13 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/finance/legacy", title: "Finance (Legacy)", component: Finance, requiresAuth: true, requiresLayout: true, resource: "finance" },
   { path: "/quotes", title: "Quotes Hub", component: QuotesHub, requiresAuth: true, requiresLayout: true, resource: "quotes" },
   { path: "/quotes/list", title: "Quotes List", component: QuotesList, requiresAuth: true, requiresLayout: true, resource: "quotes" },
+  { path: "/quotes/actions", title: "Quotes Actions", component: QuotesActions, requiresAuth: true, requiresLayout: true, resource: "quotes" },
+  { path: "/quotes/actions/:actionId", title: "Quote Action", component: QuotesActionDetail, requiresAuth: true, requiresLayout: true, resource: "quotes" },
   { path: "/admin/test-users", title: "Test User Access", component: TestUsers, requiresAuth: true, requiresLayout: true, roles: ["admin"], resource: "users" },
   { path: "/admin/permissions", title: "Permission Management", component: PermissionManagement, requiresAuth: true, requiresLayout: true, roles: ["admin"], resource: "users" },
   { path: "/sales-analytics", title: "Sales Analytics", component: SalesAnalytics, requiresAuth: true, requiresLayout: true, roles: ["admin", "sales"] },
+  { path: "/sales-analytics/actions", title: "Sales Analytics Actions", component: SalesAnalyticsActions, requiresAuth: true, requiresLayout: true, roles: ["admin", "sales"] },
+  { path: "/sales-analytics/actions/:actionId", title: "Sales Analytics Action", component: SalesAnalyticsActionDetail, requiresAuth: true, requiresLayout: true, roles: ["admin", "sales"] },
   { path: "/sales-tracker", title: "Sales Tracker", component: SalesTracker, requiresAuth: true, requiresLayout: true, roles: ["admin", "sales"] },
   { path: "/sales-resources", title: "Sales Resources", component: SalesResources, requiresAuth: true, requiresLayout: true, roles: ["admin", "sales"] },
   { path: "/design-portfolio", title: "Design Portfolio", component: DesignPortfolio, requiresAuth: true, requiresLayout: true, roles: ["admin", "designer", "ops"] },

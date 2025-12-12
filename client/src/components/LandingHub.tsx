@@ -3,6 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowRight, List, type LucideIcon } from "lucide-react";
+import { ActionDeck } from "@/components/actions";
+import { getHubActions } from "@/lib/actionsConfig";
 
 export interface HubCardConfig {
   id: string;
@@ -25,6 +27,7 @@ interface LandingHubProps {
   isLoading?: boolean;
   tip?: string;
   testIdPrefix?: string;
+  hubId?: string;
 }
 
 export function LandingHub({
@@ -36,7 +39,9 @@ export function LandingHub({
   isLoading = false,
   tip,
   testIdPrefix = "hub",
+  hubId,
 }: LandingHubProps) {
+  const hasActions = hubId && getHubActions(hubId);
   if (isLoading) {
     return (
       <div className="p-6">
@@ -73,6 +78,8 @@ export function LandingHub({
           </Button>
         </Link>
       </div>
+
+      {hasActions && hubId && <ActionDeck hubId={hubId} />}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {cards.map((card) => {
