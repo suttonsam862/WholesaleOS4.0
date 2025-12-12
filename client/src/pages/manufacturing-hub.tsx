@@ -119,6 +119,7 @@ export default function ManufacturingHub() {
       isLoading={isLoading || recordsLoading}
       tip="Click on any stage to filter manufacturing records by status. Use 'View All Manufacturing' for the complete list with advanced filters."
       testIdPrefix="manufacturing"
+      hubId="manufacturing"
     />
   );
 }

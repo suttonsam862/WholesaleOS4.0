@@ -12,7 +12,8 @@ import {
   insertEventInventoryMovementSchema,
   insertEventBudgetSchema,
   insertEventCampaignSchema,
-  insertEventRegistrationSchema
+  insertEventRegistrationSchema,
+  insertTourMerchBundleSchema
 } from "@shared/schema";
 import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
 
@@ -563,6 +564,89 @@ export function registerEventRoutes(app: Express) {
     } catch (error) {
       console.error("Error deleting event registration:", error);
       res.status(500).json({ message: "Failed to delete event registration" });
+    }
+  });
+
+  // Tour Merch Bundle routes
+  app.get('/api/tour-merch-bundles', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const bundles = await storage.getTourMerchBundles();
+      res.json(bundles);
+    } catch (error) {
+      console.error("Error fetching tour merch bundles:", error);
+      res.status(500).json({ message: "Failed to fetch tour merch bundles" });
+    }
+  });
+
+  app.get('/api/tour-merch-bundles/:id', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const bundle = await storage.getTourMerchBundle(id);
+      if (!bundle) {
+        return res.status(404).json({ message: "Tour merch bundle not found" });
+      }
+      res.json(bundle);
+    } catch (error) {
+      console.error("Error fetching tour merch bundle:", error);
+      res.status(500).json({ message: "Failed to fetch tour merch bundle" });
+    }
+  });
+
+  app.get('/api/events/:eventId/tour-merch-bundles', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const bundles = await storage.getTourMerchBundlesByEvent(eventId);
+      res.json(bundles);
+    } catch (error) {
+      console.error("Error fetching event tour merch bundles:", error);
+      res.status(500).json({ message: "Failed to fetch event tour merch bundles" });
+    }
+  });
+
+  app.post('/api/tour-merch-bundles', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const userData = (req as AuthenticatedRequest).user.userData!;
+      const validatedData = insertTourMerchBundleSchema.parse(req.body);
+      
+      const bundleData = {
+        ...validatedData,
+        createdBy: userData.id,
+      };
+      
+      const bundle = await storage.createTourMerchBundle(bundleData);
+      res.status(201).json(bundle);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating tour merch bundle:", error);
+      res.status(500).json({ message: "Failed to create tour merch bundle" });
+    }
+  });
+
+  app.put('/api/tour-merch-bundles/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertTourMerchBundleSchema.partial().parse(req.body);
+      const bundle = await storage.updateTourMerchBundle(id, validatedData);
+      res.json(bundle);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating tour merch bundle:", error);
+      res.status(500).json({ message: "Failed to update tour merch bundle" });
+    }
+  });
+
+  app.delete('/api/tour-merch-bundles/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteTourMerchBundle(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting tour merch bundle:", error);
+      res.status(500).json({ message: "Failed to delete tour merch bundle" });
     }
   });
 }

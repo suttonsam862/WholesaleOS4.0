@@ -175,7 +175,7 @@ export const organizations = pgTable("organizations", {
   notes: text("notes"),
   logoUrl: text("logo_url"),
   territory: text("territory"),
-  clientType: varchar("client_type").$type<"retail" | "wholesale" | "enterprise" | "government">(),
+  clientType: varchar("client_type").$type<"retail" | "wholesale" | "enterprise" | "government" | "high_school" | "college" | "tour" | "in_house">(),
   annualVolume: decimal("annual_volume", { precision: 12, scale: 2 }),
   preferredSalespersonId: varchar("preferred_salesperson_id").references(() => users.id),
   // Branding fields

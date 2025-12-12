@@ -122,6 +122,7 @@ export default function TeamStoresHub() {
       isLoading={isLoadingData}
       tip="Click on any card above to filter team stores by status. Use 'View All Stores' for a complete list with advanced filters."
       testIdPrefix="team-stores"
+      hubId="team-stores"
     />
   );
 }

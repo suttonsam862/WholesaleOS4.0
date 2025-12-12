@@ -137,6 +137,7 @@ export default function DesignJobsHub() {
       isLoading={jobsLoading}
       tip="Click on any status above to see design jobs in that state. Use 'View All Jobs' for a complete list with advanced filters."
       testIdPrefix="design-jobs"
+      hubId="design-jobs"
     />
   );
 }

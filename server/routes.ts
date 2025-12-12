@@ -7497,6 +7497,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== PRINTFUL SYNC RECORDS ROUTES ====================
+
+  app.get('/api/printful-sync-records', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const orderId = req.query.orderId ? parseInt(req.query.orderId as string) : undefined;
+      const records = await storage.getPrintfulSyncRecords(orderId);
+      res.json(records);
+    } catch (error) {
+      console.error("Error fetching printful sync records:", error);
+      res.status(500).json({ message: "Failed to fetch printful sync records" });
+    }
+  });
+
+  app.get('/api/printful-sync-records/:id', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const record = await storage.getPrintfulSyncRecord(id);
+      if (!record) {
+        return res.status(404).json({ message: "Printful sync record not found" });
+      }
+      res.json(record);
+    } catch (error) {
+      console.error("Error fetching printful sync record:", error);
+      res.status(500).json({ message: "Failed to fetch printful sync record" });
+    }
+  });
+
+  app.post('/api/printful-sync-records', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const record = await storage.createPrintfulSyncRecord({
+        ...req.body,
+        createdBy: user.id,
+      });
+      res.status(201).json(record);
+    } catch (error) {
+      console.error("Error creating printful sync record:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to create printful sync record" });
+    }
+  });
+
+  app.put('/api/printful-sync-records/:id', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const record = await storage.updatePrintfulSyncRecord(id, req.body);
+      res.json(record);
+    } catch (error) {
+      console.error("Error updating printful sync record:", error);
+      res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update printful sync record" });
+    }
+  });
+
   // ==================== AI INTERACTIONS ROUTE ====================
   const { processAIInteraction } = await import("./services/gemini");
 

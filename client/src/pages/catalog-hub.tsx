@@ -140,6 +140,7 @@ export default function CatalogHub() {
       isLoading={isDataLoading}
       tip="Click on any card above to filter the catalog by that criteria. Use 'View All Catalog' for a complete list with advanced filters."
       testIdPrefix="catalog"
+      hubId="catalog"
     />
   );
 }

@@ -85,6 +85,50 @@ export function registerDesignRoutes(app: Express): void {
     }
   });
 
+  // Get previous designs by category (product type) for AI context
+  // IMPORTANT: This pulls designs by VARIANT/PRODUCT TYPE, NOT by organization
+  app.get('/api/design-jobs/by-category/:categoryId', isAuthenticated, loadUserData, requirePermission('designJobs', 'read'), async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.categoryId);
+      if (isNaN(categoryId)) {
+        return res.status(400).json({ message: "Invalid category ID" });
+      }
+      
+      const limit = parseInt(req.query.limit as string) || 50;
+      
+      // Get all completed/approved design jobs
+      const allJobs = await storage.getDesignJobs();
+      
+      // Filter to only completed or approved jobs (successful designs)
+      const completedJobs = allJobs.filter((job: any) => 
+        ['completed', 'approved'].includes(job.status) && !job.archived
+      );
+      
+      // For AI context, we return the briefs and requirements from previous successful designs
+      // These are not org-specific - they're product type specific
+      const designsForCategory = completedJobs
+        .filter((job: any) => job.brief || job.requirements)
+        .slice(0, limit)
+        .map((job: any) => ({
+          id: job.id,
+          jobCode: job.jobCode,
+          title: job.brief?.substring(0, 100) || `Design Job ${job.jobCode}`,
+          description: job.requirements || job.brief,
+          status: job.status,
+          completedAt: job.updatedAt,
+        }));
+      
+      res.json({
+        categoryId,
+        count: designsForCategory.length,
+        designs: designsForCategory,
+      });
+    } catch (error) {
+      console.error("Error fetching designs by category:", error);
+      res.status(500).json({ message: "Failed to fetch designs by category" });
+    }
+  });
+
   // Bulk design job assignment endpoint (must come before :id routes)
   app.put('/api/design-jobs/bulk-reassign', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
     try {

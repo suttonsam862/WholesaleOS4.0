@@ -212,6 +212,12 @@ import {
   type InsertManufacturerJob,
   type ManufacturerEvent,
   type InsertManufacturerEvent,
+  printfulSyncRecords,
+  type PrintfulSyncRecord,
+  type InsertPrintfulSyncRecord,
+  tourMerchBundles,
+  type TourMerchBundle,
+  type InsertTourMerchBundle,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, like, or, and, sql, count, getTableColumns, gte, lte, lt, inArray, isNotNull, isNull } from "drizzle-orm";
@@ -667,6 +673,14 @@ export interface IStorage {
   updateEventRegistration(id: number, registration: Partial<InsertEventRegistration>): Promise<EventRegistration>;
   deleteEventRegistration(id: number): Promise<void>;
 
+  // Tour Merch Bundle operations
+  getTourMerchBundles(): Promise<TourMerchBundle[]>;
+  getTourMerchBundle(id: number): Promise<TourMerchBundle | undefined>;
+  getTourMerchBundlesByEvent(eventId: number): Promise<TourMerchBundle[]>;
+  createTourMerchBundle(bundle: InsertTourMerchBundle): Promise<TourMerchBundle>;
+  updateTourMerchBundle(id: number, bundle: Partial<InsertTourMerchBundle>): Promise<TourMerchBundle>;
+  deleteTourMerchBundle(id: number): Promise<void>;
+
   // Task management operations
   getTasks(filters?: { userId?: string; pageKey?: string; status?: string }): Promise<(Task & { assignedTo?: User; createdBy?: User })[]>;
   getTask(id: number): Promise<(Task & { assignedTo?: User; createdBy?: User }) | undefined>;
@@ -766,6 +780,13 @@ export interface IStorage {
   // Manufacturer Portal - Event operations
   getManufacturerEvents(jobId: number): Promise<(ManufacturerEvent & { createdByUser?: User })[]>;
   createManufacturerEvent(event: InsertManufacturerEvent): Promise<ManufacturerEvent>;
+
+  // Printful Sync Record operations
+  getPrintfulSyncRecords(orderId?: number): Promise<PrintfulSyncRecord[]>;
+  getPrintfulSyncRecord(id: number): Promise<PrintfulSyncRecord | undefined>;
+  getPrintfulSyncRecordByOrderId(orderId: number): Promise<PrintfulSyncRecord | undefined>;
+  createPrintfulSyncRecord(record: InsertPrintfulSyncRecord): Promise<PrintfulSyncRecord>;
+  updatePrintfulSyncRecord(id: number, record: Partial<InsertPrintfulSyncRecord>): Promise<PrintfulSyncRecord>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -5366,6 +5387,51 @@ export class DatabaseStorage implements IStorage {
     await db.delete(eventRegistrations).where(eq(eventRegistrations.id, id));
   }
 
+  // Tour Merch Bundle operations
+  async getTourMerchBundles(): Promise<TourMerchBundle[]> {
+    return await db
+      .select()
+      .from(tourMerchBundles)
+      .orderBy(desc(tourMerchBundles.createdAt));
+  }
+
+  async getTourMerchBundle(id: number): Promise<TourMerchBundle | undefined> {
+    const [bundle] = await db
+      .select()
+      .from(tourMerchBundles)
+      .where(eq(tourMerchBundles.id, id));
+    return bundle;
+  }
+
+  async getTourMerchBundlesByEvent(eventId: number): Promise<TourMerchBundle[]> {
+    return await db
+      .select()
+      .from(tourMerchBundles)
+      .where(eq(tourMerchBundles.eventId, eventId))
+      .orderBy(desc(tourMerchBundles.createdAt));
+  }
+
+  async createTourMerchBundle(bundle: InsertTourMerchBundle): Promise<TourMerchBundle> {
+    const [created] = await db.insert(tourMerchBundles).values(bundle).returning();
+    return created;
+  }
+
+  async updateTourMerchBundle(id: number, bundle: Partial<InsertTourMerchBundle>): Promise<TourMerchBundle> {
+    const [updated] = await db
+      .update(tourMerchBundles)
+      .set({ ...bundle, updatedAt: new Date() })
+      .where(eq(tourMerchBundles.id, id))
+      .returning();
+    if (!updated) {
+      throw new Error(`Tour merch bundle with id ${id} not found`);
+    }
+    return updated;
+  }
+
+  async deleteTourMerchBundle(id: number): Promise<void> {
+    await db.delete(tourMerchBundles).where(eq(tourMerchBundles.id, id));
+  }
+
   // Task management operations
   async getTasks(filters?: { userId?: string; pageKey?: string; status?: string }): Promise<(Task & { assignedTo?: User; createdBy?: User })[]> {
     let query = db
@@ -6053,6 +6119,55 @@ export class DatabaseStorage implements IStorage {
   async createManufacturerEvent(event: InsertManufacturerEvent): Promise<ManufacturerEvent> {
     const [created] = await db.insert(manufacturerEvents).values(event as any).returning();
     return created;
+  }
+
+  // ==================== PRINTFUL SYNC RECORD OPERATIONS ====================
+
+  async getPrintfulSyncRecords(orderId?: number): Promise<PrintfulSyncRecord[]> {
+    if (orderId) {
+      return await db
+        .select()
+        .from(printfulSyncRecords)
+        .where(eq(printfulSyncRecords.orderId, orderId))
+        .orderBy(desc(printfulSyncRecords.createdAt));
+    }
+    return await db
+      .select()
+      .from(printfulSyncRecords)
+      .orderBy(desc(printfulSyncRecords.createdAt));
+  }
+
+  async getPrintfulSyncRecord(id: number): Promise<PrintfulSyncRecord | undefined> {
+    const [record] = await db
+      .select()
+      .from(printfulSyncRecords)
+      .where(eq(printfulSyncRecords.id, id));
+    return record;
+  }
+
+  async getPrintfulSyncRecordByOrderId(orderId: number): Promise<PrintfulSyncRecord | undefined> {
+    const [record] = await db
+      .select()
+      .from(printfulSyncRecords)
+      .where(eq(printfulSyncRecords.orderId, orderId))
+      .orderBy(desc(printfulSyncRecords.createdAt))
+      .limit(1);
+    return record;
+  }
+
+  async createPrintfulSyncRecord(record: InsertPrintfulSyncRecord): Promise<PrintfulSyncRecord> {
+    const [created] = await db.insert(printfulSyncRecords).values(record as any).returning();
+    return created;
+  }
+
+  async updatePrintfulSyncRecord(id: number, record: Partial<InsertPrintfulSyncRecord>): Promise<PrintfulSyncRecord> {
+    const [updated] = await db
+      .update(printfulSyncRecords)
+      .set({ ...record, updatedAt: new Date() })
+      .where(eq(printfulSyncRecords.id, id))
+      .returning();
+    if (!updated) throw new Error(`Printful sync record with id ${id} not found`);
+    return updated;
   }
 }
 

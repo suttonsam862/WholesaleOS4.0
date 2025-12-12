@@ -188,6 +188,67 @@ Create a professional post-event summary that includes:
 Keep the summary concise and under 300 words.`;
   },
 
+  // Design Jobs AI Actions
+  "ai-design-starter": (ctx) => {
+    const options = ctx.options || {};
+    const selectedCategory = ctx.selectedItem;
+    const previousDesigns = options.previousDesigns || [];
+    const designStyle = options.designStyle || "modern";
+    const colorScheme = options.colorScheme || [];
+    const textToInclude = options.textToInclude || "";
+    const orgBrandColors = options.orgBrandColors || [];
+    
+    const previousDesignsContext = previousDesigns.length > 0 
+      ? `\n\nPrevious successful designs for this product type (use as inspiration):\n${previousDesigns.slice(0, 10).map((d: any, i: number) => 
+          `${i + 1}. ${d.title || d.brief || 'Design'}: ${d.description || d.requirements || 'No description'}`
+        ).join('\n')}`
+      : '';
+    
+    const colorContext = colorScheme.length > 0 
+      ? `\nPreferred Colors: ${colorScheme.join(', ')}`
+      : orgBrandColors.length > 0 
+        ? `\nBrand Colors Available: ${orgBrandColors.join(', ')}`
+        : '';
+
+    return `You are a professional apparel designer creating design concepts for custom merchandise.
+
+Product Type: ${selectedCategory?.name || 'Apparel'}
+Design Style: ${designStyle}${colorContext}${textToInclude ? `\nText to Include: "${textToInclude}"` : ''}
+${previousDesignsContext}
+
+Generate 3 unique design concepts for this ${selectedCategory?.name || 'product'}. For each concept provide:
+
+**Concept 1: [Creative Name]**
+- Theme: Brief thematic description
+- Visual Elements: Key graphic elements, patterns, or imagery
+- Typography: Font style suggestions if text is included
+- Color Palette: 3-4 specific colors (include hex codes if possible)
+- Placement: Where on the garment the design should go
+- Style Notes: Why this matches the ${designStyle} aesthetic
+
+**Concept 2: [Creative Name]**
+- Theme: Brief thematic description
+- Visual Elements: Key graphic elements, patterns, or imagery
+- Typography: Font style suggestions if text is included
+- Color Palette: 3-4 specific colors (include hex codes if possible)
+- Placement: Where on the garment the design should go
+- Style Notes: Why this matches the ${designStyle} aesthetic
+
+**Concept 3: [Creative Name]**
+- Theme: Brief thematic description
+- Visual Elements: Key graphic elements, patterns, or imagery
+- Typography: Font style suggestions if text is included
+- Color Palette: 3-4 specific colors (include hex codes if possible)
+- Placement: Where on the garment the design should go
+- Style Notes: Why this matches the ${designStyle} aesthetic
+
+**Recommended Concept:** State which concept you recommend and why.
+
+**Design Brief Summary:** Write a 2-3 sentence professional design brief that a designer could use to start working.
+
+Keep suggestions practical for screen printing or embroidery. Be specific and actionable.`;
+  },
+
   // Quotes AI Actions
   "quote-followup": (ctx) => {
     const quote = ctx.selectedItem;
