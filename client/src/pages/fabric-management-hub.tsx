@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useMemo } from "react";
 import { LandingHub, hubColors, type HubCardConfig } from "@/components/LandingHub";
-import { Layers, CheckCircle, AlertTriangle, Shirt, Clock } from "lucide-react";
+import { Layers, CheckCircle, Clock, Shirt } from "lucide-react";
 import type { Fabric } from "@shared/schema";
 
 export default function FabricManagementHub() {
@@ -34,8 +34,7 @@ export default function FabricManagementHub() {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const total = fabrics.length;
-    const active = fabrics.filter((f) => f.isApproved).length;
-    const pending = fabrics.filter((f) => !f.isApproved).length;
+    const approved = fabrics.filter((f) => f.isApproved).length;
     const recent = fabrics.filter((f) => {
       if (!f.createdAt) return false;
       return new Date(f.createdAt) >= thirtyDaysAgo;
@@ -44,41 +43,32 @@ export default function FabricManagementHub() {
     const typeGroups = new Set(fabrics.map((f) => f.fabricType).filter(Boolean));
     const byType = typeGroups.size;
 
-    return { total, active, pending, recent, byType };
+    return { total, approved, recent, byType };
   }, [fabrics]);
 
   const cards: HubCardConfig[] = [
     {
       id: "all",
       label: "All Fabrics",
-      description: "View complete fabric inventory",
+      description: "Browse the complete fabric library",
       icon: Layers,
       ...hubColors.blue,
       count: counts.total,
       href: "/fabric-management/list",
     },
     {
-      id: "active",
-      label: "Active",
-      description: "Approved fabrics in use",
+      id: "approved",
+      label: "Approved Fabrics",
+      description: `${counts.approved} approved and ready to use`,
       icon: CheckCircle,
       ...hubColors.green,
-      count: counts.active,
-      href: "/fabric-management/list?status=active",
-    },
-    {
-      id: "low-stock",
-      label: "Pending Approval",
-      description: "Fabrics awaiting review",
-      icon: AlertTriangle,
-      ...hubColors.red,
-      count: counts.pending,
-      href: "/fabric-management/list?filter=low-stock",
+      count: counts.approved,
+      href: "/fabric-management/list",
     },
     {
       id: "by-type",
-      label: "By Type",
-      description: "Fabric types in library",
+      label: "Fabric Types",
+      description: `${counts.byType} unique fabric types available`,
       icon: Shirt,
       ...hubColors.purple,
       count: counts.byType,
@@ -87,11 +77,11 @@ export default function FabricManagementHub() {
     {
       id: "recent",
       label: "Recently Added",
-      description: "Added in the last 30 days",
+      description: `${counts.recent} fabrics added in last 30 days`,
       icon: Clock,
       ...hubColors.teal,
       count: counts.recent,
-      href: "/fabric-management/list?filter=recent",
+      href: "/fabric-management/list",
     },
   ];
 
@@ -103,7 +93,7 @@ export default function FabricManagementHub() {
       viewAllHref="/fabric-management/list"
       viewAllLabel="View All Fabrics"
       isLoading={fabricsLoading}
-      tip="Click on any card above to filter fabrics by that criteria. Use the fabric library to manage approved materials."
+      tip="View your fabric library to manage and organize materials for production."
       testIdPrefix="fabrics"
     />
   );

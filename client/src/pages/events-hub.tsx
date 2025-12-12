@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useMemo } from "react";
 import { LandingHub, hubColors, type HubCardConfig } from "@/components/LandingHub";
-import { Calendar, FileEdit, Clipboard, CheckCircle, Radio, PartyPopper } from "lucide-react";
+import { Calendar, FileEdit, Clipboard, CheckCircle, Radio, PartyPopper, Archive } from "lucide-react";
 import type { Event } from "@shared/schema";
 
 export default function EventsHub() {
@@ -37,11 +37,13 @@ export default function EventsHub() {
       approved: 0,
       live: 0,
       completed: 0,
+      archived: 0,
     };
 
     events.forEach((event) => {
-      if (event.status in counts) {
-        counts[event.status as keyof typeof counts]++;
+      const status = event.status as keyof typeof counts;
+      if (status in counts && status !== "all") {
+        counts[status]++;
       }
     });
 
@@ -102,6 +104,15 @@ export default function EventsHub() {
       ...hubColors.teal,
       count: statusCounts.completed,
       href: "/events/list?status=completed",
+    },
+    {
+      id: "archived",
+      label: "Archived",
+      description: "Events that have been archived",
+      icon: Archive,
+      ...hubColors.amber,
+      count: statusCounts.archived,
+      href: "/events/list?status=archived",
     },
   ];
 

@@ -3,8 +3,7 @@ import { useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { LandingHub, hubColors, type HubCardConfig } from "@/components/LandingHub";
-import { Factory, UserCheck, Clock, CheckCircle, UserX } from "lucide-react";
-import type { User } from "@shared/schema";
+import { Factory, Clock, Cog, CheckCircle } from "lucide-react";
 
 interface ManufacturingRecord {
   id: number;
@@ -31,105 +30,76 @@ export default function ManufacturerManagementHub() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: manufacturerUsers = [], isLoading: usersLoading } = useQuery<User[]>({
-    queryKey: ["/api/users", { role: "manufacturer" }],
-    retry: false,
-  });
-
   const { data: manufacturingRecords = [], isLoading: manufacturingLoading } = useQuery<ManufacturingRecord[]>({
     queryKey: ["/api/manufacturing"],
     retry: false,
   });
 
   const counts = useMemo(() => {
-    const total = manufacturerUsers.length;
-    const active = manufacturerUsers.filter((u) => u.isActive).length;
-    const inactive = manufacturerUsers.filter((u) => !u.isActive).length;
-
+    const total = manufacturingRecords.length;
+    
     const pendingStatuses = [
       "awaiting_admin_confirmation",
       "confirmed_awaiting_manufacturing",
     ];
     const completedStatuses = ["complete", "shipped"];
+    const inProgressStatuses = ["in_progress", "manufacturing"];
 
-    const usersWithPending = new Set(
-      manufacturingRecords
-        .filter((r) => r.assignedTo && pendingStatuses.includes(r.status))
-        .map((r) => r.assignedTo)
-    ).size;
+    const pending = manufacturingRecords.filter(r => pendingStatuses.includes(r.status)).length;
+    const inProgress = manufacturingRecords.filter(r => inProgressStatuses.includes(r.status)).length;
+    const completed = manufacturingRecords.filter(r => completedStatuses.includes(r.status)).length;
 
-    const usersWithCompleted = new Set(
-      manufacturingRecords
-        .filter((r) => r.assignedTo && completedStatuses.includes(r.status))
-        .map((r) => r.assignedTo)
-    ).size;
-
-    return {
-      total,
-      active,
-      inactive,
-      withPending: usersWithPending,
-      withCompleted: usersWithCompleted,
-    };
-  }, [manufacturerUsers, manufacturingRecords]);
+    return { total, pending, inProgress, completed };
+  }, [manufacturingRecords]);
 
   const cards: HubCardConfig[] = [
     {
       id: "all",
-      label: "All Manufacturers",
-      description: "View all manufacturing partners",
+      label: "All Manufacturing Jobs",
+      description: "View all jobs across all stages",
       icon: Factory,
       ...hubColors.blue,
       count: counts.total,
-      href: "/manufacturer-management/list",
-    },
-    {
-      id: "active",
-      label: "Active",
-      description: "Currently active manufacturers",
-      icon: UserCheck,
-      ...hubColors.green,
-      count: counts.active,
-      href: "/manufacturer-management/list?status=active",
+      href: "/manufacturing/list",
     },
     {
       id: "pending",
-      label: "With Pending Jobs",
-      description: "Manufacturers with pending work",
+      label: "Pending Jobs",
+      description: "Jobs awaiting manufacturing start",
       icon: Clock,
       ...hubColors.orange,
-      count: counts.withPending,
-      href: "/manufacturer-management/list?filter=pending",
+      count: counts.pending,
+      href: "/manufacturing/list",
+    },
+    {
+      id: "in-progress",
+      label: "In Progress",
+      description: "Jobs currently being manufactured",
+      icon: Cog,
+      ...hubColors.purple,
+      count: counts.inProgress,
+      href: "/manufacturing/list",
     },
     {
       id: "completed",
-      label: "Completed Jobs",
-      description: "Manufacturers with completed work",
+      label: "Completed",
+      description: "Finished manufacturing jobs",
       icon: CheckCircle,
-      ...hubColors.teal,
-      count: counts.withCompleted,
-      href: "/manufacturer-management/list?filter=completed",
-    },
-    {
-      id: "inactive",
-      label: "Inactive",
-      description: "Inactive manufacturer accounts",
-      icon: UserX,
-      ...hubColors.red,
-      count: counts.inactive,
-      href: "/manufacturer-management/list?status=inactive",
+      ...hubColors.green,
+      count: counts.completed,
+      href: "/manufacturing/list",
     },
   ];
 
   return (
     <LandingHub
-      title="Manufacturer Management"
-      subtitle="Manage manufacturing partners and track job assignments"
+      title="Manufacturing Overview"
+      subtitle="Track manufacturing jobs and production status"
       cards={cards}
-      viewAllHref="/manufacturer-management/list"
-      viewAllLabel="View All Manufacturers"
-      isLoading={usersLoading || manufacturingLoading}
-      tip="Click on any card to filter manufacturers by that status. Use 'View All Manufacturers' for a complete list with advanced filters."
+      viewAllHref="/manufacturing/list"
+      viewAllLabel="View All Jobs"
+      isLoading={manufacturingLoading}
+      tip="Click on any card to view manufacturing jobs. Use 'View All Jobs' for a complete list with advanced filters."
       testIdPrefix="manufacturers"
     />
   );

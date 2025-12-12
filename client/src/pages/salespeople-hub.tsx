@@ -3,18 +3,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useMemo } from "react";
 import { LandingHub, hubColors, type HubCardConfig } from "@/components/LandingHub";
-import { Users, UserCheck, Trophy, Map, UserX } from "lucide-react";
+import { Users, UserCheck, Map, UserX } from "lucide-react";
 
-interface Salesperson {
-  id: number;
-  userId: string;
-  territory: string | null;
-  active: boolean;
-  ordersCount?: number;
-  totalLeads?: number;
-  leadsWon?: number;
-  revenue?: number;
-}
+import type { Salesperson } from "@shared/schema";
 
 export default function SalespeopleHub() {
   const { toast } = useToast();
@@ -35,7 +26,7 @@ export default function SalespeopleHub() {
   }, [isAuthenticated, isLoading, toast]);
 
   const { data: salespeople = [], isLoading: salespeopleLoading } = useQuery<Salesperson[]>({
-    queryKey: ["/api/salespeople/with-metrics"],
+    queryKey: ["/api/salespeople"],
     retry: false,
     enabled: isAuthenticated,
   });
@@ -44,11 +35,6 @@ export default function SalespeopleHub() {
     const total = salespeople.length;
     const active = salespeople.filter(sp => sp.active).length;
     const inactive = salespeople.filter(sp => !sp.active).length;
-    
-    const topPerformers = salespeople
-      .filter(sp => sp.active && (sp.ordersCount || 0) > 0)
-      .sort((a, b) => (b.ordersCount || 0) - (a.ordersCount || 0))
-      .slice(0, 5).length;
 
     const territoriesMap: Record<string, number> = {};
     salespeople.forEach(sp => {
@@ -56,9 +42,7 @@ export default function SalespeopleHub() {
         territoriesMap[sp.territory] = (territoriesMap[sp.territory] || 0) + 1;
       }
     });
-    const territoryKeys = Object.keys(territoriesMap);
-    const uniqueTerritories = territoryKeys.length;
-    const firstTerritory = territoryKeys[0] || "";
+    const uniqueTerritories = Object.keys(territoriesMap).length;
 
     const hubCards: HubCardConfig[] = [
       {
@@ -80,22 +64,13 @@ export default function SalespeopleHub() {
         href: "/salespeople/list?status=active",
       },
       {
-        id: "top-performers",
-        label: "Top Performers",
-        description: "Highest performing salespeople",
-        icon: Trophy,
-        ...hubColors.purple,
-        count: topPerformers,
-        href: "/salespeople/list?filter=top",
-      },
-      {
         id: "territories",
         label: "By Territory",
         description: `${uniqueTerritories} territories defined`,
         icon: Map,
         ...hubColors.orange,
         count: uniqueTerritories,
-        href: firstTerritory ? `/salespeople/list?territory=${encodeURIComponent(firstTerritory)}` : "/salespeople/list",
+        href: "/salespeople/list",
       },
       {
         id: "inactive",

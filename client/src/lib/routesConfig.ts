@@ -18,7 +18,8 @@ const LeadsList = lazy(() => import("@/pages/leads"));
 const CompletedLeads = lazy(() => import("@/pages/completed-leads"));
 const OrganizationsHub = lazy(() => import("@/pages/organizations-hub"));
 const OrganizationsList = lazy(() => import("@/pages/organizations"));
-const Contacts = lazy(() => import("@/pages/contacts"));
+const ContactsHub = lazy(() => import("@/pages/contacts-hub"));
+const ContactsList = lazy(() => import("@/pages/contacts"));
 const CatalogHub = lazy(() => import("@/pages/catalog-hub"));
 const Catalog = lazy(() => import("@/pages/catalog"));
 const CategoryPage = lazy(() => import("@/pages/category-page"));
@@ -40,7 +41,8 @@ const Manufacturing = lazy(() => import("@/pages/manufacturing"));
 const TeamStoresHub = lazy(() => import("@/pages/team-stores-hub"));
 const TeamStores = lazy(() => import("@/pages/team-stores"));
 const ManufacturerLineItems = lazy(() => import("@/pages/manufacturer-line-items").then(m => ({ default: m.ManufacturerLineItems })));
-const Events = lazy(() => import("@/pages/events"));
+const EventsHub = lazy(() => import("@/pages/events-hub"));
+const EventsList = lazy(() => import("@/pages/events"));
 const EventWizard = lazy(() => import("@/pages/event-wizard"));
 const EventDetail = lazy(() => import("@/pages/event-detail"));
 const SalespeopleHub = lazy(() => import("@/pages/salespeople-hub"));
@@ -124,7 +126,8 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/completed-leads", title: "Completed Leads", component: CompletedLeads, requiresAuth: true, requiresLayout: true, resource: "leads" },
   { path: "/organizations", title: "Organizations Hub", component: OrganizationsHub, requiresAuth: true, requiresLayout: true, resource: "organizations" },
   { path: "/organizations/list", title: "Organizations List", component: OrganizationsList, requiresAuth: true, requiresLayout: true, resource: "organizations" },
-  { path: "/contacts", title: "Contacts", component: Contacts, requiresAuth: true, requiresLayout: true, resource: "contacts" },
+  { path: "/contacts", title: "Contacts Hub", component: ContactsHub, requiresAuth: true, requiresLayout: true, resource: "contacts" },
+  { path: "/contacts/list", title: "Contacts List", component: ContactsList, requiresAuth: true, requiresLayout: true, resource: "contacts" },
   { path: "/catalog", title: "Catalog Hub", component: CatalogHub, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/catalog/list", title: "Catalog List", component: Catalog, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/catalog/category/:categoryId", title: "Category Products", component: CategoryProducts, requiresAuth: true, requiresLayout: true, resource: "catalog" },
@@ -146,7 +149,8 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/team-stores", title: "Team Stores Hub", component: TeamStoresHub, requiresAuth: true, requiresLayout: true, resource: "teamStores" },
   { path: "/team-stores/list", title: "Team Stores List", component: TeamStores, requiresAuth: true, requiresLayout: true, resource: "teamStores" },
   { path: "/manufacturer/line-items", title: "My Line Items", component: ManufacturerLineItems, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
-  { path: "/events", title: "Events", component: Events, requiresAuth: true, requiresLayout: true, resource: "events" },
+  { path: "/events", title: "Events Hub", component: EventsHub, requiresAuth: true, requiresLayout: true, resource: "events" },
+  { path: "/events/list", title: "Events List", component: EventsList, requiresAuth: true, requiresLayout: true, resource: "events" },
   { path: "/events/:id/wizard", title: "Event Wizard", component: EventWizard, requiresAuth: true, requiresLayout: false, resource: "events" },
   { path: "/events/:id", title: "Event Detail", component: EventDetail, requiresAuth: true, requiresLayout: true, resource: "events" },
   { path: "/salespeople", title: "Salespeople Hub", component: SalespeopleHub, requiresAuth: true, requiresLayout: true, resource: "salespeople" },
