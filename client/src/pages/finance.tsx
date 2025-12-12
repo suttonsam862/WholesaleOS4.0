@@ -115,16 +115,23 @@ const CATEGORY_OPTIONS = [
 
 interface FinanceProps {
   defaultTab?: string;
+  action?: string | null;
+  statusFilter?: string | null;
 }
 
-export default function Finance({ defaultTab = "overview" }: FinanceProps) {
+export default function Finance({ defaultTab = "overview", action, statusFilter: initialStatusFilter }: FinanceProps) {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "invoice" | "payment" | "commission">("all");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter || "all");
   const [activeTab, setActiveTab] = useState(defaultTab);
+
+  const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(action === "new" && defaultTab === "invoices");
+  const [showCreatePaymentModal, setShowCreatePaymentModal] = useState(action === "new" && defaultTab === "payments");
+  const [showCreateCommissionModal, setShowCreateCommissionModal] = useState(action === "new" && defaultTab === "commissions");
+  const [showCreateExpenseModal, setShowCreateExpenseModal] = useState(action === "new" && defaultTab === "expenses");
   
   const [matchingSearchQuery, setMatchingSearchQuery] = useState("");
   const [matchingStatusFilter, setMatchingStatusFilter] = useState<string>("all");
@@ -132,12 +139,6 @@ export default function Finance({ defaultTab = "overview" }: FinanceProps) {
   const [matchingYearFilter, setMatchingYearFilter] = useState<string>("all");
   const [matchingSortBy, setMatchingSortBy] = useState<string>("newest");
   const [selectedOrderForMatching, setSelectedOrderForMatching] = useState<FinancialMatchingOrder | null>(null);
-
-  // Modal states for creating financial data
-  const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(false);
-  const [showCreatePaymentModal, setShowCreatePaymentModal] = useState(false);
-  const [showCreateCommissionModal, setShowCreateCommissionModal] = useState(false);
-  const [showCreateExpenseModal, setShowCreateExpenseModal] = useState(false);
 
   // Form states
   const [invoiceForm, setInvoiceForm] = useState({

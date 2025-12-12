@@ -29,29 +29,14 @@ export default function FinanceHub() {
 
   const { data: overview, isLoading: overviewLoading } = useQuery<any>({
     queryKey: ["/api/financial/overview"],
-    queryFn: async () => {
-      const response = await fetch('/api/financial/overview', { credentials: 'include' });
-      return response.ok ? response.json() : null;
-    },
-    retry: false,
   });
 
   const { data: invoices = [] } = useQuery<any[]>({
     queryKey: ["/api/invoices"],
-    queryFn: async () => {
-      const response = await fetch('/api/invoices', { credentials: 'include' });
-      return response.ok ? response.json() : [];
-    },
-    retry: false,
   });
 
   const { data: commissionPayments = [] } = useQuery<any[]>({
     queryKey: ["/api/commission-payments"],
-    queryFn: async () => {
-      const response = await fetch('/api/commission-payments', { credentials: 'include' });
-      return response.ok ? response.json() : [];
-    },
-    retry: false,
   });
 
   const visibleTiles = filterTilesByRole(financeTiles, userRole);

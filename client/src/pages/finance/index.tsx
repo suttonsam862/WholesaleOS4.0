@@ -1,5 +1,3 @@
-import { useEffect } from "react";
-import { useLocation, useSearch } from "wouter";
 import Finance from "../finance";
 
 interface FinanceTabWrapperProps {
@@ -7,7 +5,11 @@ interface FinanceTabWrapperProps {
 }
 
 export function FinanceTabWrapper({ defaultTab }: FinanceTabWrapperProps) {
-  return <Finance defaultTab={defaultTab} />;
+  const searchParams = new URLSearchParams(window.location.search);
+  const action = searchParams.get("action");
+  const status = searchParams.get("status");
+  
+  return <Finance defaultTab={defaultTab} action={action} statusFilter={status} />;
 }
 
 export function FinanceOverview() {
