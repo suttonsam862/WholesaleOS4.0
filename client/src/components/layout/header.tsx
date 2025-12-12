@@ -88,7 +88,7 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
         setLocation(`/organizations?selected=${id}`);
         break;
       case "order":
-        setLocation(`/orders?selected=${id}`);
+        setLocation(`/orders/${id}`);
         break;
       case "product":
         setLocation(`/catalog?selected=${id}`);

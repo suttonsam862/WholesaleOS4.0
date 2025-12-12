@@ -181,7 +181,7 @@ export default function AdminHome() {
               { key: "orderCode", label: "Order", className: "w-24 font-medium text-white" },
               { key: "organization.name", label: "Organization", className: "flex-1" },
             ]}
-            rowAction={{ href: (order) => `/orders?selected=${order.id}` }}
+            rowAction={{ href: (order) => `/orders/${order.id}` }}
             viewAllHref="/orders"
             emptyState={{ message: "No orders waiting for manufacturing", icon: ShoppingCart }}
           />

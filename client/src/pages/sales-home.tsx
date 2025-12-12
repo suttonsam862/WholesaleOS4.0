@@ -201,7 +201,7 @@ export default function SalesHome() {
               { key: "status", label: "Status", className: "w-28" },
               { key: "organization.name", label: "Client", className: "flex-1" },
             ]}
-            rowAction={{ href: (order) => `/orders?selected=${order.id}` }}
+            rowAction={{ href: (order) => `/orders/${order.id}` }}
             viewAllHref="/orders"
             emptyState={{ message: "All orders are on track", icon: ShoppingCart }}
           />

@@ -34,7 +34,6 @@ import {
   type UserRole,
 } from "@/lib/ordersStageConfig";
 import { OrgLogo } from "@/components/ui/org-logo";
-import { OrderCapsule } from "@/components/OrderCapsule";
 
 interface Organization {
   id: number;
@@ -74,8 +73,12 @@ export default function OrdersList() {
   const salespersonParam = params.get("salesperson");
 
   const [searchTerm, setSearchTerm] = useState(searchParam);
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
   const debouncedSearch = useDebounce(searchTerm, 300);
+
+  const navigateToOrder = useCallback((orderId: number) => {
+    const returnUrl = `/orders/list${searchString ? `?${searchString}` : ""}`;
+    setLocation(`/orders/${orderId}?from=${encodeURIComponent(returnUrl)}`);
+  }, [searchString, setLocation]);
 
   const stageConfig = stageParam ? getStageConfig(stageParam) : null;
 
@@ -302,11 +305,11 @@ export default function OrdersList() {
                 )}
                 tabIndex={0}
                 role="button"
-                onClick={() => setSelectedOrderId(order.id)}
+                onClick={() => navigateToOrder(order.id)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    setSelectedOrderId(order.id);
+                    navigateToOrder(order.id);
                   }
                 }}
                 data-testid={`card-order-${order.id}`}
@@ -386,14 +389,6 @@ export default function OrdersList() {
             );
           })}
         </div>
-      )}
-
-      {selectedOrderId && (
-        <OrderCapsule
-          orderId={selectedOrderId}
-          isOpen={!!selectedOrderId}
-          onClose={() => setSelectedOrderId(null)}
-        />
       )}
     </div>
   );

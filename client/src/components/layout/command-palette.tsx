@@ -150,7 +150,7 @@ export function CommandPalette({ open, setOpen }: { open: boolean, setOpen: (ope
                     <CommandItem 
                       key={`order-${order.id}`} 
                       value={`order ${order.orderCode} ${order.orderName}`}
-                      onSelect={() => runCommand(() => setLocation(`/orders?selected=${order.id}`))}
+                      onSelect={() => runCommand(() => setLocation(`/orders/${order.id}`))}
                     >
                       <ShoppingCart className="mr-2 h-4 w-4" />
                       <div className="flex flex-col">
