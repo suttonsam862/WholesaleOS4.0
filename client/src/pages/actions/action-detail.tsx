@@ -9,10 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, AlertCircle, Sparkles, FileText } from "lucide-react";
+import { Loader2, Check, AlertCircle, Sparkles, FileText, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { celebrateSuccess } from "@/lib/confetti";
+import { getActionById } from "@/lib/actionsConfig";
 import type { Order, Organization, Quote } from "@shared/schema";
 
 interface ActionDetailPageProps {
@@ -509,19 +511,29 @@ function ActionStepContent({
 
   if (currentStep.type === "done") {
     return (
-      <div className="text-center py-8">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
-          <Check className="h-8 w-8 text-green-600" />
-        </div>
-        <h3 className="text-lg font-medium mb-2">Action Complete!</h3>
-        <p className="text-muted-foreground">
-          Your changes have been saved. You can now continue working or close this page.
-        </p>
-      </div>
+      <DoneStep />
     );
   }
 
   return <div>Unknown step type</div>;
+}
+
+function DoneStep() {
+  useEffect(() => {
+    celebrateSuccess();
+  }, []);
+
+  return (
+    <div className="text-center py-8">
+      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
+        <Check className="h-8 w-8 text-green-600" />
+      </div>
+      <h3 className="text-lg font-medium mb-2">Action Complete!</h3>
+      <p className="text-muted-foreground">
+        Your changes have been saved. You can now continue working or close this page.
+      </p>
+    </div>
+  );
 }
 
 export function OrdersActionDetail() {
@@ -550,4 +562,20 @@ export function EventsActionDetail() {
 
 export function QuotesActionDetail() {
   return <ActionDetailPage hubId="quotes" />;
+}
+
+export function ManufacturingActionDetail() {
+  return <ActionDetailPage hubId="manufacturing" />;
+}
+
+export function TeamStoresActionDetail() {
+  return <ActionDetailPage hubId="team-stores" />;
+}
+
+export function DesignJobsActionDetail() {
+  return <ActionDetailPage hubId="design-jobs" />;
+}
+
+export function CatalogActionDetail() {
+  return <ActionDetailPage hubId="catalog" />;
 }

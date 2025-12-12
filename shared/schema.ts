@@ -1661,6 +1661,117 @@ export const pantoneAssignments = pgTable("pantone_assignments", {
   index("idx_pantone_assignments_pantone_code").on(table.pantoneCode),
 ]);
 
+// ==================== QUICK ACTION LOGS ====================
+
+// Quick action logs - Tracks all quick action executions for analytics and debugging
+export const quickActionLogs = pgTable("quick_action_logs", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  actionId: varchar("action_id").notNull(), // e.g., "quick-quote-generator"
+  actionTitle: varchar("action_title").notNull(),
+  hubId: varchar("hub_id").notNull(), // e.g., "quotes", "orders", "manufacturing"
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  status: varchar("status").notNull().$type<"started" | "step_completed" | "completed" | "cancelled" | "failed">().default("started"),
+  currentStep: varchar("current_step"), // Which step in the wizard
+  stepData: jsonb("step_data"), // Data collected at each step
+  resultData: jsonb("result_data"), // Final result/output data
+  errorMessage: text("error_message"),
+  entityType: varchar("entity_type"), // e.g., "order", "quote", "team_store"
+  entityId: integer("entity_id"), // ID of the primary entity involved
+  duration: integer("duration"), // Time taken in milliseconds
+  metadata: jsonb("metadata"), // Additional context
+  startedAt: timestamp("started_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_quick_action_logs_action_id").on(table.actionId),
+  index("idx_quick_action_logs_user_id").on(table.userId),
+  index("idx_quick_action_logs_hub_id").on(table.hubId),
+  index("idx_quick_action_logs_status").on(table.status),
+  index("idx_quick_action_logs_started_at").on(table.startedAt),
+]);
+
+// ==================== AI DESIGN SESSIONS ====================
+
+// AI design sessions - Tracks AI-generated design concepts for the AI Design Starter action
+export const aiDesignSessions = pgTable("ai_design_sessions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  sessionCode: varchar("session_code").unique().notNull(),
+  designJobId: integer("design_job_id").references(() => designJobs.id),
+  orderId: integer("order_id").references(() => orders.id),
+  variantId: integer("variant_id").references(() => productVariants.id),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  prompt: text("prompt"), // The AI prompt used
+  contextVariantIds: integer("context_variant_ids").array(), // Previous designs used for context (variant-based, not org-based)
+  generatedConcepts: jsonb("generated_concepts"), // Array of { conceptName, description, previewUrl, vectorUrl }
+  selectedConceptIndex: integer("selected_concept_index"),
+  status: varchar("status").notNull().$type<"generating" | "ready" | "selected" | "applied" | "failed">().default("generating"),
+  aiProvider: varchar("ai_provider").default("gemini"), // Which AI provider was used
+  modelVersion: varchar("model_version"), // e.g., "gemini-2.0-flash"
+  tokensUsed: integer("tokens_used"),
+  generationDuration: integer("generation_duration"), // milliseconds
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_ai_design_sessions_design_job_id").on(table.designJobId),
+  index("idx_ai_design_sessions_variant_id").on(table.variantId),
+  index("idx_ai_design_sessions_user_id").on(table.userId),
+  index("idx_ai_design_sessions_status").on(table.status),
+]);
+
+// ==================== TOUR MERCH BUNDLES ====================
+
+// Tour merch bundles - Pre-configured merchandise bundles for tour events
+export const tourMerchBundles = pgTable("tour_merch_bundles", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  bundleCode: varchar("bundle_code").unique().notNull(),
+  eventId: integer("event_id").references(() => events.id),
+  teamStoreId: integer("team_store_id").references(() => teamStores.id),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  status: varchar("status").notNull().$type<"draft" | "ready" | "live" | "completed" | "archived">().default("draft"),
+  bundleConfig: jsonb("bundle_config"), // Configuration for bundle items
+  designVariantIds: integer("design_variant_ids").array(), // Generated designs
+  qrCodeUrl: text("qr_code_url"),
+  marketingAssetUrls: text("marketing_asset_urls").array(),
+  storeCloseDate: date("store_close_date"),
+  totalAllocated: integer("total_allocated").default(0),
+  totalSold: integer("total_sold").default(0),
+  revenue: decimal("revenue", { precision: 12, scale: 2 }).default("0"),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_tour_merch_bundles_event_id").on(table.eventId),
+  index("idx_tour_merch_bundles_team_store_id").on(table.teamStoreId),
+  index("idx_tour_merch_bundles_status").on(table.status),
+]);
+
+// ==================== PRINTFUL SYNC TRACKING ====================
+
+// Printful sync records - Tracks orders pushed to Printful
+export const printfulSyncRecords = pgTable("printful_sync_records", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  orderId: integer("order_id").references(() => orders.id).notNull(),
+  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id),
+  printfulOrderId: varchar("printful_order_id"), // Printful's order ID
+  printfulExternalId: varchar("printful_external_id"), // Our external reference
+  status: varchar("status").notNull().$type<"pending" | "synced" | "processing" | "shipped" | "delivered" | "failed" | "cancelled">().default("pending"),
+  syncedLineItems: jsonb("synced_line_items"), // Which line items were synced
+  trackingInfo: jsonb("tracking_info"), // Tracking numbers from Printful
+  errorMessage: text("error_message"),
+  lastSyncAttempt: timestamp("last_sync_attempt"),
+  syncAttempts: integer("sync_attempts").default(0),
+  printfulResponse: jsonb("printful_response"), // Raw API response
+  syncedBy: varchar("synced_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_printful_sync_order_id").on(table.orderId),
+  index("idx_printful_sync_printful_order_id").on(table.printfulOrderId),
+  index("idx_printful_sync_status").on(table.status),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   salesperson: one(salespersons, { fields: [users.id], references: [salespersons.userId] }),
@@ -2651,3 +2762,81 @@ export const insertPantoneAssignmentSchema = createInsertSchema(pantoneAssignmen
 
 export type PantoneAssignment = typeof pantoneAssignments.$inferSelect;
 export type InsertPantoneAssignment = z.infer<typeof insertPantoneAssignmentSchema>;
+
+// Quick Action Logs Schemas
+export const insertQuickActionLogSchema = createInsertSchema(quickActionLogs, {
+  actionId: z.string().min(1, "Action ID is required"),
+  actionTitle: z.string().min(1, "Action title is required"),
+  hubId: z.string().min(1, "Hub ID is required"),
+  status: z.enum(["started", "step_completed", "completed", "cancelled", "failed"]).optional(),
+  currentStep: z.string().optional(),
+  stepData: z.any().optional(),
+  resultData: z.any().optional(),
+  errorMessage: z.string().optional(),
+  entityType: z.string().optional(),
+  entityId: z.number().int().optional(),
+  duration: z.number().int().optional(),
+  metadata: z.any().optional(),
+}).omit({ id: true, createdAt: true, startedAt: true, completedAt: true });
+
+export type QuickActionLog = typeof quickActionLogs.$inferSelect;
+export type InsertQuickActionLog = z.infer<typeof insertQuickActionLogSchema>;
+
+// AI Design Sessions Schemas
+export const insertAiDesignSessionSchema = createInsertSchema(aiDesignSessions, {
+  sessionCode: z.string().min(1, "Session code is required"),
+  designJobId: z.number().int().optional(),
+  orderId: z.number().int().optional(),
+  variantId: z.number().int().optional(),
+  prompt: z.string().optional(),
+  contextVariantIds: z.array(z.number().int()).optional(),
+  generatedConcepts: z.any().optional(),
+  selectedConceptIndex: z.number().int().optional(),
+  status: z.enum(["generating", "ready", "selected", "applied", "failed"]).optional(),
+  aiProvider: z.string().optional(),
+  modelVersion: z.string().optional(),
+  tokensUsed: z.number().int().optional(),
+  generationDuration: z.number().int().optional(),
+  errorMessage: z.string().optional(),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+
+export type AiDesignSession = typeof aiDesignSessions.$inferSelect;
+export type InsertAiDesignSession = z.infer<typeof insertAiDesignSessionSchema>;
+
+// Tour Merch Bundles Schemas
+export const insertTourMerchBundleSchema = createInsertSchema(tourMerchBundles, {
+  bundleCode: z.string().min(1, "Bundle code is required"),
+  eventId: z.number().int().optional(),
+  teamStoreId: z.number().int().optional(),
+  name: z.string().min(1, "Bundle name is required"),
+  description: z.string().optional(),
+  status: z.enum(["draft", "ready", "live", "completed", "archived"]).optional(),
+  bundleConfig: z.any().optional(),
+  designVariantIds: z.array(z.number().int()).optional(),
+  qrCodeUrl: z.string().url().optional(),
+  marketingAssetUrls: z.array(z.string().url()).optional(),
+  storeCloseDate: z.string().optional(),
+  totalAllocated: z.number().int().optional(),
+  totalSold: z.number().int().optional(),
+  revenue: z.string().optional(),
+}).omit({ id: true, createdAt: true, updatedAt: true });
+
+export type TourMerchBundle = typeof tourMerchBundles.$inferSelect;
+export type InsertTourMerchBundle = z.infer<typeof insertTourMerchBundleSchema>;
+
+// Printful Sync Records Schemas
+export const insertPrintfulSyncRecordSchema = createInsertSchema(printfulSyncRecords, {
+  orderId: z.number().int().positive("Order ID is required"),
+  manufacturingId: z.number().int().optional(),
+  printfulOrderId: z.string().optional(),
+  printfulExternalId: z.string().optional(),
+  status: z.enum(["pending", "synced", "processing", "shipped", "delivered", "failed", "cancelled"]).optional(),
+  syncedLineItems: z.any().optional(),
+  trackingInfo: z.any().optional(),
+  errorMessage: z.string().optional(),
+  syncAttempts: z.number().int().optional(),
+  printfulResponse: z.any().optional(),
+}).omit({ id: true, createdAt: true, updatedAt: true, lastSyncAttempt: true });
+
+export type PrintfulSyncRecord = typeof printfulSyncRecords.$inferSelect;
+export type InsertPrintfulSyncRecord = z.infer<typeof insertPrintfulSyncRecordSchema>;

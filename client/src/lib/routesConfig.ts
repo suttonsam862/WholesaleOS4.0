@@ -104,6 +104,14 @@ const EventsActions = lazy(() => import("@/pages/actions/events-actions"));
 const EventsActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.EventsActionDetail })));
 const QuotesActions = lazy(() => import("@/pages/actions/quotes-actions"));
 const QuotesActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.QuotesActionDetail })));
+const ManufacturingActions = lazy(() => import("@/pages/actions/manufacturing-actions"));
+const ManufacturingActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.ManufacturingActionDetail })));
+const TeamStoresActions = lazy(() => import("@/pages/actions/team-stores-actions"));
+const TeamStoresActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.TeamStoresActionDetail })));
+const DesignJobsActions = lazy(() => import("@/pages/actions/design-jobs-actions"));
+const DesignJobsActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.DesignJobsActionDetail })));
+const CatalogActions = lazy(() => import("@/pages/actions/catalog-actions"));
+const CatalogActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.CatalogActionDetail })));
 
 const AdminHome = lazy(() => import("@/pages/admin-home"));
 const SalesHome = lazy(() => import("@/pages/sales-home"));
@@ -151,6 +159,8 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/contacts/actions/:actionId", title: "Contact Action", component: ContactsActionDetail, requiresAuth: true, requiresLayout: true, resource: "contacts" },
   { path: "/catalog", title: "Catalog Hub", component: CatalogHub, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/catalog/list", title: "Catalog List", component: Catalog, requiresAuth: true, requiresLayout: true, resource: "catalog" },
+  { path: "/catalog/actions", title: "Catalog Actions", component: CatalogActions, requiresAuth: true, requiresLayout: true, resource: "catalog" },
+  { path: "/catalog/actions/:actionId", title: "Catalog Action", component: CatalogActionDetail, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/catalog/category/:categoryId", title: "Category Products", component: CategoryProducts, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/catalog/product/:productId", title: "Product Variants", component: ProductVariants, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/catalog/variant/:variantId/designs", title: "Design Archive", component: VariantDesignArchive, requiresAuth: true, requiresLayout: true, resource: "catalog" },
@@ -160,6 +170,8 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/catalog/archived/variants", title: "Archived Variants", component: ArchivedVariants, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/design-jobs", title: "Design Jobs Hub", component: DesignJobsHub, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
   { path: "/design-jobs/list", title: "Design Jobs List", component: DesignJobs, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
+  { path: "/design-jobs/actions", title: "Design Jobs Actions", component: DesignJobsActions, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
+  { path: "/design-jobs/actions/:actionId", title: "Design Job Action", component: DesignJobsActionDetail, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
   { path: "/design-jobs/:id", title: "Design Job Detail", component: DesignJobDetail, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
   { path: "/orders", title: "Orders Hub", component: OrdersHub, requiresAuth: true, requiresLayout: true, resource: "orders" },
   { path: "/orders/list", title: "Orders List", component: OrdersList, requiresAuth: true, requiresLayout: true, resource: "orders" },
@@ -169,8 +181,12 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/orders/legacy", title: "Orders (Legacy)", component: OrdersLegacy, requiresAuth: true, requiresLayout: true, resource: "orders" },
   { path: "/manufacturing", title: "Manufacturing Hub", component: ManufacturingHub, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
   { path: "/manufacturing/list", title: "Manufacturing List", component: Manufacturing, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
+  { path: "/manufacturing/actions", title: "Manufacturing Actions", component: ManufacturingActions, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
+  { path: "/manufacturing/actions/:actionId", title: "Manufacturing Action", component: ManufacturingActionDetail, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
   { path: "/team-stores", title: "Team Stores Hub", component: TeamStoresHub, requiresAuth: true, requiresLayout: true, resource: "teamStores" },
   { path: "/team-stores/list", title: "Team Stores List", component: TeamStores, requiresAuth: true, requiresLayout: true, resource: "teamStores" },
+  { path: "/team-stores/actions", title: "Team Stores Actions", component: TeamStoresActions, requiresAuth: true, requiresLayout: true, resource: "teamStores" },
+  { path: "/team-stores/actions/:actionId", title: "Team Store Action", component: TeamStoresActionDetail, requiresAuth: true, requiresLayout: true, resource: "teamStores" },
   { path: "/manufacturer/line-items", title: "My Line Items", component: ManufacturerLineItems, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
   { path: "/events", title: "Events Hub", component: EventsHub, requiresAuth: true, requiresLayout: true, resource: "events" },
   { path: "/events/list", title: "Events List", component: EventsList, requiresAuth: true, requiresLayout: true, resource: "events" },
