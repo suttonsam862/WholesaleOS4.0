@@ -34,7 +34,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryParams } from "@/hooks/useQueryParams";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { LensHeader, CardGrid, StatCard, ProgressRing } from "@/components/views";
 import { 
   MapPin, 
   Plus, 
@@ -49,9 +51,16 @@ import {
   ImageIcon,
   Trophy,
   Map as MapIcon,
-  FileText
+  FileText,
+  Users,
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+  ShoppingBag,
+  Warehouse,
+  Briefcase
 } from "lucide-react";
-import type { Organization, InsertOrganization } from "@shared/schema";
+import type { Organization, InsertOrganization, Quote, Order } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { OrgLogo } from "@/components/ui/org-logo";
 import { OrgColorPalette } from "@/components/ui/org-branded-card";
@@ -67,9 +76,28 @@ const CLIENT_TYPE_OPTIONS = [
   { value: "government", label: "Government" },
 ];
 
+type ViewMode = "default" | "new-clients" | "client-type";
+type ClientType = "retail" | "wholesale" | "enterprise";
+
+const CLIENT_TYPE_CONFIG: Record<ClientType, { label: string; icon: typeof Building2; borderColor: string; bgColor: string }> = {
+  retail: { label: "Retail", icon: ShoppingBag, borderColor: "border-l-teal-500", bgColor: "bg-teal-500/10" },
+  wholesale: { label: "Wholesale", icon: Warehouse, borderColor: "border-l-purple-500", bgColor: "bg-purple-500/10" },
+  enterprise: { label: "Enterprise", icon: Briefcase, borderColor: "border-l-amber-500", bgColor: "bg-amber-500/10" },
+};
+
 export default function Organizations() {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
+  const queryParams = useQueryParams();
+
+  // Determine view mode from URL params
+  const viewMode: ViewMode = useMemo(() => {
+    if (queryParams.filter === "new") return "new-clients";
+    if (queryParams.type && ["retail", "wholesale", "enterprise"].includes(queryParams.type)) return "client-type";
+    return "default";
+  }, [queryParams.filter, queryParams.type]);
+
+  const activeClientType = queryParams.type as ClientType | undefined;
 
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -123,6 +151,17 @@ export default function Organizations() {
   const { data: organizations = [], isLoading: orgsLoading } = useQuery<Organization[]>({
     queryKey: ["/api/organizations"],
     retry: false,
+  });
+
+  // Fetch quotes and orders for onboarding stats (new clients lens)
+  const { data: quotes = [] } = useQuery<Quote[]>({
+    queryKey: ["/api/quotes"],
+    enabled: viewMode === "new-clients",
+  });
+
+  const { data: orders = [] } = useQuery<Order[]>({
+    queryKey: ["/api/orders"],
+    enabled: viewMode === "new-clients",
   });
 
   // Extract colors from organization logos
@@ -201,9 +240,24 @@ export default function Organizations() {
     return { background: gradient, textClass };
   };
 
+  // Calculate 30 days ago for new clients filter
+  const thirtyDaysAgo = useMemo(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 30);
+    return date;
+  }, []);
+
   // Filter and search organizations
   const filteredOrgs = useMemo(() => {
     return organizations.filter(org => {
+      // URL-based filters first
+      if (viewMode === "new-clients") {
+        if (!org.createdAt || new Date(org.createdAt) < thirtyDaysAgo) return false;
+      }
+      if (viewMode === "client-type" && activeClientType) {
+        if (org.clientType !== activeClientType) return false;
+      }
+
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -217,12 +271,65 @@ export default function Organizations() {
         if (!matchesSearch) return false;
       }
 
-      // Client type filter
-      if (clientTypeFilter && clientTypeFilter !== " " && org.clientType !== clientTypeFilter) return false;
+      // Client type filter (dropdown in default view)
+      if (viewMode === "default" && clientTypeFilter && clientTypeFilter !== " " && org.clientType !== clientTypeFilter) return false;
 
       return true;
     });
-  }, [organizations, searchQuery, clientTypeFilter]);
+  }, [organizations, searchQuery, clientTypeFilter, viewMode, activeClientType, thirtyDaysAgo]);
+
+  // Calculate onboarding stats for new clients lens
+  const onboardingStats = useMemo(() => {
+    if (viewMode !== "new-clients") return null;
+
+    const newOrgs = filteredOrgs;
+    const total = newOrgs.length;
+    if (total === 0) return { total: 0, withQuote: 0, withOrder: 0, percentComplete: 0 };
+
+    const orgIdsSet = new Set(newOrgs.map(org => org.id));
+    const withQuote = new Set(quotes.filter(q => q.orgId && orgIdsSet.has(q.orgId)).map(q => q.orgId)).size;
+    const withOrder = new Set(orders.filter(o => o.orgId && orgIdsSet.has(o.orgId)).map(o => o.orgId)).size;
+    const withActivity = new Set([
+      ...quotes.filter(q => q.orgId && orgIdsSet.has(q.orgId)).map(q => q.orgId),
+      ...orders.filter(o => o.orgId && orgIdsSet.has(o.orgId)).map(o => o.orgId),
+    ]).size;
+    const percentComplete = Math.round((withActivity / total) * 100);
+
+    return { total, withQuote, withOrder, percentComplete };
+  }, [viewMode, filteredOrgs, quotes, orders]);
+
+  // Calculate KPI stats for client type lens
+  const clientTypeStats = useMemo(() => {
+    if (viewMode !== "client-type" || !activeClientType) return null;
+
+    const typeOrgs = filteredOrgs;
+    const total = typeOrgs.length;
+    
+    const volumes = typeOrgs
+      .map(org => parseFloat(org.annualVolume || "0"))
+      .filter(v => !isNaN(v) && v > 0);
+    const avgVolume = volumes.length > 0 
+      ? volumes.reduce((a, b) => a + b, 0) / volumes.length 
+      : 0;
+
+    const territoryCounts: Record<string, number> = {};
+    typeOrgs.forEach(org => {
+      if (org.territory) {
+        territoryCounts[org.territory] = (territoryCounts[org.territory] || 0) + 1;
+      }
+    });
+    const topTerritory = Object.entries(territoryCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "N/A";
+
+    return { total, avgVolume, topTerritory };
+  }, [viewMode, activeClientType, filteredOrgs]);
+
+  // Helper to calculate days ago
+  const getDaysAgo = (date: Date | string | null): number => {
+    if (!date) return 0;
+    const d = new Date(date);
+    const now = new Date();
+    return Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  };
 
   // Create organization mutation
   const createOrgMutation = useMutation({
@@ -580,207 +687,378 @@ export default function Organizations() {
     );
   }
 
-  return (
-    <div className="p-6 space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80 pb-24">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold gradient-text" data-testid="text-page-title">Organizations</h1>
-          <p className="text-muted-foreground">Manage companies and organizations</p>
-        </div>
-        <Button 
-          onClick={() => setIsCreateModalOpen(true)} 
-          data-testid="button-create-org"
-          className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Organization
-        </Button>
-      </div>
-
-      {/* Filters */}
-      <Card className="glass-card border-white/10">
-        <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search organizations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 bg-black/20 border-white/10 text-white"
-                data-testid="input-search-orgs"
-              />
+  // Render organization card (shared between views)
+  const renderOrgCard = (org: Organization, showJoinedBadge: boolean = false, typeStyled: boolean = false) => {
+    const { background, textClass } = getOrgCardStyle(org);
+    const hasGradient = background !== '';
+    const colors = org.brandPrimaryColor && org.brandSecondaryColor 
+      ? [org.brandPrimaryColor, org.brandSecondaryColor]
+      : orgColors.get(org.id) || [];
+    const daysAgo = getDaysAgo(org.createdAt);
+    const typeConfig = org.clientType && CLIENT_TYPE_CONFIG[org.clientType as ClientType];
+    
+    return (
+      <Card 
+        key={org.id} 
+        className={cn(
+          "overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-[1.02]",
+          hasGradient ? "border-0" : "glass-card border-white/10 hover:border-primary/50",
+          typeStyled && typeConfig && `border-l-4 ${typeConfig.borderColor}`
+        )} 
+        style={hasGradient ? { background } : undefined}
+        data-testid={`card-org-${org.id}`}
+      >
+        <CardHeader className="flex flex-row items-start justify-between pb-2">
+          <div className="flex items-center gap-3">
+            <OrgLogo
+              src={org.logoUrl}
+              orgName={org.name}
+              orgId={org.id}
+              size="lg"
+              showColorRing={!hasGradient}
+              className="shadow-lg"
+              fallbackColors={colors}
+            />
+            <div>
+              <CardTitle 
+                className={cn(
+                  "text-lg font-semibold",
+                  hasGradient ? textClass : "text-foreground"
+                )}
+                style={hasGradient ? { textShadow: '0 1px 3px rgba(0,0,0,0.3)' } : undefined}
+              >
+                {org.name}
+              </CardTitle>
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
+                {showJoinedBadge && (
+                  <Badge 
+                    variant="secondary" 
+                    className="bg-green-500/20 text-green-400 hover:bg-green-500/30"
+                    data-testid={`badge-joined-${org.id}`}
+                  >
+                    <Clock className="h-3 w-3 mr-1" />
+                    Joined {daysAgo} days ago
+                  </Badge>
+                )}
+                {org.clientType && !showJoinedBadge && (
+                  <Badge 
+                    variant="secondary" 
+                    className={cn(
+                      hasGradient ? "bg-white/20 text-white hover:bg-white/30" : "bg-white/10 text-white hover:bg-white/20"
+                    )}
+                  >
+                    {org.clientType}
+                  </Badge>
+                )}
+              </div>
             </div>
-            <Select value={clientTypeFilter} onValueChange={setClientTypeFilter}>
-              <SelectTrigger className="bg-black/20 border-white/10 text-white" data-testid="select-client-type-filter">
-                <SelectValue placeholder="Filter by client type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value=" ">All Types</SelectItem>
-                {CLIENT_TYPE_OPTIONS.map(type => (
-                  <SelectItem key={type.value} value={type.value}>
-                    {type.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          </div>
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              className={cn(
+                "h-8 w-8 p-0",
+                hasGradient ? "hover:bg-white/20 text-white" : "hover:bg-white/10"
+              )}
+              onClick={() => openEditModal(org)}
+              data-testid={`button-edit-org-${org.id}`}
+            >
+              <Edit2 className="h-4 w-4" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className={cn(
+                "h-8 w-8 p-0",
+                hasGradient ? "hover:bg-white/20 text-white" : "text-destructive hover:bg-destructive/10"
+              )}
+              onClick={() => setDeleteOrgId(org.id)}
+              data-testid={`button-delete-org-${org.id}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className={cn("space-y-4", hasGradient && textClass)}>
+          {colors.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Palette className={cn("h-4 w-4", hasGradient ? "opacity-80" : "text-muted-foreground")} />
+              <OrgColorPalette colors={colors} size="sm" />
+              <span className={cn("text-xs", hasGradient ? "opacity-80" : "text-muted-foreground")}>
+                Brand Colors
+              </span>
+            </div>
+          )}
+          
+          {org.notes && (
+            <p className={cn(
+              "text-sm line-clamp-2",
+              hasGradient ? "opacity-90" : "text-muted-foreground"
+            )}>
+              {org.notes}
+            </p>
+          )}
+          
+          <div className="space-y-2 text-sm">
+            {org.sports && (
+              <div className={cn(
+                "flex items-center gap-2",
+                hasGradient ? "opacity-90" : "text-muted-foreground"
+              )}>
+                <Trophy className="h-4 w-4" />
+                <span>{org.sports}</span>
+              </div>
+            )}
+            {(org.city || org.state) && (
+              <div className={cn(
+                "flex items-center gap-2",
+                hasGradient ? "opacity-90" : "text-muted-foreground"
+              )}>
+                <MapPin className="h-4 w-4" />
+                <span>{[org.city, org.state].filter(Boolean).join(', ')}</span>
+              </div>
+            )}
+            {org.territory && (
+              <div className={cn(
+                "flex items-center gap-2",
+                hasGradient ? "opacity-90" : "text-muted-foreground"
+              )}>
+                <MapIcon className="h-4 w-4" />
+                <span>{org.territory}</span>
+              </div>
+            )}
+            {org.shippingAddress && (
+              <div className={cn(
+                "flex items-center gap-2",
+                hasGradient ? "opacity-90" : "text-muted-foreground"
+              )}>
+                <FileText className="h-4 w-4" />
+                <span className="line-clamp-1">{org.shippingAddress}</span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
+    );
+  };
 
-      {/* Organizations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredOrgs.map(org => {
-          const { background, textClass } = getOrgCardStyle(org);
-          const hasGradient = background !== '';
-          const colors = org.brandPrimaryColor && org.brandSecondaryColor 
-            ? [org.brandPrimaryColor, org.brandSecondaryColor]
-            : orgColors.get(org.id) || [];
+  return (
+    <div className="p-6 space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80 pb-24">
+      {/* Header - Different for each view mode */}
+      {viewMode === "new-clients" ? (
+        <LensHeader
+          title="New Clients"
+          subtitle="Clients added in the last 30 days"
+          icon={Users}
+          lensName="New Clients"
+          lensColor="bg-green-600"
+          backHref="/organizations/hub"
+          clearHref="/organizations/list"
+        >
+          <Button 
+            onClick={() => setIsCreateModalOpen(true)} 
+            data-testid="button-create-org"
+            className="bg-green-600 hover:bg-green-700 text-white shadow-lg shadow-green-600/20"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Organization
+          </Button>
+        </LensHeader>
+      ) : viewMode === "client-type" && activeClientType ? (
+        <LensHeader
+          title={`${CLIENT_TYPE_CONFIG[activeClientType].label} Clients`}
+          subtitle={`Organizations categorized as ${activeClientType}`}
+          icon={CLIENT_TYPE_CONFIG[activeClientType].icon}
+          lensName={CLIENT_TYPE_CONFIG[activeClientType].label}
+          lensColor={activeClientType === "retail" ? "bg-teal-600" : activeClientType === "wholesale" ? "bg-purple-600" : "bg-amber-600"}
+          backHref="/organizations/hub"
+          clearHref="/organizations/list"
+        >
+          <Button 
+            onClick={() => setIsCreateModalOpen(true)} 
+            data-testid="button-create-org"
+            className={cn(
+              "shadow-lg text-white",
+              activeClientType === "retail" ? "bg-teal-600 hover:bg-teal-700 shadow-teal-600/20" :
+              activeClientType === "wholesale" ? "bg-purple-600 hover:bg-purple-700 shadow-purple-600/20" :
+              "bg-amber-600 hover:bg-amber-700 shadow-amber-600/20"
+            )}
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Organization
+          </Button>
+        </LensHeader>
+      ) : (
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold gradient-text" data-testid="text-page-title">Organizations</h1>
+            <p className="text-muted-foreground">Manage companies and organizations</p>
+          </div>
+          <Button 
+            onClick={() => setIsCreateModalOpen(true)} 
+            data-testid="button-create-org"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Organization
+          </Button>
+        </div>
+      )}
+
+      {/* KPI Stats Row for Client Type Lens */}
+      {viewMode === "client-type" && clientTypeStats && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <StatCard
+            title="Total Count"
+            value={clientTypeStats.total}
+            icon={<Users className="h-5 w-5 text-white" />}
+            color={activeClientType === "retail" ? "bg-teal-500/20" : activeClientType === "wholesale" ? "bg-purple-500/20" : "bg-amber-500/20"}
+          />
+          <StatCard
+            title="Avg Annual Volume"
+            value={clientTypeStats.avgVolume > 0 ? `$${Math.round(clientTypeStats.avgVolume).toLocaleString()}` : "N/A"}
+            icon={<TrendingUp className="h-5 w-5 text-white" />}
+            color={activeClientType === "retail" ? "bg-teal-500/20" : activeClientType === "wholesale" ? "bg-purple-500/20" : "bg-amber-500/20"}
+          />
+          <StatCard
+            title="Top Territory"
+            value={clientTypeStats.topTerritory}
+            icon={<MapIcon className="h-5 w-5 text-white" />}
+            color={activeClientType === "retail" ? "bg-teal-500/20" : activeClientType === "wholesale" ? "bg-purple-500/20" : "bg-amber-500/20"}
+          />
+        </div>
+      )}
+
+      {/* Filters - Only show in default view */}
+      {viewMode === "default" && (
+        <Card className="glass-card border-white/10">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search organizations..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 bg-black/20 border-white/10 text-white"
+                  data-testid="input-search-orgs"
+                />
+              </div>
+              <Select value={clientTypeFilter} onValueChange={setClientTypeFilter}>
+                <SelectTrigger className="bg-black/20 border-white/10 text-white" data-testid="select-client-type-filter">
+                  <SelectValue placeholder="Filter by client type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value=" ">All Types</SelectItem>
+                  {CLIENT_TYPE_OPTIONS.map(type => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Search bar for lens views */}
+      {viewMode !== "default" && (
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search organizations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 bg-black/20 border-white/10 text-white"
+            data-testid="input-search-orgs"
+          />
+        </div>
+      )}
+
+      {/* New Clients Lens Layout - 2 columns with side panel */}
+      {viewMode === "new-clients" ? (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Main content - 2 column grid */}
+          <div className="lg:col-span-3">
+            <CardGrid
+              items={filteredOrgs}
+              columns={2}
+              renderCard={(org) => renderOrgCard(org, true, false)}
+              emptyMessage="No new clients in the last 30 days"
+            />
+          </div>
           
-          return (
-            <Card 
-              key={org.id} 
-              className={cn(
-                "overflow-hidden hover:shadow-xl transition-all duration-300 hover:scale-[1.02]",
-                hasGradient ? "border-0" : "glass-card border-white/10 hover:border-primary/50"
-              )} 
-              style={hasGradient ? { background } : undefined}
-              data-testid={`card-org-${org.id}`}
-            >
-              <CardHeader className="flex flex-row items-start justify-between pb-2">
-                <div className="flex items-center gap-3">
-                  {/* Organization Logo */}
-                  <OrgLogo
-                    src={org.logoUrl}
-                    orgName={org.name}
-                    orgId={org.id}
-                    size="lg"
-                    showColorRing={!hasGradient}
-                    className="shadow-lg"
-                    fallbackColors={colors}
-                  />
-                  <div>
-                    <CardTitle 
-                      className={cn(
-                        "text-lg font-semibold",
-                        hasGradient ? textClass : "text-foreground"
-                      )}
-                      style={hasGradient ? { textShadow: '0 1px 3px rgba(0,0,0,0.3)' } : undefined}
-                    >
-                      {org.name}
-                    </CardTitle>
-                    <div className="flex items-center gap-2 mt-1">
-                      {org.clientType && (
-                        <Badge 
-                          variant="secondary" 
-                          className={cn(
-                            hasGradient ? "bg-white/20 text-white hover:bg-white/30" : "bg-white/10 text-white hover:bg-white/20"
-                          )}
-                        >
-                          {org.clientType}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={cn(
-                      "h-8 w-8 p-0",
-                      hasGradient ? "hover:bg-white/20 text-white" : "hover:bg-white/10"
-                    )}
-                    onClick={() => openEditModal(org)}
-                    data-testid={`button-edit-org-${org.id}`}
-                  >
-                    <Edit2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className={cn(
-                      "h-8 w-8 p-0",
-                      hasGradient ? "hover:bg-white/20 text-white" : "text-destructive hover:bg-destructive/10"
-                    )}
-                    onClick={() => setDeleteOrgId(org.id)}
-                    data-testid={`button-delete-org-${org.id}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+          {/* Onboarding Stats Panel */}
+          <div className="lg:col-span-1 space-y-4">
+            <Card className="glass-card border-green-500/20 bg-green-500/5">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg text-green-400 flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5" />
+                  Onboarding Progress
+                </CardTitle>
               </CardHeader>
-              <CardContent className={cn("space-y-4", hasGradient && textClass)}>
-                {/* Color Palette Display */}
-                {colors.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Palette className={cn("h-4 w-4", hasGradient ? "opacity-80" : "text-muted-foreground")} />
-                    <OrgColorPalette colors={colors} size="sm" />
-                    <span className={cn("text-xs", hasGradient ? "opacity-80" : "text-muted-foreground")}>
-                      Brand Colors
-                    </span>
-                  </div>
+              <CardContent className="space-y-6">
+                {onboardingStats && (
+                  <>
+                    <div className="flex justify-center">
+                      <ProgressRing
+                        value={onboardingStats.percentComplete}
+                        max={100}
+                        size={100}
+                        color="#22c55e"
+                        label="Active"
+                      />
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-black/20">
+                        <span className="text-sm text-muted-foreground">Has Quote</span>
+                        <span className="font-semibold text-white">
+                          {onboardingStats.withQuote}/{onboardingStats.total}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-black/20">
+                        <span className="text-sm text-muted-foreground">Has Order</span>
+                        <span className="font-semibold text-white">
+                          {onboardingStats.withOrder}/{onboardingStats.total}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <p className="text-xs text-center text-muted-foreground">
+                      {onboardingStats.percentComplete}% of new clients have at least one quote or order
+                    </p>
+                  </>
                 )}
-                
-                {org.notes && (
-                  <p className={cn(
-                    "text-sm line-clamp-2",
-                    hasGradient ? "opacity-90" : "text-muted-foreground"
-                  )}>
-                    {org.notes}
-                  </p>
-                )}
-                
-                <div className="space-y-2 text-sm">
-                  {org.sports && (
-                    <div className={cn(
-                      "flex items-center gap-2",
-                      hasGradient ? "opacity-90" : "text-muted-foreground"
-                    )}>
-                      <Trophy className="h-4 w-4" />
-                      <span>{org.sports}</span>
-                    </div>
-                  )}
-                  {(org.city || org.state) && (
-                    <div className={cn(
-                      "flex items-center gap-2",
-                      hasGradient ? "opacity-90" : "text-muted-foreground"
-                    )}>
-                      <MapPin className="h-4 w-4" />
-                      <span>{[org.city, org.state].filter(Boolean).join(', ')}</span>
-                    </div>
-                  )}
-                  {org.territory && (
-                    <div className={cn(
-                      "flex items-center gap-2",
-                      hasGradient ? "opacity-90" : "text-muted-foreground"
-                    )}>
-                      <MapIcon className="h-4 w-4" />
-                      <span>{org.territory}</span>
-                    </div>
-                  )}
-                  {org.shippingAddress && (
-                    <div className={cn(
-                      "flex items-center gap-2",
-                      hasGradient ? "opacity-90" : "text-muted-foreground"
-                    )}>
-                      <FileText className="h-4 w-4" />
-                      <span className="line-clamp-1">{org.shippingAddress}</span>
-                    </div>
-                  )}
-                </div>
               </CardContent>
             </Card>
-          );
-        })}
-        {filteredOrgs.length === 0 && (
-          <div className="col-span-full text-center py-12 text-muted-foreground">
-            <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No organizations found matching your filters.</p>
           </div>
-        )}
-      </div>
+        </div>
+      ) : viewMode === "client-type" ? (
+        /* Client Type Lens Layout - normal 3 column grid with styled cards */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredOrgs.map(org => renderOrgCard(org, false, true))}
+          {filteredOrgs.length === 0 && (
+            <div className="col-span-full text-center py-12 text-muted-foreground">
+              <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No {activeClientType} organizations found.</p>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Default Organizations Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredOrgs.map(org => renderOrgCard(org, false, false))}
+          {filteredOrgs.length === 0 && (
+            <div className="col-span-full text-center py-12 text-muted-foreground">
+              <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No organizations found matching your filters.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Create Organization Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={(open) => !open && handleCloseCreateModal()}>
