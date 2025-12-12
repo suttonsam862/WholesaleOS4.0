@@ -766,9 +766,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
           <div className="flex-1 overflow-y-auto p-4">
             <TabsContent value="overview" className="space-y-6 mt-0">
               {/* Progress Overview */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Production Progress</CardTitle>
+              <Card className="glass-card border-white/10">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Production Progress</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
@@ -803,10 +803,10 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
               </Card>
 
               {/* Order Information */}
-              <div className="grid grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card className="glass-card border-white/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium flex items-center">
                       <FileText className="w-4 h-4 mr-2" />
                       Order Information
                     </CardTitle>
@@ -833,9 +833,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                   </CardContent>
                 </Card>
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base flex items-center">
+                <Card className="glass-card border-white/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium flex items-center">
                       <Package className="w-4 h-4 mr-2" />
                       Line Items & Manufacturers
                     </CardTitle>
@@ -867,9 +867,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
 
               {/* Status Update */}
               {canEdit && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Update Status</CardTitle>
+                <Card className="glass-card border-white/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium">Update Status</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div>
@@ -1091,10 +1091,10 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
             </TabsContent>
 
             <TabsContent value="lineitems" className="space-y-4 mt-0">
-              <Card>
-                <CardHeader>
+              <Card className="glass-card border-white/10">
+                <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base flex items-center">
+                    <CardTitle className="text-sm font-medium flex items-center">
                       <Package className="w-4 h-4 mr-2" />
                       Line Item Manufacturing Status
                     </CardTitle>
@@ -1162,7 +1162,7 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                           : item.productName || item.variantCode || `Line Item ${index + 1}`;
 
                         return (
-                          <Card key={item.id} className="border">
+                          <Card key={item.id} className="border border-white/10 bg-black/20">
                             <CardContent className="p-4 space-y-3">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
@@ -1554,9 +1554,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
 
             <TabsContent value="documents" className="space-y-4 mt-0">
               {/* Production Notes */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Production Notes</CardTitle>
+              <Card className="glass-card border-white/10">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Production Notes</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Textarea
@@ -1571,9 +1571,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
               </Card>
 
               {/* Quality Check Results */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Quality Check Results</CardTitle>
+              <Card className="glass-card border-white/10">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium">Quality Check Results</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Textarea
@@ -1598,9 +1598,9 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
 
               {/* Completed Product Images (only visible when archived) */}
               {manufacturingUpdate?.archived && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Completed Product Images</CardTitle>
+                <Card className="glass-card border-white/10">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-medium">Completed Product Images</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {canEdit && (
@@ -1855,9 +1855,9 @@ function FileAttachmentsTab({ manufacturingId, canEdit, onImageClick }: FileAtta
   return (
     <div className="space-y-4">
       {/* Category Selector */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">File Categories</CardTitle>
+      <Card className="glass-card border-white/10">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">File Categories</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
@@ -1888,9 +1888,9 @@ function FileAttachmentsTab({ manufacturingId, canEdit, onImageClick }: FileAtta
 
       {/* Upload Section */}
       {canEdit && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Upload {categories.find(c => c.value === selectedCategory)?.label}</CardTitle>
+        <Card className="glass-card border-white/10">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Upload {categories.find(c => c.value === selectedCategory)?.label}</CardTitle>
           </CardHeader>
           <CardContent>
             <ObjectUploader
@@ -1936,9 +1936,9 @@ function FileAttachmentsTab({ manufacturingId, canEdit, onImageClick }: FileAtta
       )}
 
       {/* Files List */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
+      <Card className="glass-card border-white/10">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-medium">
             {categories.find(c => c.value === selectedCategory)?.label} ({filteredAttachments.length})
           </CardTitle>
         </CardHeader>

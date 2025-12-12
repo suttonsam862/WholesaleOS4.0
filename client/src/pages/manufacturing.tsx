@@ -61,6 +61,8 @@ import { ManufacturingDetailModal } from "@/components/modals/manufacturing-deta
 import { CreateManufacturingModal } from "@/components/modals/create-manufacturing-modal";
 import { DataCapsule } from "@/components/DataCapsule";
 import { OrgLogo } from "@/components/ui/org-logo";
+import { SplitView } from "@/components/layout/split-view";
+import { Users, Download } from "lucide-react";
 import {
   MANUFACTURING_STATUS_CONFIG,
   ManufacturingStatus,
@@ -259,286 +261,376 @@ export default function Manufacturing() {
   }
 
   return (
-    <div className="p-6 space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold gradient-text" data-testid="text-page-title">Manufacturing</h1>
-          <p className="text-muted-foreground">Track production and manufacturing orders</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline"
-            onClick={() => refetch()}
-            className="border-white/10 hover:bg-white/10"
-          >
-            <RefreshCcw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
-          <Button 
-            onClick={() => setIsPantoneModalOpen(true)} 
-            variant="outline"
-            className="border-white/10 hover:bg-white/10"
-          >
-            <Palette className="w-4 h-4 mr-2" />
-            Pantone
-          </Button>
-          <Button 
-            onClick={() => setIsCreateModalOpen(true)} 
-            data-testid="button-create-order"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            New Record
-          </Button>
-        </div>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="glass-card border-white/10 bg-blue-500/10">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-400">Total Records</p>
-              <h3 className="text-2xl font-bold text-white">{stats.total}</h3>
-            </div>
-            <Factory className="h-8 w-8 text-blue-400 opacity-50" />
-          </CardContent>
-        </Card>
-        <Card className="glass-card border-white/10 bg-amber-500/10">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-amber-400">Awaiting Approval</p>
-              <h3 className="text-2xl font-bold text-white">{stats.awaitingConfirmation}</h3>
-            </div>
-            <Clock className="h-8 w-8 text-amber-400 opacity-50" />
-          </CardContent>
-        </Card>
-        <Card className="glass-card border-white/10 bg-purple-500/10">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-purple-400">In Production</p>
-              <h3 className="text-2xl font-bold text-white">{stats.inProgress}</h3>
-            </div>
-            <Scissors className="h-8 w-8 text-purple-400 opacity-50" />
-          </CardContent>
-        </Card>
-        <Card className="glass-card border-white/10 bg-green-500/10">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-400">Completed</p>
-              <h3 className="text-2xl font-bold text-white">{stats.completed}</h3>
-            </div>
-            <CheckCircle2 className="h-8 w-8 text-green-400 opacity-50" />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters and View Toggle */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 flex-1">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by order, organization, batch..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-black/20 border-white/10"
-            />
+    <div className="flex flex-col h-[calc(100vh-64px)] p-6 space-y-4">
+      {/* Header - Matching Orders Page */}
+      <div className="space-y-4 flex-shrink-0">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight gradient-text" data-testid="text-page-title">
+              Manufacturing
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Track production and manufacturing orders efficiently.
+            </p>
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[200px] bg-black/20 border-white/10">
-              <Filter className="w-4 h-4 mr-2" />
-              <SelectValue placeholder="All Statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {manufacturingStages.map(stage => (
-                <SelectItem key={stage.value} value={stage.value}>
-                  {stage.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline"
+              onClick={() => refetch()}
+              className="border-white/10 hover:bg-white/5"
+            >
+              <RefreshCcw className="w-4 h-4 mr-2" />
+              Refresh
+            </Button>
+            <Button 
+              onClick={() => setIsPantoneModalOpen(true)} 
+              variant="outline"
+              className="border-white/10 hover:bg-white/5"
+            >
+              <Palette className="w-4 h-4 mr-2" />
+              Pantone
+            </Button>
+            <Button 
+              onClick={() => setIsCreateModalOpen(true)} 
+              data-testid="button-create-order"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_10px_rgba(0,255,255,0.3)]"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Record
+            </Button>
+          </div>
         </div>
-        
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-white/5 border border-white/10">
-          <button
-            onClick={() => setViewMode("board")}
-            className={cn(
-              "p-2 rounded-md transition-colors",
-              viewMode === "board"
-                ? "bg-neon-blue/20 text-neon-blue"
-                : "text-white/40 hover:text-white"
-            )}
-          >
-            <LayoutGrid className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setViewMode("list")}
-            className={cn(
-              "p-2 rounded-md transition-colors",
-              viewMode === "list"
-                ? "bg-neon-blue/20 text-neon-blue"
-                : "text-white/40 hover:text-white"
-            )}
-          >
-            <List className="w-4 h-4" />
-          </button>
-        </div>
+
+        {/* Filters - Glass Card Style Matching Orders */}
+        <Card className="glass-card border-white/10">
+          <CardContent className="p-4">
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by order, organization, batch..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 bg-black/20 border-white/10 focus:border-primary/50"
+                  data-testid="input-search"
+                />
+              </div>
+              <div className="flex gap-2 w-full md:w-auto flex-wrap">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[160px] bg-black/20 border-white/10 text-white" data-testid="select-status-filter">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {manufacturingStages.map(stage => (
+                      <SelectItem key={stage.value} value={stage.value}>
+                        {stage.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                {/* View Toggle */}
+                <div className="flex items-center gap-1 p-1 rounded-lg bg-white/5 border border-white/10">
+                  <button
+                    onClick={() => setViewMode("board")}
+                    className={cn(
+                      "p-2 rounded-md transition-colors",
+                      viewMode === "board"
+                        ? "bg-primary/20 text-primary"
+                        : "text-white/40 hover:text-white"
+                    )}
+                    data-testid="button-view-board"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={cn(
+                      "p-2 rounded-md transition-colors",
+                      viewMode === "list"
+                        ? "bg-primary/20 text-primary"
+                        : "text-white/40 hover:text-white"
+                    )}
+                    data-testid="button-view-list"
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Content */}
-      {viewMode === "board" ? (
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {manufacturingStages.map((stage) => {
-            const records = recordsByStatus[stage.value] || [];
-            const Icon = iconMap[stage.icon] || Package;
-            
-            return (
-              <div key={stage.value} className="flex-shrink-0 w-72">
-                {/* Column Header */}
-                <div 
-                  className="p-3 rounded-t-xl border border-b-0"
-                  style={{ 
-                    backgroundColor: `${stage.color}15`,
-                    borderColor: `${stage.color}30`
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Icon className="w-4 h-4" style={{ color: stage.color }} />
-                      <span className="font-medium text-sm" style={{ color: stage.color }}>
-                        {stage.label}
-                      </span>
+      <div className="flex-1 min-h-0">
+        {viewMode === "board" ? (
+          <div className="flex gap-4 overflow-x-auto pb-4 h-full">
+            {manufacturingStages.map((stage) => {
+              const records = recordsByStatus[stage.value] || [];
+              const Icon = iconMap[stage.icon] || Package;
+              
+              return (
+                <div key={stage.value} className="flex-shrink-0 w-72">
+                  {/* Column Header */}
+                  <div 
+                    className="p-3 rounded-t-xl border border-b-0"
+                    style={{ 
+                      backgroundColor: `${stage.color}15`,
+                      borderColor: `${stage.color}30`
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icon className="w-4 h-4" style={{ color: stage.color }} />
+                        <span className="font-medium text-sm" style={{ color: stage.color }}>
+                          {stage.label}
+                        </span>
+                      </div>
+                      <Badge variant="outline" style={{ borderColor: `${stage.color}50`, color: stage.color }}>
+                        {records.length}
+                      </Badge>
                     </div>
-                    <Badge variant="outline" style={{ borderColor: `${stage.color}50`, color: stage.color }}>
-                      {records.length}
-                    </Badge>
+                  </div>
+                  
+                  {/* Cards */}
+                  <div 
+                    className="p-2 rounded-b-xl border border-t-0 min-h-[400px] max-h-[calc(100vh-320px)] overflow-y-auto bg-slate-900/50"
+                    style={{ borderColor: `${stage.color}30` }}
+                  >
+                    <AnimatePresence>
+                      {records.map((record, index) => (
+                        <ManufacturingCard
+                          key={record.id}
+                          record={record}
+                          stageConfig={stage}
+                          onClick={() => handleOpenDetail(record)}
+                          index={index}
+                        />
+                      ))}
+                    </AnimatePresence>
+                    
+                    {records.length === 0 && (
+                      <div className="flex items-center justify-center h-24 text-white/30 text-sm">
+                        No records
+                      </div>
+                    )}
                   </div>
                 </div>
+              );
+            })}
+          </div>
+        ) : (
+          <SplitView
+            sidebar={
+              <div className="space-y-3 pb-4">
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <h3 className="font-semibold text-foreground">Manufacturing List</h3>
+                  <Badge variant="outline" className="text-xs border-white/10 bg-white/5">
+                    {filteredRecords.length}
+                  </Badge>
+                </div>
                 
-                {/* Cards */}
-                <div 
-                  className="p-2 rounded-b-xl border border-t-0 min-h-[400px] max-h-[calc(100vh-400px)] overflow-y-auto bg-slate-900/50"
-                  style={{ borderColor: `${stage.color}30` }}
-                >
-                  <AnimatePresence>
-                    {records.map((record, index) => (
-                      <ManufacturingCard
+                {filteredRecords.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    No manufacturing records found
+                  </div>
+                ) : (
+                  filteredRecords.map((record) => {
+                    const stageConfig = manufacturingStages.find(s => s.value === record.status);
+                    const Icon = stageConfig ? iconMap[stageConfig.icon] || Package : Package;
+
+                    return (
+                      <div
                         key={record.id}
-                        record={record}
-                        stageConfig={stage}
-                        onClick={() => handleOpenDetail(record)}
-                        index={index}
-                      />
-                    ))}
-                  </AnimatePresence>
-                  
-                  {records.length === 0 && (
-                    <div className="flex items-center justify-center h-24 text-white/30 text-sm">
-                      No records
+                        onClick={() => setSelectedManufacturing(record)}
+                        className={cn(
+                          "p-3 rounded-lg border cursor-pointer transition-all duration-200 hover:bg-white/5 group relative overflow-hidden",
+                          selectedManufacturing?.id === record.id 
+                            ? "bg-primary/10 border-primary/50 shadow-[0_0_10px_rgba(0,243,255,0.1)]" 
+                            : "bg-black/20 border-white/5 hover:border-white/10"
+                        )}
+                        data-testid={`manufacturing-item-${record.id}`}
+                      >
+                        {/* Status Indicator Line */}
+                        <div 
+                          className="absolute left-0 top-0 bottom-0 w-1"
+                          style={{ backgroundColor: stageConfig?.color || '#666' }}
+                        />
+
+                        <div className="flex justify-between items-start mb-1 pl-2">
+                          <span className="font-medium text-sm text-foreground truncate">
+                            {record.order?.orderCode || `#${record.orderId}`}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {record.createdAt ? format(new Date(record.createdAt), 'MMM dd') : ''}
+                          </span>
+                        </div>
+                        
+                        <div className="pl-2 mb-2">
+                          <p className="text-xs font-medium text-foreground/90 truncate">{record.order?.orderName}</p>
+                          {record.organization && (
+                            <p className="text-[10px] text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+                              <Users className="w-3 h-3" />
+                              {record.organization.name}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between pl-2 mt-2">
+                          <Badge 
+                            variant="outline" 
+                            className="text-[10px] px-1.5 py-0 h-5 flex items-center gap-1"
+                            style={{ 
+                              borderColor: `${stageConfig?.color}50`, 
+                              color: stageConfig?.color,
+                              backgroundColor: `${stageConfig?.color}15`
+                            }}
+                          >
+                            <Icon className="w-3 h-3" />
+                            {stageConfig?.label || record.status}
+                          </Badge>
+                          {record.priority === 'high' || record.priority === 'urgent' ? (
+                            <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 bg-red-500/20 text-red-400 border-red-500/30">
+                              {record.priority === 'urgent' ? 'Urgent' : 'High Priority'}
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            }
+            content={
+              selectedManufacturing ? (
+                <div className="space-y-6">
+                  <div className="flex items-start justify-between border-b border-white/10 pb-4">
+                    <div>
+                      <h2 className="text-2xl font-bold gradient-text">
+                        {selectedManufacturing.order?.orderCode || `Manufacturing #${selectedManufacturing.id}`}
+                      </h2>
+                      <p className="text-lg text-foreground/80 mt-1">{selectedManufacturing.order?.orderName}</p>
                     </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleQuickView(selectedManufacturing)}
+                        className="border-white/10 hover:bg-white/5"
+                        data-testid="button-quick-view"
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        Quick View
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenDetail(selectedManufacturing)}
+                        className="border-primary/50 bg-primary/10 hover:bg-primary/20"
+                        data-testid="button-view-full"
+                      >
+                        <Factory className="w-4 h-4 mr-2" />
+                        View Full Details
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {(() => {
+                      const stageConfig = manufacturingStages.find(s => s.value === selectedManufacturing.status);
+                      const Icon = stageConfig ? iconMap[stageConfig.icon] || Package : Package;
+                      return (
+                        <Card className="glass-card border-white/10">
+                          <CardContent className="p-4 flex items-center gap-4">
+                            <div 
+                              className="p-3 rounded-full"
+                              style={{ backgroundColor: `${stageConfig?.color}20` }}
+                            >
+                              <Icon className="w-6 h-6" style={{ color: stageConfig?.color }} />
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground uppercase tracking-wider">Status</p>
+                              <p className="text-lg font-semibold text-foreground">{stageConfig?.label || selectedManufacturing.status}</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })()}
+
+                    <Card className="glass-card border-white/10">
+                      <CardContent className="p-4 flex items-center gap-4">
+                        <div className="p-3 rounded-full bg-primary/10 text-primary">
+                          <Calendar className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider">Est. Completion</p>
+                          <p className="text-lg font-semibold text-foreground">
+                            {selectedManufacturing.estCompletion ? format(new Date(selectedManufacturing.estCompletion), 'MMM dd, yyyy') : 'TBD'}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="glass-card border-white/10">
+                      <CardContent className="p-4 flex items-center gap-4">
+                        <div className={cn("p-3 rounded-full", 
+                          selectedManufacturing.priority === 'urgent' ? "bg-red-500/10 text-red-500" :
+                          selectedManufacturing.priority === 'high' ? "bg-orange-500/10 text-orange-500" : 
+                          selectedManufacturing.priority === 'low' ? "bg-green-500/10 text-green-500" : 
+                          "bg-blue-500/10 text-blue-500"
+                        )}>
+                          <AlertCircle className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wider">Priority</p>
+                          <p className="text-lg font-semibold capitalize text-foreground">{selectedManufacturing.priority || 'Normal'}</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Organization Details */}
+                  {selectedManufacturing.organization && (
+                    <Card className="glass-card border-white/10">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Organization Details</CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center gap-4">
+                          <OrgLogo
+                            src={selectedManufacturing.organization.logoUrl}
+                            orgName={selectedManufacturing.organization.name}
+                            orgId={selectedManufacturing.organization.id}
+                            size="lg"
+                          />
+                          <div>
+                            <p className="font-semibold text-foreground">{selectedManufacturing.organization.name}</p>
+                            {selectedManufacturing.organization.city && selectedManufacturing.organization.state && (
+                              <p className="text-sm text-muted-foreground">
+                                {selectedManufacturing.organization.city}, {selectedManufacturing.organization.state}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   )}
                 </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <Card className="glass-card border-white/10">
-          <CardContent className="p-0">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/10">
-                  <th className="text-left p-4 text-muted-foreground font-medium">Order</th>
-                  <th className="text-left p-4 text-muted-foreground font-medium">Organization</th>
-                  <th className="text-left p-4 text-muted-foreground font-medium">Status</th>
-                  <th className="text-left p-4 text-muted-foreground font-medium">Priority</th>
-                  <th className="text-left p-4 text-muted-foreground font-medium">Est. Completion</th>
-                  <th className="text-left p-4 text-muted-foreground font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRecords.map((record) => {
-                  const stageConfig = manufacturingStages.find(s => s.value === record.status);
-                  return (
-                    <tr 
-                      key={record.id} 
-                      className="border-b border-white/5 hover:bg-white/5 cursor-pointer"
-                      onClick={() => handleOpenDetail(record)}
-                    >
-                      <td className="p-4">
-                        <div>
-                          <div className="font-medium text-white">{record.order?.orderCode || `#${record.orderId}`}</div>
-                          <div className="text-sm text-muted-foreground">{record.order?.orderName}</div>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <OrgLogo
-                            src={record.organization?.logoUrl}
-                            orgName={record.organization?.name || 'Unknown'}
-                            orgId={record.organization?.id}
-                            size="sm"
-                          />
-                          <span className="text-muted-foreground">{record.organization?.name || '-'}</span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <Badge 
-                          variant="outline"
-                          style={{ 
-                            borderColor: `${stageConfig?.color}50`, 
-                            color: stageConfig?.color,
-                            backgroundColor: `${stageConfig?.color}15`
-                          }}
-                        >
-                          {stageConfig?.label || record.status}
-                        </Badge>
-                      </td>
-                      <td className="p-4">
-                        <Badge variant="outline" className={cn(
-                          record.priority === 'urgent' && "border-red-500/50 text-red-400 bg-red-500/10",
-                          record.priority === 'high' && "border-orange-500/50 text-orange-400 bg-orange-500/10",
-                          record.priority === 'normal' && "border-blue-500/50 text-blue-400 bg-blue-500/10",
-                          record.priority === 'low' && "border-gray-500/50 text-gray-400 bg-gray-500/10",
-                        )}>
-                          {record.priority}
-                        </Badge>
-                      </td>
-                      <td className="p-4 text-muted-foreground">
-                        {record.estCompletion ? format(new Date(record.estCompletion), 'MMM d, yyyy') : '-'}
-                      </td>
-                      <td className="p-4">
-                        <div className="flex gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleQuickView(record);
-                            }}
-                            data-testid={`btn-quick-view-${record.id}`}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            
-            {filteredRecords.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground">
-                No manufacturing records found.
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+              ) : (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <Factory className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium">Select a manufacturing record</p>
+                    <p className="text-sm">Choose a record from the list to view details</p>
+                  </div>
+                </div>
+              )
+            }
+          />
+        )}
+      </div>
 
       {/* Modals */}
       <CreateManufacturingModal
