@@ -27,7 +27,9 @@ const ArchivedProducts = lazy(() => import("@/pages/archived-products"));
 const ArchivedVariants = lazy(() => import("@/pages/archived-variants"));
 const DesignJobs = lazy(() => import("@/pages/design-jobs"));
 const DesignJobDetail = lazy(() => import("@/pages/design-job-detail"));
-const Orders = lazy(() => import("@/pages/orders"));
+const OrdersHub = lazy(() => import("@/pages/orders-hub"));
+const OrdersList = lazy(() => import("@/pages/orders-list"));
+const OrdersLegacy = lazy(() => import("@/pages/orders"));
 const Manufacturing = lazy(() => import("@/pages/manufacturing"));
 const TeamStores = lazy(() => import("@/pages/team-stores"));
 const ManufacturerLineItems = lazy(() => import("@/pages/manufacturer-line-items").then(m => ({ default: m.ManufacturerLineItems })));
@@ -106,7 +108,9 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/catalog/archived/variants", title: "Archived Variants", component: ArchivedVariants, requiresAuth: true, requiresLayout: true, resource: "catalog" },
   { path: "/design-jobs", title: "Design Jobs", component: DesignJobs, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
   { path: "/design-jobs/:id", title: "Design Job Detail", component: DesignJobDetail, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
-  { path: "/orders", title: "Orders", component: Orders, requiresAuth: true, requiresLayout: true, resource: "orders" },
+  { path: "/orders", title: "Orders Hub", component: OrdersHub, requiresAuth: true, requiresLayout: true, resource: "orders" },
+  { path: "/orders/list", title: "Orders List", component: OrdersList, requiresAuth: true, requiresLayout: true, resource: "orders" },
+  { path: "/orders/legacy", title: "Orders (Legacy)", component: OrdersLegacy, requiresAuth: true, requiresLayout: true, resource: "orders" },
   { path: "/manufacturing", title: "Manufacturing", component: Manufacturing, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
   { path: "/team-stores", title: "Team Stores", component: TeamStores, requiresAuth: true, requiresLayout: true, resource: "teamStores" },
   { path: "/manufacturer/line-items", title: "My Line Items", component: ManufacturerLineItems, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
