@@ -32,6 +32,7 @@ import { registerTeamStoresRoutes } from "./team-stores.routes";
 import { registerOrderTrackingRoutes } from "./order-tracking.routes";
 import { registerFinancialMatchingRoutes } from "./financial-matching.routes";
 import { registerManufacturerPortalRoutes } from "./manufacturer-portal.routes";
+import { registerRequestsRoutes } from "./requests.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware must be set up first
@@ -105,6 +106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerOrderTrackingRoutes(app);
   registerFinancialMatchingRoutes(app);
   registerManufacturerPortalRoutes(app);
+  registerRequestsRoutes(app);
 
   const httpServer = createServer(app);
   return httpServer;

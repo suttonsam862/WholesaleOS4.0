@@ -45,7 +45,7 @@ export function RoleHomeLayout({
   const displayName = userName || "there";
 
   return (
-    <div className={cn("space-y-6", className)} data-testid={`role-home-${role}`}>
+    <div className={cn("space-y-8", className)} data-testid={`role-home-${role}`}>
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -103,7 +103,7 @@ export function WorkflowGrid({ children, columns = 3, className }: WorkflowGridP
   return (
     <div
       className={cn(
-        "grid gap-4",
+        "grid gap-5",
         columns === 2 ? "md:grid-cols-2" : "md:grid-cols-2 lg:grid-cols-3",
         className
       )}
@@ -122,9 +122,9 @@ interface QueuesSectionProps {
 
 export function QueuesSection({ title = "My Work Queues", children, className }: QueuesSectionProps) {
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-5", className)}>
       <h2 className="text-lg font-semibold text-white">{title}</h2>
-      <div className="grid gap-4 md:grid-cols-2">{children}</div>
+      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">{children}</div>
     </div>
   );
 }
@@ -143,7 +143,7 @@ export function MetricsSnapshot({
   className,
 }: MetricsSnapshotProps) {
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-5", className)}>
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-white">{title}</h2>
         {dashboardLink && (
@@ -156,7 +156,7 @@ export function MetricsSnapshot({
           </a>
         )}
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
     </div>
   );
 }
@@ -177,7 +177,7 @@ export function MetricCard({ label, value, icon: Icon, trend, className }: Metri
   return (
     <div
       className={cn(
-        "p-4 rounded-xl border border-white/10 bg-white/5",
+        "p-5 rounded-xl border border-white/10 bg-white/5",
         className
       )}
       data-testid={`metric-${label.toLowerCase().replace(/\s+/g, "-")}`}
@@ -186,11 +186,11 @@ export function MetricCard({ label, value, icon: Icon, trend, className }: Metri
         <p className="text-sm text-muted-foreground">{label}</p>
         {Icon && <Icon className="w-4 h-4 text-muted-foreground" />}
       </div>
-      <p className="text-2xl font-bold text-white mt-1">{value}</p>
+      <p className="text-2xl font-bold text-white mt-2">{value}</p>
       {trend && (
         <p
           className={cn(
-            "text-xs mt-1",
+            "text-xs mt-2",
             trend.positive ? "text-emerald-400" : "text-red-400"
           )}
         >

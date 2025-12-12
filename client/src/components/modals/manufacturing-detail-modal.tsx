@@ -21,6 +21,7 @@ import { ObjectUploader } from "@/components/ObjectUploader";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
 import { FabricSubmissionForm, FabricStatusIndicator } from "@/components/FabricSubmissionForm";
 import { PantonePicker, PantoneAssignment } from "@/components/manufacturing/pantone-picker";
+import { FirstPieceApprovalPanel } from "@/components/manufacturing/FirstPieceApprovalPanel";
 import { Palette } from "lucide-react";
 
 interface ManufacturingDetailModalProps {
@@ -801,6 +802,23 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                   </div>
                 </CardContent>
               </Card>
+
+              {/* First Piece Approval */}
+              <FirstPieceApprovalPanel
+                manufacturingId={manufacturingUpdate?.id}
+                firstPieceStatus={manufacturingUpdate?.firstPieceStatus || "pending"}
+                firstPieceImageUrls={manufacturingUpdate?.firstPieceImageUrls || []}
+                firstPieceUploadedAt={manufacturingUpdate?.firstPieceUploadedAt}
+                firstPieceUploadedBy={manufacturingUpdate?.firstPieceUploadedBy}
+                firstPieceApprovedAt={manufacturingUpdate?.firstPieceApprovedAt}
+                firstPieceApprovedBy={manufacturingUpdate?.firstPieceApprovedBy}
+                firstPieceRejectionNotes={manufacturingUpdate?.firstPieceRejectionNotes}
+                canUpload={user?.role === "manufacturer" || user?.role === "admin"}
+                canApprove={user?.role === "ops" || user?.role === "admin"}
+                onUpdate={() => {
+                  queryClient.invalidateQueries({ queryKey: ["/api/manufacturing"] });
+                }}
+              />
 
               {/* Order Information */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

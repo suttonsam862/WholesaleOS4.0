@@ -2041,4 +2041,166 @@ Failed Files: ${failedFiles}
       res.status(500).json({ message: "Failed to delete pantone assignment" });
     }
   });
+
+  // ==================== FIRST PIECE APPROVAL ROUTES ====================
+
+  // Upload first piece samples (manufacturer or admin only)
+  app.post('/api/manufacturing/:id/first-piece/upload', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = (req as AuthenticatedRequest).user.userData!;
+
+      // Only manufacturer or admin can upload
+      if (user.role !== 'manufacturer' && user.role !== 'admin') {
+        return res.status(403).json({ message: "Only manufacturers or admins can upload first piece samples" });
+      }
+
+      const { imageUrls } = req.body;
+      if (!imageUrls || !Array.isArray(imageUrls) || imageUrls.length === 0) {
+        return res.status(400).json({ message: "imageUrls array is required" });
+      }
+
+      const existingRecord = await storage.getManufacturingRecord(id, user);
+      if (!existingRecord) {
+        return res.status(404).json({ message: "Manufacturing record not found" });
+      }
+
+      const existingImages = existingRecord.firstPieceImageUrls || [];
+      const updatedRecord = await db
+        .update(manufacturing)
+        .set({
+          firstPieceImageUrls: [...existingImages, ...imageUrls],
+          firstPieceStatus: 'awaiting_approval',
+          firstPieceUploadedBy: user.id,
+          firstPieceUploadedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(manufacturing.id, id))
+        .returning();
+
+      res.json(updatedRecord[0]);
+    } catch (error) {
+      console.error("Error uploading first piece samples:", error);
+      res.status(500).json({ message: "Failed to upload first piece samples" });
+    }
+  });
+
+  // Approve first piece (ops or admin only)
+  app.post('/api/manufacturing/:id/first-piece/approve', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = (req as AuthenticatedRequest).user.userData!;
+
+      // Only ops or admin can approve
+      if (user.role !== 'ops' && user.role !== 'admin') {
+        return res.status(403).json({ message: "Only operations or admins can approve first piece samples" });
+      }
+
+      const existingRecord = await storage.getManufacturingRecord(id, user);
+      if (!existingRecord) {
+        return res.status(404).json({ message: "Manufacturing record not found" });
+      }
+
+      if (existingRecord.firstPieceStatus !== 'awaiting_approval') {
+        return res.status(400).json({ message: "First piece is not awaiting approval" });
+      }
+
+      const updatedRecord = await db
+        .update(manufacturing)
+        .set({
+          firstPieceStatus: 'approved',
+          firstPieceApprovedBy: user.id,
+          firstPieceApprovedAt: new Date(),
+          firstPieceRejectionNotes: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(manufacturing.id, id))
+        .returning();
+
+      res.json(updatedRecord[0]);
+    } catch (error) {
+      console.error("Error approving first piece:", error);
+      res.status(500).json({ message: "Failed to approve first piece" });
+    }
+  });
+
+  // Reject first piece (ops or admin only)
+  app.post('/api/manufacturing/:id/first-piece/reject', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = (req as AuthenticatedRequest).user.userData!;
+
+      // Only ops or admin can reject
+      if (user.role !== 'ops' && user.role !== 'admin') {
+        return res.status(403).json({ message: "Only operations or admins can reject first piece samples" });
+      }
+
+      const { rejectionNotes } = req.body;
+      if (!rejectionNotes || rejectionNotes.trim() === '') {
+        return res.status(400).json({ message: "Rejection notes are required" });
+      }
+
+      const existingRecord = await storage.getManufacturingRecord(id, user);
+      if (!existingRecord) {
+        return res.status(404).json({ message: "Manufacturing record not found" });
+      }
+
+      if (existingRecord.firstPieceStatus !== 'awaiting_approval') {
+        return res.status(400).json({ message: "First piece is not awaiting approval" });
+      }
+
+      const updatedRecord = await db
+        .update(manufacturing)
+        .set({
+          firstPieceStatus: 'rejected',
+          firstPieceRejectionNotes: rejectionNotes,
+          updatedAt: new Date(),
+        })
+        .where(eq(manufacturing.id, id))
+        .returning();
+
+      res.json(updatedRecord[0]);
+    } catch (error) {
+      console.error("Error rejecting first piece:", error);
+      res.status(500).json({ message: "Failed to reject first piece" });
+    }
+  });
+
+  // Reset first piece approval (ops or admin only)
+  app.post('/api/manufacturing/:id/first-piece/reset', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = (req as AuthenticatedRequest).user.userData!;
+
+      // Only ops or admin can reset
+      if (user.role !== 'ops' && user.role !== 'admin') {
+        return res.status(403).json({ message: "Only operations or admins can reset first piece approval" });
+      }
+
+      const existingRecord = await storage.getManufacturingRecord(id, user);
+      if (!existingRecord) {
+        return res.status(404).json({ message: "Manufacturing record not found" });
+      }
+
+      const updatedRecord = await db
+        .update(manufacturing)
+        .set({
+          firstPieceStatus: 'pending',
+          firstPieceImageUrls: [],
+          firstPieceUploadedBy: null,
+          firstPieceUploadedAt: null,
+          firstPieceApprovedBy: null,
+          firstPieceApprovedAt: null,
+          firstPieceRejectionNotes: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(manufacturing.id, id))
+        .returning();
+
+      res.json(updatedRecord[0]);
+    } catch (error) {
+      console.error("Error resetting first piece approval:", error);
+      res.status(500).json({ message: "Failed to reset first piece approval" });
+    }
+  });
 }

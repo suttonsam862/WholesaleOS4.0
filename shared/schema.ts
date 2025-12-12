@@ -572,6 +572,13 @@ export const manufacturing = pgTable("manufacturing", {
   archivedAt: timestamp("archived_at"),
   archivedBy: varchar("archived_by").references(() => users.id),
   completedProductImages: text("completed_product_images").array(),
+  firstPieceImageUrls: text("first_piece_image_urls").array(),
+  firstPieceStatus: varchar("first_piece_status").$type<"pending" | "awaiting_approval" | "approved" | "rejected">().default("pending"),
+  firstPieceUploadedBy: varchar("first_piece_uploaded_by").references(() => users.id),
+  firstPieceUploadedAt: timestamp("first_piece_uploaded_at"),
+  firstPieceApprovedBy: varchar("first_piece_approved_by").references(() => users.id),
+  firstPieceApprovedAt: timestamp("first_piece_approved_at"),
+  firstPieceRejectionNotes: text("first_piece_rejection_notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -1220,6 +1227,45 @@ export const tasks = pgTable("tasks", {
   index("idx_tasks_status").on(table.status),
   index("idx_tasks_page_key").on(table.pageKey),
 ]);
+
+// ==================== ISSUE & CHANGE REQUESTS ====================
+
+// Requests table for issues and change requests from sales to ops
+export const requests = pgTable("requests", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  type: varchar("type").notNull().$type<"issue" | "change">(),
+  category: varchar("category").notNull(),
+  priority: varchar("priority").notNull().$type<"low" | "normal" | "high" | "urgent">().default("normal"),
+  subject: varchar("subject").notNull(),
+  description: text("description"),
+  entityType: varchar("entity_type").notNull().$type<"order" | "lead" | "manufacturing">(),
+  entityId: integer("entity_id").notNull(),
+  entityCode: varchar("entity_code"),
+  status: varchar("status").notNull().$type<"pending" | "in_progress" | "resolved" | "rejected" | "cancelled">().default("pending"),
+  submittedBy: varchar("submitted_by").references(() => users.id),
+  submittedByName: varchar("submitted_by_name"),
+  assignedTo: varchar("assigned_to").references(() => users.id),
+  resolution: text("resolution"),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedBy: varchar("resolved_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_requests_type").on(table.type),
+  index("idx_requests_status").on(table.status),
+  index("idx_requests_entity").on(table.entityType, table.entityId),
+  index("idx_requests_submitted_by").on(table.submittedBy),
+  index("idx_requests_assigned_to").on(table.assignedTo),
+]);
+
+export const insertRequestSchema = createInsertSchema(requests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertRequest = z.infer<typeof insertRequestSchema>;
+export type Request = typeof requests.$inferSelect;
 
 // ==================== EVENT MANAGEMENT SYSTEM ====================
 

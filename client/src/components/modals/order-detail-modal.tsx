@@ -22,6 +22,8 @@ import { ObjectUploader } from "@/components/ObjectUploader";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
 import { useLocation } from "wouter";
 import type { UploadResult } from "@uppy/core";
+import { ClientLinkPanel } from "@/components/shared/ClientLinkPanel";
+import { IssueRequestTrigger } from "@/components/shared/IssueRequestModal";
 
 interface OrderLineItem {
   id: number;
@@ -901,6 +903,15 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
                       Manufacturing Update
                     </Button>
                   )}
+                  
+                  {/* Issue & Change Request buttons - for Sales role only */}
+                  {user?.role === "sales" && (
+                    <IssueRequestTrigger
+                      entityType="order"
+                      entityId={orderId}
+                      entityCode={order.orderCode || order.orderNumber}
+                    />
+                  )}
                 </div>
               )}
 
@@ -1043,6 +1054,18 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
                   </CardContent>
                 </Card>
               )}
+
+              <ClientLinkPanel
+                entityType="order"
+                entityId={orderId}
+                entityCode={order.orderCode || order.orderNumber}
+                contactEmail={order.contactEmail || contact?.email}
+                contactPhone={order.contactPhone || contact?.phone}
+                contactName={order.contactName || contact?.name}
+                onPreview={() => {
+                  window.open(`/customer-portal/${orderId}`, '_blank');
+                }}
+              />
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card>

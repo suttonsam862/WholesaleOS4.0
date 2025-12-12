@@ -73,7 +73,7 @@ export function WorkflowTile({
         </div>
       )}
 
-      <div className="p-5 space-y-4">
+      <div className="p-6 space-y-5">
         <div className="flex items-start gap-4">
           <div
             className={cn(
@@ -85,7 +85,7 @@ export function WorkflowTile({
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-base font-semibold text-white truncate">{title}</h3>
-            <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
+            <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
               {description}
             </p>
           </div>
@@ -93,7 +93,7 @@ export function WorkflowTile({
 
         <Link href={primaryAction.href}>
           <button
-            className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 transition-all text-sm font-medium text-white group/btn"
+            className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 transition-all text-sm font-medium text-white group/btn"
             data-testid={`button-${id}-primary`}
           >
             <span>{primaryAction.label}</span>
@@ -102,7 +102,7 @@ export function WorkflowTile({
         </Link>
 
         {subActions && subActions.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2.5">
             {subActions.map((action, idx) => (
               action.href ? (
                 <Link key={idx} href={action.href}>
