@@ -132,7 +132,7 @@ export function ActionPageShell({ hubId, actionId, children }: ActionPageShellPr
   const Icon = action.icon;
 
   return (
-    <div className="p-6 pb-24 md:pb-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto">
       <div className="mb-6">
         <Link href={`/${hubId}`}>
           <Button variant="ghost" size="sm" data-testid="button-back-to-hub">
@@ -165,6 +165,46 @@ export function ActionPageShell({ hubId, actionId, children }: ActionPageShellPr
       </Card>
 
       <StepIndicator steps={steps} currentStepIndex={currentStepIndex} />
+
+      {/* Top navigation bar - always visible above content */}
+      {currentStep.type !== "done" && (
+        <div className="flex justify-between items-center mb-6 p-4 rounded-lg bg-muted/50 border border-border">
+          <Button
+            variant="outline"
+            onClick={goBack}
+            disabled={isFirstStep || isLoading}
+            data-testid="button-back"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back
+          </Button>
+          <div className="text-sm text-muted-foreground">
+            Step {currentStepIndex + 1} of {steps.length}
+          </div>
+          <Button
+            onClick={goNext}
+            disabled={isLoading}
+            data-testid="button-next"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                Processing...
+              </>
+            ) : currentStep.type === "confirm" ? (
+              <>
+                Confirm & Save
+                <Check className="h-4 w-4 ml-1" />
+              </>
+            ) : (
+              <>
+                Next
+                <ArrowRight className="h-4 w-4 ml-1" />
+              </>
+            )}
+          </Button>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
@@ -204,48 +244,6 @@ export function ActionPageShell({ hubId, actionId, children }: ActionPageShellPr
 
         </CardContent>
       </Card>
-
-      {/* Fixed navigation footer - positioned above mobile dock */}
-      {currentStep.type !== "done" && (
-        <div className="fixed bottom-20 md:bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur-sm border-t border-border p-4 md:relative md:bg-transparent md:border-0 md:p-0 md:mt-6">
-          <div className="max-w-4xl mx-auto flex justify-between items-center">
-            <Button
-              variant="outline"
-              onClick={goBack}
-              disabled={isFirstStep || isLoading}
-              data-testid="button-back"
-            >
-              <ArrowLeft className="h-4 w-4 mr-1" />
-              Back
-            </Button>
-            <div className="text-sm text-muted-foreground hidden md:block">
-              Step {currentStepIndex + 1} of {steps.length}
-            </div>
-            <Button
-              onClick={goNext}
-              disabled={isLoading}
-              data-testid="button-next"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                  Processing...
-                </>
-              ) : currentStep.type === "confirm" ? (
-                <>
-                  Confirm & Save
-                  <Check className="h-4 w-4 ml-1" />
-                </>
-              ) : (
-                <>
-                  Next
-                  <ArrowRight className="h-4 w-4 ml-1" />
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
