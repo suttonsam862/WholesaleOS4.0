@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useRoute, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { OrderCapsule } from "@/components/OrderCapsule";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import type { StageId } from "@/lib/ordersStageConfig";
 
 export default function OrderDetail() {
   const { toast } = useToast();
@@ -25,6 +26,20 @@ export default function OrderDetail() {
       returnTo = "/orders/list";
     }
   }
+
+  // Extract stage from the return URL for stage-aware defaults
+  const stageFromUrl = useMemo((): StageId | undefined => {
+    try {
+      const url = new URL(returnTo, window.location.origin);
+      const stageParam = url.searchParams.get("stage");
+      if (stageParam) {
+        return stageParam as StageId;
+      }
+    } catch {
+      // Ignore parsing errors
+    }
+    return undefined;
+  }, [returnTo]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -63,6 +78,7 @@ export default function OrderDetail() {
       orderId={orderId}
       isOpen={true}
       onClose={handleClose}
+      stage={stageFromUrl}
     />
   );
 }

@@ -100,12 +100,34 @@ export const STAGE_DEFAULTS: Record<StageId, StageDefaults> = {
 };
 
 /**
+ * Map order status to stage for fallback when URL stage not available
+ */
+function statusToStage(status?: string): StageId | undefined {
+  if (!status) return undefined;
+  switch (status) {
+    case "new": return "drafts";
+    case "waiting_sizes": return "awaiting-sizes";
+    case "invoiced": return "ready-for-production";
+    case "production": return "in-production";
+    case "shipped": return "shipped";
+    case "completed": return "completed";
+    default: return undefined;
+  }
+}
+
+/**
  * Get the default module to display based on role and stage
  */
 export function getDefaultModule(role: UserRole, stage?: StageId, orderStatus?: string): ModuleId {
-  // Stage takes priority if available
+  // Stage takes priority if available from URL
   if (stage && STAGE_DEFAULTS[stage]) {
     return STAGE_DEFAULTS[stage].primaryModule;
+  }
+  
+  // Fall back to stage inferred from order status
+  const inferredStage = statusToStage(orderStatus);
+  if (inferredStage && STAGE_DEFAULTS[inferredStage]) {
+    return STAGE_DEFAULTS[inferredStage].primaryModule;
   }
   
   // Fall back to role defaults

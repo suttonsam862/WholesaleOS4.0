@@ -5,7 +5,7 @@
  * glass design, progress indicator, role-based modules, and actionable items everywhere.
  */
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -95,10 +95,19 @@ import {
   Search,
 } from "lucide-react";
 
+import type { StageId, UserRole } from "@/lib/ordersStageConfig";
+import { 
+  getDefaultModule, 
+  getVisibleModules,
+  type ModuleId 
+} from "@/lib/orderDetailConfig";
+
 interface OrderCapsuleProps {
   isOpen: boolean;
   onClose: () => void;
   orderId: number | null;
+  /** Stage context from URL - used for stage-aware defaults */
+  stage?: StageId;
 }
 
 interface OrderLineItem {
@@ -356,14 +365,21 @@ function ManufacturingStageIndicator({ status }: { status: ManufacturingStatus |
   );
 }
 
-export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
+export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsuleProps) {
   const { user } = useAuth();
   const { hasPermission } = usePermissions();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
   
-  const [activeModule, setActiveModule] = useState<'overview' | 'line-items' | 'design' | 'manufacturing' | 'form-link' | 'activity'>('overview');
+  const userRole = (user?.role || 'sales') as UserRole;
+  
+  // Role-aware: admin/ops see advanced sections by default
+  const shouldShowAdvancedByDefault = userRole === 'admin' || userRole === 'ops' || userRole === 'finance';
+  
+  const [activeModule, setActiveModule] = useState<ModuleId>(() => 
+    getDefaultModule(userRole, stage)
+  );
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<any>({});
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -373,6 +389,7 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
   const [showAddLineItem, setShowAddLineItem] = useState(false);
   const [newNote, setNewNote] = useState("");
   const [copied, setCopied] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(shouldShowAdvancedByDefault);
   
   const [newLineItem, setNewLineItem] = useState<Partial<OrderLineItem>>({
     yxs: 0, ys: 0, ym: 0, yl: 0, xs: 0, s: 0, m: 0, l: 0, xl: 0, xxl: 0, xxxl: 0, xxxxl: 0,
@@ -408,6 +425,36 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
       });
     }
   }, [isOpen, orderId, lineItemsLoading, lineItemsError, lineItems]);
+
+  // Track which orderId we've initialized for (to reset on order change)
+  const initializedForOrderId = useRef<number | null>(null);
+  
+  // Reset initialization state when orderId changes
+  useEffect(() => {
+    if (orderId !== initializedForOrderId.current) {
+      initializedForOrderId.current = null;
+    }
+  }, [orderId]);
+
+  // Initialize showAdvanced and activeModule once per order when data loads
+  useEffect(() => {
+    if (order && isOpen && user?.role && initializedForOrderId.current !== orderId) {
+      // Set role-aware defaults for showAdvanced
+      const shouldShow = userRole === 'admin' || userRole === 'ops' || userRole === 'finance';
+      setShowAdvanced(shouldShow);
+      
+      // Compute stage-aware module default with fallback
+      const computedModule = getDefaultModule(userRole, stage, order.status);
+      const visible = getVisibleModules(userRole);
+      const newModule = visible.includes(computedModule) 
+        ? computedModule 
+        : visible[0] || "overview";
+      setActiveModule(newModule);
+      
+      // Mark as initialized for this order
+      initializedForOrderId.current = orderId;
+    }
+  }, [order, isOpen, user?.role, userRole, stage, orderId]);
 
   // Fetch design jobs
   const { data: designJobs = [] } = useQuery<any[]>({
@@ -626,18 +673,10 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
     return calculateProgressBlocks(orderStatus, designStatus, mfgStatus);
   }, [order, designJobs, manufacturing]);
 
-  // Role-based module visibility
+  // Role-based module visibility - uses centralized config
   const visibleModules = useMemo(() => {
-    const modules: string[] = ['overview', 'line-items'];
-    if (user?.role === 'admin' || user?.role === 'designer' || user?.role === 'ops') {
-      modules.push('design');
-    }
-    if (user?.role === 'admin' || user?.role === 'ops' || user?.role === 'manufacturer') {
-      modules.push('manufacturing');
-    }
-    modules.push('form-link', 'activity');
-    return modules;
-  }, [user?.role]);
+    return getVisibleModules(userRole);
+  }, [userRole]);
 
   const toggleItem = (id: number) => {
     setExpandedItems(prev => {
@@ -961,6 +1000,9 @@ export function OrderCapsule({ isOpen, onClose, orderId }: OrderCapsuleProps) {
                     setFormData={setFormData}
                     trackingNumbers={trackingNumbers}
                     contacts={contacts}
+                    showAdvanced={showAdvanced}
+                    setShowAdvanced={setShowAdvanced}
+                    userRole={userRole}
                   />
                 )}
                 {activeModule === 'line-items' && (
@@ -1088,7 +1130,10 @@ function OverviewModule({
   formData, 
   setFormData,
   trackingNumbers,
-  contacts
+  contacts,
+  showAdvanced,
+  setShowAdvanced,
+  userRole
 }: { 
   order: any; 
   organization: any; 
@@ -1098,6 +1143,9 @@ function OverviewModule({
   setFormData: (data: any) => void;
   trackingNumbers: any[];
   contacts: any[];
+  showAdvanced: boolean;
+  setShowAdvanced: (show: boolean) => void;
+  userRole: UserRole;
 }) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const lineItemsWithImages = lineItems.filter((item: any) => item.imageUrl);
@@ -1348,99 +1396,250 @@ function OverviewModule({
           </div>
         </div>
 
-        {/* Shipping Info */}
-        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-          <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-            <Truck className="w-4 h-4 text-neon-cyan" />
-            Shipping
-          </h3>
-          <div className="space-y-3">
-            <div>
-              <Label className="text-xs text-white/50">Shipping Address</Label>
-              {isEditing ? (
-                <Textarea
-                  value={formData.shippingAddress || ''}
-                  onChange={(e) => handleFormChange('shippingAddress', e.target.value)}
-                  className="mt-1 bg-white/5 border-white/10 text-sm"
-                  rows={2}
-                />
-              ) : (
-                <p className="text-sm text-white mt-1">{order.shippingAddress || '—'}</p>
+        {/* Tracking - visible for ops/admin by default */}
+        {(userRole === 'admin' || userRole === 'ops' || showAdvanced) && (
+          <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+            <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+              <Truck className="w-4 h-4 text-neon-cyan" />
+              Tracking
+              {trackingNumbers.length > 0 && (
+                <Badge variant="outline" className="ml-2 text-green-400 border-green-400/30">
+                  {trackingNumbers.length} tracking number{trackingNumbers.length > 1 ? 's' : ''}
+                </Badge>
               )}
-            </div>
-            <div>
-              <Label className="text-xs text-white/50">Tracking</Label>
-              {trackingNumbers.length > 0 ? (
-                <div className="space-y-1 mt-1">
-                  {trackingNumbers.map((t: any) => (
-                    <div key={t.id} className="text-sm text-white flex items-center gap-2">
-                      <span className="text-neon-blue">{t.carrierCompany}:</span>
-                      <span>{t.trackingNumber}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-white/50 mt-1">No tracking added</p>
-              )}
-            </div>
+            </h3>
+            {trackingNumbers.length > 0 ? (
+              <div className="space-y-1">
+                {trackingNumbers.map((t: any) => (
+                  <div key={t.id} className="text-sm text-white flex items-center gap-2">
+                    <span className="text-neon-blue">{t.carrierCompany}:</span>
+                    <span>{t.trackingNumber}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-white/50">No tracking added</p>
+            )}
           </div>
-        </div>
+        )}
 
-        {/* Workflow Checkboxes */}
-        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-          <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-green-400" />
-            Workflow Status
-          </h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-white/70">Design Approved</span>
-              {isEditing ? (
-                <Switch
-                  checked={formData.designApproved}
-                  onCheckedChange={(v) => handleFormChange('designApproved', v)}
-                />
-              ) : (
-                order.designApproved ? (
-                  <CheckCircle2 className="w-5 h-5 text-green-400" />
+        {/* Workflow Status - visible for ops/admin by default */}
+        {(userRole === 'admin' || userRole === 'ops' || showAdvanced) && (
+          <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+            <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-green-400" />
+              Workflow Status
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/70 flex items-center gap-2">
+                  Design Approved
+                  {order.designApproved && <span className="sr-only">(Complete)</span>}
+                </span>
+                {isEditing ? (
+                  <Switch
+                    checked={formData.designApproved}
+                    onCheckedChange={(v) => handleFormChange('designApproved', v)}
+                    aria-label="Toggle design approved status"
+                  />
                 ) : (
-                  <div className="w-5 h-5 rounded-full border-2 border-white/20" />
-                )
-              )}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-white/70">Sizes Validated</span>
-              {isEditing ? (
-                <Switch
-                  checked={formData.sizesValidated}
-                  onCheckedChange={(v) => handleFormChange('sizesValidated', v)}
-                />
-              ) : (
-                order.sizesValidated ? (
-                  <CheckCircle2 className="w-5 h-5 text-green-400" />
+                  order.designApproved ? (
+                    <CheckCircle2 className="w-5 h-5 text-green-400" aria-label="Design approved" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full border-2 border-white/20" aria-label="Design not approved" />
+                  )
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/70 flex items-center gap-2">
+                  Sizes Validated
+                  {order.sizesValidated && <span className="sr-only">(Complete)</span>}
+                </span>
+                {isEditing ? (
+                  <Switch
+                    checked={formData.sizesValidated}
+                    onCheckedChange={(v) => handleFormChange('sizesValidated', v)}
+                    aria-label="Toggle sizes validated status"
+                  />
                 ) : (
-                  <div className="w-5 h-5 rounded-full border-2 border-white/20" />
-                )
-              )}
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-white/70">Deposit Received</span>
-              {isEditing ? (
-                <Switch
-                  checked={formData.depositReceived}
-                  onCheckedChange={(v) => handleFormChange('depositReceived', v)}
-                />
-              ) : (
-                order.depositReceived ? (
-                  <CheckCircle2 className="w-5 h-5 text-green-400" />
+                  order.sizesValidated ? (
+                    <CheckCircle2 className="w-5 h-5 text-green-400" aria-label="Sizes validated" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full border-2 border-white/20" aria-label="Sizes not validated" />
+                  )
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/70 flex items-center gap-2">
+                  Deposit Received
+                  {order.depositReceived && <span className="sr-only">(Complete)</span>}
+                </span>
+                {isEditing ? (
+                  <Switch
+                    checked={formData.depositReceived}
+                    onCheckedChange={(v) => handleFormChange('depositReceived', v)}
+                    aria-label="Toggle deposit received status"
+                  />
                 ) : (
-                  <div className="w-5 h-5 rounded-full border-2 border-white/20" />
-                )
-              )}
+                  order.depositReceived ? (
+                    <CheckCircle2 className="w-5 h-5 text-green-400" aria-label="Deposit received" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full border-2 border-white/20" aria-label="Deposit not received" />
+                  )
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
+
+      {/* Advanced Section Toggle */}
+      <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+        <CollapsibleTrigger asChild>
+          <button
+            id={`advanced-sections-trigger-${orderId}`}
+            className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors py-2"
+            aria-expanded={showAdvanced}
+            aria-controls={`advanced-sections-content-${orderId}`}
+            aria-label={showAdvanced ? "Hide advanced options" : "Show advanced options"}
+            data-testid="button-toggle-advanced"
+          >
+            {showAdvanced ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            <Settings className="w-4 h-4" />
+            <span>{showAdvanced ? "Hide Advanced" : "Show Advanced"}</span>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent 
+          id={`advanced-sections-content-${orderId}`}
+          role="region"
+          aria-labelledby={`advanced-sections-trigger-${orderId}`}
+        >
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="grid grid-cols-2 gap-6 mt-4"
+          >
+            {/* Shipping Address */}
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+              <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+                <Truck className="w-4 h-4 text-neon-cyan" />
+                Shipping Address
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  {isEditing ? (
+                    <Textarea
+                      value={formData.shippingAddress || ''}
+                      onChange={(e) => handleFormChange('shippingAddress', e.target.value)}
+                      className="bg-white/5 border-white/10 text-sm"
+                      rows={3}
+                      aria-label="Shipping address"
+                    />
+                  ) : (
+                    <p className="text-sm text-white whitespace-pre-line">{order.shippingAddress || '—'}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Billing Address */}
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+              <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-neon-purple" />
+                Billing Address
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  {isEditing ? (
+                    <Textarea
+                      value={formData.billToAddress || ''}
+                      onChange={(e) => handleFormChange('billToAddress', e.target.value)}
+                      className="bg-white/5 border-white/10 text-sm"
+                      rows={3}
+                      aria-label="Billing address"
+                    />
+                  ) : (
+                    <p className="text-sm text-white whitespace-pre-line">{order.billToAddress || '—'}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Invoice/Folder Links */}
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+              <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-neon-blue" />
+                Documents & Links
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-white/50">Invoice URL</span>
+                  {isEditing ? (
+                    <Input
+                      value={formData.invoiceUrl || ''}
+                      onChange={(e) => handleFormChange('invoiceUrl', e.target.value)}
+                      className="w-48 h-8 bg-white/5 border-white/10"
+                      placeholder="https://..."
+                      aria-label="Invoice URL"
+                    />
+                  ) : order.invoiceUrl ? (
+                    <a href={order.invoiceUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-neon-blue hover:underline flex items-center gap-1">
+                      View Invoice <ExternalLink className="w-3 h-3" />
+                    </a>
+                  ) : (
+                    <span className="text-sm text-white/40">—</span>
+                  )}
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-white/50">Order Folder</span>
+                  {isEditing ? (
+                    <Input
+                      value={formData.orderFolder || ''}
+                      onChange={(e) => handleFormChange('orderFolder', e.target.value)}
+                      className="w-48 h-8 bg-white/5 border-white/10"
+                      placeholder="https://..."
+                      aria-label="Order folder URL"
+                    />
+                  ) : order.orderFolder ? (
+                    <a href={order.orderFolder} target="_blank" rel="noopener noreferrer" className="text-sm text-neon-blue hover:underline flex items-center gap-1">
+                      Open Folder <ExternalLink className="w-3 h-3" />
+                    </a>
+                  ) : (
+                    <span className="text-sm text-white/40">—</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Order Totals */}
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+              <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+                <Calculator className="w-4 h-4 text-green-400" />
+                Order Totals
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-white/50">Line Items</span>
+                  <span className="text-sm text-white">{lineItems.length}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-white/50">Total Quantity</span>
+                  <span className="text-sm text-white">
+                    {lineItems.reduce((sum: number, item: any) => sum + (item.qtyTotal || 0), 0)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center border-t border-white/10 pt-2 mt-2">
+                  <span className="text-sm font-medium text-white">Total Value</span>
+                  <span className="text-lg font-bold text-neon-cyan">
+                    ${lineItems.reduce((sum: number, item: any) => sum + parseFloat(item.lineTotal || '0'), 0).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <FullScreenImageViewer
         imageUrl={selectedImage || ''}
