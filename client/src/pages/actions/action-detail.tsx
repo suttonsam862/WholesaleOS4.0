@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { celebrateSuccess } from "@/lib/confetti";
 import { getActionById } from "@/lib/actionsConfig";
-import type { Order, Organization, Quote, ManufacturingOrder, TeamStore, Product, ProductVariant } from "@shared/schema";
+import type { Order, Organization, Quote, Manufacturing, TeamStore, Product, ProductVariant } from "@shared/schema";
 import PANTONE_COLORS from "@/data/pantone-colors.json";
 
 interface PantoneColor {
@@ -168,7 +168,7 @@ function ActionStepContent({
     enabled: hubId === "orders" || hubId === "quotes" || hubId === "manufacturing",
   });
 
-  const { data: manufacturingOrders = [] } = useQuery<ManufacturingOrder[]>({
+  const { data: manufacturingOrders = [] } = useQuery<Manufacturing[]>({
     queryKey: ["/api/manufacturing"],
     enabled: hubId === "manufacturing",
   });
@@ -219,7 +219,7 @@ function ActionStepContent({
   const aiMutation = useMutation({
     mutationFn: async (payload: any) => {
       const response = await apiRequest("POST", "/api/ai/interactions", payload);
-      return response.json();
+      return response;
     },
     onSuccess: (data) => {
       setAiResult(data);
@@ -238,7 +238,7 @@ function ActionStepContent({
   const createQuoteMutation = useMutation({
     mutationFn: async (quoteData: any) => {
       const response = await apiRequest("POST", "/api/quotes", quoteData);
-      return response.json();
+      return response;
     },
     onSuccess: (data) => {
       toast({
@@ -263,7 +263,7 @@ function ActionStepContent({
   const createTourMerchBundleMutation = useMutation({
     mutationFn: async (bundleData: any) => {
       const response = await apiRequest("POST", "/api/tour-merch-bundles", bundleData);
-      return response.json();
+      return response;
     },
     onSuccess: (data) => {
       setCreatedTourMerchBundle(data);
@@ -288,7 +288,7 @@ function ActionStepContent({
   const createDesignJobMutation = useMutation({
     mutationFn: async (jobData: any) => {
       const response = await apiRequest("POST", "/api/design-jobs", jobData);
-      return response.json();
+      return response;
     },
     onSuccess: (data) => {
       setCreatedDesignJob(data);
@@ -314,7 +314,7 @@ function ActionStepContent({
   const createPrintfulSyncMutation = useMutation({
     mutationFn: async (syncData: any) => {
       const response = await apiRequest("POST", "/api/printful-sync-records", syncData);
-      return response.json();
+      return response;
     },
     onSuccess: (data) => {
       setCreatedPrintfulRecord(data);
@@ -341,7 +341,7 @@ function ActionStepContent({
   const createOrganizationMutation = useMutation({
     mutationFn: async (orgData: any) => {
       const response = await apiRequest("POST", "/api/organizations", orgData);
-      return response.json();
+      return response;
     },
     onSuccess: async (data) => {
       setCreatedOrganization(data);
@@ -781,7 +781,7 @@ function ActionStepContent({
   const createQuickQuoteMutation = useMutation({
     mutationFn: async (quoteData: any) => {
       const response = await apiRequest("POST", "/api/quotes", quoteData);
-      return response.json();
+      return response;
     },
     onSuccess: (data) => {
       setCreatedQuote(data);
@@ -1041,7 +1041,7 @@ function ActionStepContent({
     // Push to Printful PICK step
     if (action.id === "push-to-printful") {
       const getItems = () => {
-        if (hubId === "orders") return orders.filter((o: Order) => o.status !== "cancelled" && o.status !== "draft");
+        if (hubId === "orders") return orders.filter((o: Order) => o.status !== "cancelled" && o.status !== "new");
         if (hubId === "manufacturing") return manufacturingOrders.filter((m: any) => m.status === "in_production" || m.status === "pending");
         return orders;
       };
