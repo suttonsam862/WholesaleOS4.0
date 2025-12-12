@@ -2483,7 +2483,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get order line items with manufacturer assignments
-  app.get('/api/orders/:id/line-items-with-manufacturers', isAuthenticated, loadUserData, requirePermission('orders', 'read'), async (req, res) => {
+  // Allow access for users with orders.read OR manufacturing.read permissions
+  app.get('/api/orders/:id/line-items-with-manufacturers', isAuthenticated, loadUserData, requirePermissionOr(
+    { resource: 'orders', permission: 'read' },
+    { resource: 'manufacturing', permission: 'read' }
+  ), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const order = await storage.getOrder(id);

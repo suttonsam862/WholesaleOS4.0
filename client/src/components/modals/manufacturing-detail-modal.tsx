@@ -128,13 +128,25 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
   });
 
   // Fetch order line items with manufacturer assignments
-  const { data: lineItems = [] } = useQuery<any[]>({
+  // Note: This may fail for manufacturer roles if they don't have orders.read
+  // The manufacturingLineItems query below is the primary source for manufacturers
+  const [lineItemsPermissionError, setLineItemsPermissionError] = useState(false);
+  const { data: lineItems = [], isError: lineItemsError } = useQuery<any[]>({
     queryKey: ['/api/orders', manufacturingUpdate?.orderId, 'line-items-with-manufacturers'],
     queryFn: async () => {
       const response = await fetch(`/api/orders/${manufacturingUpdate?.orderId}/line-items-with-manufacturers`, {
         credentials: 'include',
       });
-      if (!response.ok) return [];
+      if (!response.ok) {
+        // For 403, set the permission error flag and return empty
+        // Manufacturers will use manufacturingLineItems instead
+        if (response.status === 403) {
+          setLineItemsPermissionError(true);
+          return [];
+        }
+        throw new Error('Failed to fetch line items');
+      }
+      setLineItemsPermissionError(false);
       return response.json();
     },
     enabled: !!manufacturingUpdate?.orderId,
@@ -623,9 +635,15 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
     return ((currentIndex + 1) / statusSteps.length) * 100;
   };
 
-  // Check if user can edit
+  // Check if user can edit manufacturing details
   const canEdit = user?.role === 'admin' || user?.role === 'ops' || 
     (user?.role === 'manufacturer' && manufacturingUpdate?.assignedManufacturerId === user.id);
+
+  // Check if user can view/refresh line items (more permissive - any manufacturer can view)
+  const canViewLineItems = user?.role === 'admin' || user?.role === 'ops' || user?.role === 'manufacturer';
+  
+  // Check if user can refresh line items (requires manufacturing write)
+  const canRefreshLineItems = user?.role === 'admin' || user?.role === 'ops' || user?.role === 'manufacturer';
 
   // Calculate days overdue
   const calculateOverdue = () => {
@@ -1116,7 +1134,7 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                       <Package className="w-4 h-4 mr-2" />
                       Line Item Manufacturing Status
                     </CardTitle>
-                    {manufacturingUpdates.length > 0 && canEdit && (
+                    {manufacturingUpdates.length > 0 && canRefreshLineItems && (
                       <Button
                         variant="outline"
                         size="sm"
@@ -1152,8 +1170,16 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                         {createInitialUpdateMutation.isPending ? "Creating..." : "Initialize Manufacturing Update"}
                       </Button>
                     </div>
-                  ) : (manufacturingLineItems.length === 0 && lineItems.length === 0) ? (
-                    <p className="text-sm text-muted-foreground">No line items found for this manufacturing update</p>
+                  ) : manufacturingLineItems.length === 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">No line items found for this manufacturing update</p>
+                      {lineItemsPermissionError && (
+                        <p className="text-xs text-amber-500 flex items-center gap-1">
+                          <AlertCircle className="w-3 h-3" />
+                          Some order data may not be available due to permission restrictions. Use the refresh button if needed.
+                        </p>
+                      )}
+                    </div>
                   ) : (
                     <div className="space-y-4">
                       {manufacturingLineItems.map((item, index) => {
