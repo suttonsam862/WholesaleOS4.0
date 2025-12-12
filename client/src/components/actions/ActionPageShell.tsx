@@ -132,7 +132,7 @@ export function ActionPageShell({ hubId, actionId, children }: ActionPageShellPr
   const Icon = action.icon;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 pb-24 md:pb-6 max-w-4xl mx-auto">
       <div className="mb-6">
         <Link href={`/${hubId}`}>
           <Button variant="ghost" size="sm" data-testid="button-back-to-hub">
