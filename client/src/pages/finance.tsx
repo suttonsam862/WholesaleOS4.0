@@ -113,14 +113,18 @@ const CATEGORY_OPTIONS = [
   "Other Expense"
 ];
 
-export default function Finance() {
+interface FinanceProps {
+  defaultTab?: string;
+}
+
+export default function Finance({ defaultTab = "overview" }: FinanceProps) {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "invoice" | "payment" | "commission">("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(defaultTab);
   
   const [matchingSearchQuery, setMatchingSearchQuery] = useState("");
   const [matchingStatusFilter, setMatchingStatusFilter] = useState<string>("all");

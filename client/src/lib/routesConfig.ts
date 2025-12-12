@@ -44,6 +44,13 @@ const DesignerManagement = lazy(() => import("@/pages/designer-management"));
 const ManufacturerManagement = lazy(() => import("@/pages/manufacturer-management"));
 const UserManagement = lazy(() => import("@/pages/user-management"));
 const Finance = lazy(() => import("@/pages/finance"));
+const FinanceHub = lazy(() => import("@/pages/finance-hub"));
+const FinanceOverview = lazy(() => import("@/pages/finance/index").then(m => ({ default: m.FinanceOverview })));
+const FinanceInvoices = lazy(() => import("@/pages/finance/index").then(m => ({ default: m.FinanceInvoices })));
+const FinancePayments = lazy(() => import("@/pages/finance/index").then(m => ({ default: m.FinancePayments })));
+const FinanceCommissions = lazy(() => import("@/pages/finance/index").then(m => ({ default: m.FinanceCommissions })));
+const FinanceMatching = lazy(() => import("@/pages/finance/index").then(m => ({ default: m.FinanceMatching })));
+const FinanceExpenses = lazy(() => import("@/pages/finance/index").then(m => ({ default: m.FinanceExpenses })));
 const Quotes = lazy(() => import("@/pages/quotes"));
 const TestUsers = lazy(() => import("@/pages/test-users"));
 const PermissionManagement = lazy(() => import("@/pages/permission-management"));
@@ -125,7 +132,14 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/designer-management", title: "Designer Management", component: DesignerManagement, requiresAuth: true, requiresLayout: true, resource: "designerManagement" },
   { path: "/manufacturer-management", title: "Manufacturer Management", component: ManufacturerManagement, requiresAuth: true, requiresLayout: true, resource: "manufacturerManagement" },
   { path: "/user-management", title: "User Management", component: UserManagement, requiresAuth: true, requiresLayout: true, roles: ["admin"], resource: "userManagement" },
-  { path: "/finance", title: "Finance", component: Finance, requiresAuth: true, requiresLayout: true, resource: "finance" },
+  { path: "/finance", title: "Finance Hub", component: FinanceHub, requiresAuth: true, requiresLayout: true, resource: "finance" },
+  { path: "/finance/overview", title: "Financial Overview", component: FinanceOverview, requiresAuth: true, requiresLayout: true, resource: "finance" },
+  { path: "/finance/invoices", title: "Invoices", component: FinanceInvoices, requiresAuth: true, requiresLayout: true, resource: "finance" },
+  { path: "/finance/payments", title: "Payments", component: FinancePayments, requiresAuth: true, requiresLayout: true, resource: "finance" },
+  { path: "/finance/commissions", title: "Commissions", component: FinanceCommissions, requiresAuth: true, requiresLayout: true, resource: "finance" },
+  { path: "/finance/matching", title: "Financial Matching", component: FinanceMatching, requiresAuth: true, requiresLayout: true, resource: "finance" },
+  { path: "/finance/expenses", title: "Expenses", component: FinanceExpenses, requiresAuth: true, requiresLayout: true, resource: "finance" },
+  { path: "/finance/legacy", title: "Finance (Legacy)", component: Finance, requiresAuth: true, requiresLayout: true, resource: "finance" },
   { path: "/quotes", title: "Quote Generator", component: Quotes, requiresAuth: true, requiresLayout: true, resource: "quotes" },
   { path: "/admin/test-users", title: "Test User Access", component: TestUsers, requiresAuth: true, requiresLayout: true, roles: ["admin"], resource: "users" },
   { path: "/admin/permissions", title: "Permission Management", component: PermissionManagement, requiresAuth: true, requiresLayout: true, roles: ["admin"], resource: "users" },
