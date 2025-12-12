@@ -32,6 +32,7 @@ interface AIInteractionResult {
 }
 
 const ACTION_PROMPTS: Record<string, (context: any) => string> = {
+  // Sales Analytics AI Actions
   "client-brief": (ctx) => {
     const org = ctx.selectedItem;
     const options = ctx.options || {};
@@ -71,6 +72,21 @@ Generate an easy-to-understand summary that explains what the numbers mean in pr
 Keep the explanation conversational and under 250 words. Avoid jargon.`;
   },
 
+  "weekly-report": (ctx) => {
+    const options = ctx.options || {};
+    return `Generate a weekly sales summary report.
+
+Generate a professional weekly sales report summary that includes:
+1. Executive Summary - Key wins and highlights from the week
+2. Revenue Overview - Total sales activity
+3. Pipeline Status - Active opportunities and their stages
+4. Top Performing Items - Best selling products or categories
+5. Upcoming Priorities - Focus areas for next week
+
+Keep the report concise, data-driven, and under 400 words. Use bullet points for easy scanning.`;
+  },
+
+  // Orders AI Actions
   "quote-from-order": (ctx) => {
     const order = ctx.selectedItem;
     return `Generate a professional quote summary based on order information.
@@ -85,6 +101,112 @@ Create a brief summary (under 100 words) describing:
 3. Any special notes or considerations
 
 Format as a professional internal memo.`;
+  },
+
+  // Organizations AI Actions
+  "client-summary": (ctx) => {
+    const org = ctx.selectedItem;
+    return `Generate a comprehensive client summary for internal use.
+
+Organization: ${org?.name || "Unknown"}
+Location: ${org?.city || "Unknown"}${org?.state ? `, ${org.state}` : ""}
+Client Type: ${org?.clientType || "Not specified"}
+Sports/Industry: ${org?.sports || "Not specified"}
+Notes: ${org?.notes || "No notes"}
+
+Create a professional summary that includes:
+1. Client Overview - Who they are and what they do
+2. Relationship History - How long we've worked together
+3. Key Preferences - Important things to remember
+4. Communication Notes - Best practices for this client
+
+Keep the summary professional and under 250 words.`;
+  },
+
+  // Contacts AI Actions
+  "follow-up-message": (ctx) => {
+    const contact = ctx.selectedItem;
+    const options = ctx.options || {};
+    return `Draft a professional follow-up message for a contact.
+
+Contact: ${contact?.name || contact?.firstName || "Unknown"}
+Email: ${contact?.email || "Not provided"}
+Organization: ${contact?.organizationName || "Unknown"}
+Role: ${contact?.role || "Not specified"}
+
+Purpose: ${options.purpose || "General follow-up"}
+
+Generate a friendly, professional follow-up message that:
+1. Opens with a personalized greeting
+2. References our business relationship
+3. States the purpose of reaching out
+4. Includes a clear call-to-action
+5. Closes professionally
+
+Keep the message concise (under 150 words) and conversational.`;
+  },
+
+  // Leads AI Actions
+  "lead-summary": (ctx) => {
+    const lead = ctx.selectedItem;
+    return `Generate a lead summary and assessment.
+
+Lead Name: ${lead?.name || "Unknown"}
+Contact: ${lead?.contactName || "Not provided"}
+Email: ${lead?.email || "Not provided"}
+Phone: ${lead?.phone || "Not provided"}
+Status: ${lead?.status || "Unknown"}
+Notes: ${lead?.notes || "No notes"}
+
+Create a brief lead assessment that includes:
+1. Lead Quality Score (Hot/Warm/Cold with reasoning)
+2. Key Opportunity - What they're looking for
+3. Next Best Action - Recommended follow-up step
+4. Potential Blockers - Concerns or obstacles
+5. Talking Points - Key conversation starters
+
+Keep the summary actionable and under 200 words.`;
+  },
+
+  // Events AI Actions
+  "event-summary": (ctx) => {
+    const event = ctx.selectedItem;
+    return `Generate a post-event summary report.
+
+Event: ${event?.name || "Unknown Event"}
+Date: ${event?.date || "Unknown"}
+Location: ${event?.location || "Not specified"}
+Type: ${event?.eventType || "Not specified"}
+
+Create a professional post-event summary that includes:
+1. Event Overview - What happened and key metrics
+2. Highlights - Notable successes or memorable moments
+3. Challenges - Issues encountered and how they were handled
+4. Lessons Learned - What to do differently next time
+5. Recommendations - Action items for future events
+
+Keep the summary concise and under 300 words.`;
+  },
+
+  // Quotes AI Actions
+  "quote-followup": (ctx) => {
+    const quote = ctx.selectedItem;
+    return `Draft a follow-up message about a quote.
+
+Quote: ${quote?.quoteNumber || "Unknown"}
+Client: ${quote?.organizationName || "Unknown"}
+Amount: ${quote?.total ? `$${quote.total}` : "Not specified"}
+Status: ${quote?.status || "Unknown"}
+Sent Date: ${quote?.createdAt || "Unknown"}
+
+Create a professional follow-up message that:
+1. References the specific quote
+2. Reminds them of the value proposition
+3. Addresses common objections
+4. Creates urgency without being pushy
+5. Offers to answer questions or make adjustments
+
+Keep the message friendly, professional, and under 150 words.`;
   },
 };
 
