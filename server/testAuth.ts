@@ -34,6 +34,112 @@ export class TestAuthenticationManager {
   private static readonly TEST_USER_ID = "test-admin-automated-auth";
 
   /**
+   * Generate test user credentials for a specific role
+   */
+  private static getTestUserCredentials(role: TestUser["role"]) {
+    return {
+      email: `test-${role}@automated-testing.local`,
+      password: "AutoTest2024!",
+      id: `test-${role}-automated-auth`,
+      firstName: "Test",
+      lastName: role.charAt(0).toUpperCase() + role.slice(1),
+      name: `Test ${role.charAt(0).toUpperCase() + role.slice(1)} (Automated)`,
+    };
+  }
+
+  /**
+   * Create or ensure a test user exists for a specific role
+   */
+  static async ensureTestUserForRole(role: TestUser["role"]): Promise<TestUser> {
+    const creds = this.getTestUserCredentials(role);
+    console.log(`🔐 [TestAuth] Ensuring test user exists for role: ${role}`);
+    
+    // Check if test user already exists
+    const [existingUser] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, creds.email));
+    
+    if (existingUser) {
+      console.log(`✅ [TestAuth] Test ${role} user already exists: ${existingUser.id}`);
+      
+      // Ensure the user has the correct role
+      if (existingUser.role !== role) {
+        console.log(`🔄 [TestAuth] Updating test user role from ${existingUser.role} to ${role}`);
+        const [updatedUser] = await db
+          .update(users)
+          .set({ role })
+          .where(eq(users.id, existingUser.id))
+          .returning();
+        return updatedUser as TestUser;
+      }
+      
+      return existingUser as TestUser;
+    }
+    
+    // Create new test user
+    const hashedPassword = await bcrypt.hash(creds.password, 10);
+    
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        id: creds.id,
+        email: creds.email,
+        firstName: creds.firstName,
+        lastName: creds.lastName,
+        name: creds.name,
+        role,
+        passwordHash: hashedPassword,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+    
+    console.log(`✅ [TestAuth] Created new test ${role} user: ${newUser.id}`);
+    return newUser as TestUser;
+  }
+
+  /**
+   * Setup deterministic auth for a specific role
+   */
+  static async setupDeterministicAuthForRole(role: TestUser["role"]): Promise<{
+    user: TestUser;
+    session: TestSession;
+    sessionCookie: string;
+    authenticationVerified: boolean;
+  }> {
+    console.log(`🚨 [TestAuth] Setting up DETERMINISTIC AUTHENTICATION for role: ${role}`);
+    console.log(`============================================`);
+    
+    try {
+      // Step 1: Ensure test user exists for this role
+      const user = await this.ensureTestUserForRole(role);
+      
+      // Step 2: Create authenticated session
+      const session = await this.createTestSession(user);
+      
+      // Step 3: Generate session cookie
+      const cookieData = this.generateSessionCookie(session.sessionId);
+      
+      console.log(`✅ [TestAuth] DETERMINISTIC AUTHENTICATION COMPLETE for ${role}`);
+      console.log(`   User: ${user.email} (${user.role})`);
+      console.log(`   Session: ${session.sessionId}`);
+      
+      return {
+        user,
+        session,
+        sessionCookie: cookieData.value,
+        authenticationVerified: true
+      };
+      
+    } catch (error) {
+      console.error(`❌ [TestAuth] DETERMINISTIC AUTHENTICATION FAILED for ${role}:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * CRITICAL: Create or ensure test admin user exists for deterministic testing
    */
   static async ensureTestUser(): Promise<TestUser> {
@@ -210,6 +316,7 @@ export class TestAuthenticationManager {
 
   /**
    * CRITICAL: Generate session cookie data for browser injection
+   * Express-session uses format: s%3A<signedValue> (URL encoded "s:" prefix)
    */
   static generateSessionCookie(sessionId: string): { value: string; fullCookie: string } {
     // Get the session secret from environment
@@ -218,11 +325,16 @@ export class TestAuthenticationManager {
     // Use cookie-signature library to sign the session ID (same as express-session)
     const signedSessionValue = signature.sign(sessionId, sessionSecret);
     
+    // CRITICAL: express-session expects the cookie to be prefixed with "s:" and URL-encoded
+    // Format: s%3A<signedSessionId>
+    const formattedCookieValue = `s:${signedSessionValue}`;
+    const urlEncodedValue = encodeURIComponent(formattedCookieValue);
+    
     // Return both the signed value and the complete cookie string
     const secureFlag = process.env.NODE_ENV === 'production' ? '; Secure' : '';
     return {
-      value: signedSessionValue, // Just the signed session ID for programmatic injection
-      fullCookie: `connect.sid=${signedSessionValue}; Path=/; HttpOnly${secureFlag}` // Full cookie for manual use
+      value: urlEncodedValue, // URL-encoded session value for programmatic injection
+      fullCookie: `connect.sid=${urlEncodedValue}; Path=/; HttpOnly${secureFlag}` // Full cookie for manual use
     };
   }
 

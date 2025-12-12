@@ -92,6 +92,60 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  // Test login endpoint for Playwright - supports ANY role (DEVELOPMENT ONLY)
+  app.post('/api/test/login', async (req, res) => {
+    try {
+      if (process.env.NODE_ENV !== 'development') {
+        return res.status(403).json({ message: "Test login only available in development" });
+      }
+
+      const { role = 'admin' } = req.body;
+      const validRoles = ['admin', 'sales', 'designer', 'ops', 'manufacturer'];
+      
+      if (!validRoles.includes(role)) {
+        return res.status(400).json({ 
+          message: `Invalid role. Must be one of: ${validRoles.join(', ')}` 
+        });
+      }
+
+      const { TestAuthenticationManager } = await import("../testAuth");
+      
+      console.log(`🔐 [API] Test login for role: ${role}`);
+      
+      const authSetup = await TestAuthenticationManager.setupDeterministicAuthForRole(role as any);
+      
+      // Set the session cookie directly (secure is false in dev)
+      res.cookie('connect.sid', authSetup.sessionCookie, {
+        httpOnly: true,
+        secure: false, // Development only endpoint, never runs in production
+        path: '/',
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      });
+
+      res.json({
+        success: true,
+        sessionId: authSetup.session.sessionId,
+        sessionCookie: authSetup.sessionCookie,
+        user: {
+          id: authSetup.user.id,
+          email: authSetup.user.email,
+          role: authSetup.user.role,
+          name: authSetup.user.name
+        },
+        redirectTo: `/${role}/home`,
+        timestamp: new Date().toISOString()
+      });
+
+    } catch (error) {
+      console.error('❌ [API] Test login failed:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Test login failed",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // Test authentication routes (DEVELOPMENT ONLY - Critical for deterministic testing)
   app.post('/api/test/auth/setup', async (req, res) => {
     try {
@@ -153,7 +207,10 @@ export function registerAuthRoutes(app: Express): void {
           const signature = await import('cookie-signature');
 
           try {
-            const sessionId = signature.default.unsign(rawCookie, process.env.SESSION_SECRET!);
+            // URL-decode and strip the "s:" prefix that express-session uses
+            const decodedCookie = decodeURIComponent(rawCookie);
+            const signedValue = decodedCookie.startsWith('s:') ? decodedCookie.slice(2) : decodedCookie;
+            const sessionId = signature.default.unsign(signedValue, process.env.SESSION_SECRET!);
             console.log('   Session ID verified');
 
             if (sessionId !== false) {

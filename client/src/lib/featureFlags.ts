@@ -4,7 +4,7 @@ export interface FeatureFlags {
 }
 
 const defaultFlags: FeatureFlags = {
-  enableRoleHome: false,
+  enableRoleHome: true,  // Enabled by default for workflow-first navigation
   enableNewNavigation: false,
 };
 
