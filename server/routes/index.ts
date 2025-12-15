@@ -34,6 +34,7 @@ import { registerFinancialMatchingRoutes } from "./financial-matching.routes";
 import { registerManufacturerPortalRoutes } from "./manufacturer-portal.routes";
 import { registerRequestsRoutes } from "./requests.routes";
 import { registerAIRoutes } from "./ai.routes";
+import salesMapRoutes from "./sales-map.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware must be set up first
@@ -109,6 +110,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerManufacturerPortalRoutes(app);
   registerRequestsRoutes(app);
   registerAIRoutes(app);
+  
+  // Sales Map routes (mounted as router)
+  app.use("/api/sales-map", salesMapRoutes);
 
   const httpServer = createServer(app);
   return httpServer;
