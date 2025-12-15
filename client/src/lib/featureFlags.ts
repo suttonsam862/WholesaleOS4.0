@@ -1,11 +1,13 @@
 export interface FeatureFlags {
   enableRoleHome: boolean;
   enableNewNavigation: boolean;
+  salesMapEnabled: boolean;
 }
 
 const defaultFlags: FeatureFlags = {
   enableRoleHome: true,  // Enabled by default for workflow-first navigation
   enableNewNavigation: false,
+  salesMapEnabled: true,  // Enabled by default for testing - production will use user flag
 };
 
 export function getFeatureFlags(): FeatureFlags {

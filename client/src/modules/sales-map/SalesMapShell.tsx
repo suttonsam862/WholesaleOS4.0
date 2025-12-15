@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { MapCanvas } from "./map/MapCanvas";
 import { TopHUD } from "./hud/TopHUD";
 import { RightDrawer } from "./panels/RightDrawer";
+import { CollapsibleSidebar } from "./panels/CollapsibleSidebar";
 import { useMapFeed } from "./data/useMapFeed";
 import type { MapEntity, MapMode, MapFilters } from "./types";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 export default function SalesMapShell() {
   const { user } = useAuth();
@@ -19,6 +21,7 @@ export default function SalesMapShell() {
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEntity, setSelectedEntity] = useState<MapEntity | null>(null);
+  const [sidebarExpanded, setSidebarExpanded] = useState(false);
   const [bounds, setBounds] = useState<{
     north: number;
     south: number;
@@ -91,7 +94,17 @@ export default function SalesMapShell() {
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background" data-testid="sales-map-shell">
-      <div className="absolute top-4 left-4 z-30">
+      <CollapsibleSidebar
+        isExpanded={sidebarExpanded}
+        onToggle={() => setSidebarExpanded(!sidebarExpanded)}
+      />
+
+      <div
+        className={cn(
+          "absolute top-4 z-30 transition-all duration-300",
+          sidebarExpanded ? "left-60" : "left-20"
+        )}
+      >
         <Link href="/sales/home">
           <Button
             variant="outline"
@@ -115,7 +128,12 @@ export default function SalesMapShell() {
         </div>
       </div>
 
-      <div className="absolute top-16 left-4 right-4 z-10">
+      <div
+        className={cn(
+          "absolute top-16 right-4 z-10 transition-all duration-300",
+          sidebarExpanded ? "left-60" : "left-20"
+        )}
+      >
         <TopHUD
           mode={mode}
           onModeChange={setMode}
@@ -128,13 +146,20 @@ export default function SalesMapShell() {
         />
       </div>
 
-      <MapCanvas
-        organizations={displayedOrganizations}
-        leads={displayedLeads}
-        onBoundsChange={handleBoundsChange}
-        onEntityClick={handleEntityClick}
-        selectedEntity={selectedEntity}
-      />
+      <div
+        className={cn(
+          "absolute top-0 bottom-0 right-0 transition-all duration-300",
+          sidebarExpanded ? "left-56" : "left-14"
+        )}
+      >
+        <MapCanvas
+          organizations={displayedOrganizations}
+          leads={displayedLeads}
+          onBoundsChange={handleBoundsChange}
+          onEntityClick={handleEntityClick}
+          selectedEntity={selectedEntity}
+        />
+      </div>
 
       <RightDrawer
         entity={selectedEntity}
@@ -143,7 +168,12 @@ export default function SalesMapShell() {
       />
 
       {isLoading && (
-        <div className="absolute bottom-4 left-4 z-10">
+        <div
+          className={cn(
+            "absolute bottom-4 z-10 transition-all duration-300",
+            sidebarExpanded ? "left-60" : "left-20"
+          )}
+        >
           <div className="flex items-center gap-2 px-3 py-2 bg-background/90 backdrop-blur-lg rounded-lg border border-white/10">
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
             <span className="text-sm">Loading map data...</span>

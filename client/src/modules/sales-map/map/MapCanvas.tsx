@@ -205,7 +205,7 @@ export function MapCanvas({
   }, [selectedEntity]);
 
   return (
-    <div ref={mapContainer} className="absolute inset-0" data-testid="map-canvas">
+    <div ref={mapContainer} className="w-full h-full" data-testid="map-canvas">
       <style>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; }
