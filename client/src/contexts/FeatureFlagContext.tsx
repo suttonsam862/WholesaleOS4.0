@@ -5,6 +5,7 @@ interface FeatureFlagContextType {
   flags: FeatureFlags;
   setFlag: <K extends keyof FeatureFlags>(key: K, value: FeatureFlags[K]) => void;
   isEnabled: (key: keyof FeatureFlags) => boolean;
+  getAllFlags: () => Record<string, boolean>;
 }
 
 const FeatureFlagContext = createContext<FeatureFlagContextType | null>(null);
@@ -29,8 +30,12 @@ export function FeatureFlagProvider({ children }: FeatureFlagProviderProps) {
     return flags[key];
   };
 
+  const getAllFlags = (): Record<string, boolean> => {
+    return { ...flags };
+  };
+
   return (
-    <FeatureFlagContext.Provider value={{ flags, setFlag, isEnabled }}>
+    <FeatureFlagContext.Provider value={{ flags, setFlag, isEnabled, getAllFlags }}>
       {children}
     </FeatureFlagContext.Provider>
   );

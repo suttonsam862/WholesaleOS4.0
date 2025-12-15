@@ -6,6 +6,7 @@ import { AppLayout } from "@/components/layout/app-layout";
 import { AuthLoadingScreen } from "@/components/auth-loading-screen";
 import { PermissionGuard } from "@/components/PermissionGuard";
 import { RoleGuard } from "@/components/role-home/RoleGuard";
+import { useSalesLandingRedirect } from "@/hooks/useSalesLandingRedirect";
 import { 
   publicRoutes, 
   roleHomeRoutes, 
@@ -58,6 +59,8 @@ function RouteRenderer({ route, user }: { route: RouteConfig; user: any }) {
 export function AppShell() {
   const { isAuthenticated, isLoading, isError, user } = useAuth();
   const { isEnabled } = useFeatureFlags();
+  
+  useSalesLandingRedirect();
 
   if (process.env.NODE_ENV === 'development') {
     console.log('🔍 [AppShell] Auth state:', {

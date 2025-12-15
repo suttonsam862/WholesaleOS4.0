@@ -1,20 +1,20 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { NAVIGATION_ITEMS, BOTTOM_NAVIGATION } from "@/lib/permissions";
-import { usePermissions } from "@/hooks/usePermissions";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
 import { 
-  Collapsible, 
-  CollapsibleContent, 
-  CollapsibleTrigger 
-} from "@/components/ui/collapsible";
+  buildNavigationForUser,
+  getGroupLandingForRole,
+  type NavigationGroupWithPages,
+  type VisiblePage
+} from "@/lib/navigationRegistry";
+import type { UserRole } from "@/lib/permissions";
 import { 
   LayoutDashboard, 
   Target, 
   Building2, 
-  Contact, 
+  Users as ContactIcon, 
   Package, 
   Palette, 
   ShoppingCart, 
@@ -36,19 +36,23 @@ import {
   LogOut,
   Activity,
   Wifi,
-  Image,
-  Box,
-  Wrench,
-  TrendingUp,
   Map,
   GitBranch,
   Layers,
-  Home
+  Home,
+  MoreHorizontal,
+  Bell
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Lead {
   id: number;
@@ -60,13 +64,22 @@ interface DesignJob {
   status: 'pending' | 'assigned' | 'in_progress' | 'review' | 'approved' | 'rejected' | 'completed';
 }
 
-// Icon mapping for resources
-const ICON_MAP: Record<string, any> = {
+const GROUP_ICONS: Record<string, any> = {
+  "target": Target,
+  "shopping-cart": ShoppingCart,
+  "factory": Factory,
+  "palette": Palette,
+  "package": Package,
+  "dollar-sign": DollarSign,
+  "shield": Shield
+};
+
+const PAGE_ICONS: Record<string, any> = {
   "home": Home,
   "dashboard": LayoutDashboard,
   "leads": Target,
   "organizations": Building2,
-  "contacts": Contact,
+  "contacts": ContactIcon,
   "catalog": Package,
   "designJobs": Palette,
   "orders": ShoppingCart,
@@ -77,15 +90,14 @@ const ICON_MAP: Record<string, any> = {
   "salespeople": Users,
   "designerManagement": Paintbrush,
   "manufacturerManagement": Warehouse,
-  "fabricManagement": Layers,
   "userManagement": UserCog,
   "finance": DollarSign,
   "quotes": FileText,
   "users": FlaskConical,
-  "settings": Settings
+  "settings": Settings,
+  "notifications": Bell
 };
 
-// Role home page paths
 const ROLE_HOME_PATHS: Record<string, string> = {
   admin: "/admin/home",
   sales: "/sales/home",
@@ -94,41 +106,6 @@ const ROLE_HOME_PATHS: Record<string, string> = {
   manufacturer: "/manufacturer/home",
 };
 
-// Navigation Groups Configuration
-const NAVIGATION_GROUPS = [
-  {
-    title: "Overview",
-    resources: ["dashboard", "tasks"],
-    icon: LayoutDashboard
-  },
-  {
-    title: "Sales & CRM",
-    resources: ["leads", "organizations", "contacts", "salespeople", "quotes"],
-    icon: Users
-  },
-  {
-    title: "Production & Design",
-    resources: ["designJobs", "orders", "manufacturing", "teamStores", "events"],
-    icon: Factory
-  },
-  {
-    title: "Inventory & Catalog",
-    resources: ["catalog", "manufacturerManagement", "designerManagement"],
-    icon: Package
-  },
-  {
-    title: "Finance",
-    resources: ["finance"],
-    icon: DollarSign
-  },
-  {
-    title: "Admin",
-    resources: ["userManagement"],
-    icon: Shield
-  }
-];
-
-// Real-time badge logic for notification counts
 const useBadgeCounts = () => {
   const { data: leads = [] } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
@@ -160,325 +137,372 @@ const useBadgeCounts = () => {
   }, [leads, designJobs]);
 };
 
-// Role-specific workflow pages for admin quick access
-const ROLE_WORKFLOW_PAGES = [
-  {
-    category: "Sales",
-    icon: TrendingUp,
-    pages: [
-      { name: "Sales Analytics", href: "/sales-analytics", icon: Activity },
-      { name: "Sales Tracker", href: "/sales-tracker", icon: Target },
-      { name: "Sales Resources", href: "/sales-resources", icon: FileText },
-    ]
-  },
-  {
-    category: "Design",
-    icon: Palette,
-    pages: [
-      { name: "Design Portfolio", href: "/design-portfolio", icon: Image },
-      { name: "Design Resources", href: "/design-resources", icon: Palette },
-    ]
-  },
-  {
-    category: "Operations",
-    icon: Wrench,
-    pages: [
-      { name: "Order Map", href: "/order-map", icon: Map },
-      { name: "Pipeline View", href: "/pipeline", icon: GitBranch },
-      { name: "Size Checker", href: "/size-checker", icon: Box },
-      { name: "Capacity Dashboard", href: "/capacity-dashboard", icon: Activity },
-      { name: "Order Specifications", href: "/order-specifications", icon: Wrench },
-    ]
-  },
-  {
-    category: "Admin",
-    icon: Activity,
-    pages: [
-      { name: "System Analytics", href: "/system-analytics", icon: Activity },
-      { name: "Connection Health", href: "/connection-health", icon: Wifi },
-    ]
-  },
-];
+function getPageIcon(page: VisiblePage): any {
+  if (page.resourceKey && PAGE_ICONS[page.resourceKey]) {
+    return PAGE_ICONS[page.resourceKey];
+  }
+  if (page.id.includes("notification")) return Bell;
+  if (page.id.includes("connection")) return Wifi;
+  if (page.id.includes("analytics")) return Activity;
+  if (page.id.includes("map")) return Map;
+  if (page.id.includes("pipeline")) return GitBranch;
+  if (page.id.includes("fabric")) return Layers;
+  return LayoutDashboard;
+}
 
 interface SidebarProps {
   user?: any;
   isMobile?: boolean;
   onNavigate?: () => void;
+  isCollapsed?: boolean;
 }
 
-export function Sidebar({ user, isMobile = false, onNavigate }: SidebarProps) {
+export function Sidebar({ user, isMobile = false, onNavigate, isCollapsed = false }: SidebarProps) {
   const [location] = useLocation();
   const badges = useBadgeCounts();
-  const { isPageVisible, isLoading } = usePermissions();
-  const { isEnabled } = useFeatureFlags();
+  const { getAllFlags, isEnabled } = useFeatureFlags();
   const enableRoleHome = isEnabled("enableRoleHome");
   
-  // State for collapsible groups - default all open
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
-  // Initialize open groups
-  useEffect(() => {
-    const initialGroups: Record<string, boolean> = {};
-    NAVIGATION_GROUPS.forEach(group => {
-      initialGroups[group.title] = true;
-    });
-    setOpenGroups(initialGroups);
-  }, []);
-
-  const toggleGroup = (title: string) => {
-    setOpenGroups(prev => ({
+  const toggleGroupExpansion = (groupId: string) => {
+    setExpandedGroups(prev => ({
       ...prev,
-      [title]: !prev[title]
+      [groupId]: !prev[groupId]
     }));
   };
 
-  // Process navigation items into groups
-  const groupedNavigation = useMemo(() => {
-    if (isLoading) return [];
+  const navigation = useMemo(() => {
+    if (!user?.role) return [];
+    const featureFlags = getAllFlags();
+    return buildNavigationForUser(user.role as UserRole, location, featureFlags);
+  }, [user?.role, location, getAllFlags]);
 
-    const availableItems = NAVIGATION_ITEMS.filter(item => isPageVisible(item.resource));
+  const renderNavItem = (page: VisiblePage, isLanding: boolean = false) => {
+    const Icon = getPageIcon(page);
+    const badge = badges[page.path];
+    const isActive = page.isActive;
+
+    if (isCollapsed) {
+      return (
+        <TooltipProvider key={page.id} delayDuration={0}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                href={page.path}
+                onClick={() => isMobile && onNavigate?.()}
+              >
+                <div className={cn(
+                  "flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200 relative",
+                  isActive 
+                    ? "bg-primary/10 text-primary" 
+                    : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                )}
+                data-testid={`link-${page.id}`}
+                >
+                  <Icon className="w-5 h-5" />
+                  {badge && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 text-[10px] font-bold rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                      {badge}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="font-medium">
+              {page.label}
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return (
+      <Link
+        key={page.id}
+        href={page.path}
+        onClick={() => isMobile && onNavigate?.()}
+      >
+        <div className={cn(
+          "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 group relative overflow-hidden",
+          isActive 
+            ? "bg-primary/10 text-primary shadow-sm" 
+            : "text-muted-foreground hover:text-foreground hover:bg-white/5",
+          isLanding && "font-semibold"
+        )}
+        data-testid={`link-${page.id}`}
+        >
+          {isActive && (
+            <motion.div
+              layoutId="activeNav"
+              className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full"
+            />
+          )}
+          <Icon className={cn(
+            "w-4 h-4 transition-colors",
+            isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+          )} />
+          <span className="flex-1 truncate">{page.label}</span>
+          {badge && (
+            <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-primary/20 text-primary border border-primary/20">
+              {badge}
+            </span>
+          )}
+        </div>
+      </Link>
+    );
+  };
+
+  const renderGroup = (group: NavigationGroupWithPages) => {
+    const GroupIcon = GROUP_ICONS[group.icon] || LayoutDashboard;
+    const isExpanded = expandedGroups[group.id] ?? false;
+    const landingPath = getGroupLandingForRole(group, user?.role as UserRole);
     
-    return NAVIGATION_GROUPS.map(group => {
-      const groupItems = availableItems.filter(item => 
-        group.resources.includes(item.resource)
-      ).map(item => ({
-        ...item,
-        badge: badges[item.href] || null,
-        iconComponent: ICON_MAP[item.resource] || LayoutDashboard
-      }));
+    const nonLandingPages = group.pages.filter(p => !p.isGroupLanding && !p.hideFromMoreMenu);
+    const hasMorePages = nonLandingPages.length > 0;
 
-      return {
-        ...group,
-        items: groupItems
-      };
-    }).filter(group => group.items.length > 0);
-  }, [isLoading, isPageVisible, badges]);
+    if (isCollapsed) {
+      return (
+        <div key={group.id} className="space-y-1">
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link href={landingPath} onClick={() => isMobile && onNavigate?.()}>
+                  <div className={cn(
+                    "flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200",
+                    location.startsWith(landingPath) || group.pages.some(p => p.isActive)
+                      ? "bg-primary/10 text-primary" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                  )}
+                  data-testid={`group-${group.id}`}
+                  >
+                    <GroupIcon className="w-5 h-5" />
+                  </div>
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="font-medium">
+                {group.title}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      );
+    }
 
-  const bottomItems = useMemo(() => {
-    if (isLoading) return [];
-    return BOTTOM_NAVIGATION.filter(item => {
-      if (!isPageVisible(item.resource)) return false;
-      if ((item as any).adminOnly && user?.role !== 'admin') return false;
-      return true;
-    }).map(item => ({
-      ...item,
-      iconComponent: ICON_MAP[item.resource] || Settings
-    }));
-  }, [isLoading, isPageVisible, user]);
+    return (
+      <div key={group.id} className="space-y-1">
+        <div className="flex items-center gap-1">
+          <Link 
+            href={landingPath} 
+            onClick={() => isMobile && onNavigate?.()}
+            className="flex-1"
+          >
+            <div className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 group",
+              group.pages.some(p => p.isActive)
+                ? "bg-gradient-to-r from-primary/15 to-primary/5 text-primary border border-primary/20" 
+                : "text-foreground/80 hover:text-foreground hover:bg-white/5 border border-transparent"
+            )}
+            data-testid={`group-${group.id}`}
+            >
+              <GroupIcon className={cn(
+                "w-5 h-5",
+                group.pages.some(p => p.isActive) ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+              )} />
+              <span className="flex-1">{group.title}</span>
+            </div>
+          </Link>
+          
+          {hasMorePages && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "h-8 w-8 shrink-0 transition-colors",
+                isExpanded ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground"
+              )}
+              onClick={() => toggleGroupExpansion(group.id)}
+              data-testid={`expand-${group.id}`}
+            >
+              {isExpanded ? (
+                <ChevronDown className="w-4 h-4" />
+              ) : (
+                <MoreHorizontal className="w-4 h-4" />
+              )}
+            </Button>
+          )}
+        </div>
+
+        <AnimatePresence initial={false}>
+          {isExpanded && hasMorePages && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="ml-4 pl-4 border-l border-sidebar-border/50 space-y-1 overflow-hidden"
+            >
+              {nonLandingPages.map(page => renderNavItem(page))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
 
   return (
     <aside className={cn(
       "flex flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out",
-      isMobile ? "w-full h-full" : "w-[280px] h-screen"
+      isMobile ? "w-full h-full" : isCollapsed ? "w-16 h-screen" : "w-[280px] h-screen"
     )} data-testid="sidebar">
       
-      {/* Brand Header */}
-      <div className="h-16 flex items-center px-6 border-b border-sidebar-border bg-sidebar/50 backdrop-blur-sm">
+      <div className={cn(
+        "h-16 flex items-center border-b border-sidebar-border bg-sidebar/50 backdrop-blur-sm",
+        isCollapsed ? "px-3 justify-center" : "px-6"
+      )}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
             <i className="fas fa-tshirt text-primary-foreground text-sm"></i>
           </div>
-          <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
-            Rich Habits OS
-          </span>
+          {!isCollapsed && (
+            <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-white/60">
+              Rich Habits OS
+            </span>
+          )}
         </div>
       </div>
 
-      {/* Main Navigation */}
-      <ScrollArea className="flex-1 px-4 py-4">
-        <div className="space-y-6">
-          {/* Role Home Link - Feature Flag Gated */}
+      <ScrollArea className={cn("flex-1 py-4", isCollapsed ? "px-3" : "px-4")}>
+        <div className="space-y-2">
           {enableRoleHome && user?.role && ROLE_HOME_PATHS[user.role] && (
-            <div className="space-y-1">
-              <Link
-                href={ROLE_HOME_PATHS[user.role]}
-                onClick={() => isMobile && onNavigate?.()}
-              >
-                <div className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden",
-                  location === ROLE_HOME_PATHS[user.role]
-                    ? "bg-gradient-to-r from-primary/20 to-primary/10 text-primary shadow-sm border border-primary/20" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-white/10 border border-transparent"
-                )}
-                data-testid="link-role-home"
-                >
-                  <Home className={cn(
-                    "w-5 h-5 transition-colors",
-                    location === ROLE_HOME_PATHS[user.role] ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                  )} />
-                  <span className="flex-1">Home</span>
-                </div>
-              </Link>
-            </div>
-          )}
-
-          {groupedNavigation.map((group) => (
-            <div key={group.title} className="space-y-1">
-              <button
-                onClick={() => toggleGroup(group.title)}
-                className="flex items-center justify-between w-full px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors group"
-              >
-                <span className="flex items-center gap-2">
-                  {group.title}
-                </span>
-                <ChevronDown className={cn(
-                  "w-3 h-3 transition-transform duration-200 opacity-50 group-hover:opacity-100",
-                  !openGroups[group.title] && "-rotate-90"
-                )} />
-              </button>
-              
-              <AnimatePresence initial={false}>
-                {openGroups[group.title] && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="space-y-1 overflow-hidden"
-                  >
-                    {group.items.map((item) => {
-                      const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
-                      const Icon = item.iconComponent;
-
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => isMobile && onNavigate?.()}
+            <div className={cn("pb-2 mb-2 border-b border-sidebar-border/50", isCollapsed && "flex justify-center")}>
+              {isCollapsed ? (
+                <TooltipProvider delayDuration={0}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link
+                        href={ROLE_HOME_PATHS[user.role]}
+                        onClick={() => isMobile && onNavigate?.()}
+                      >
+                        <div className={cn(
+                          "flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200",
+                          location === ROLE_HOME_PATHS[user.role]
+                            ? "bg-primary/10 text-primary" 
+                            : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                        )}
+                        data-testid="link-role-home"
                         >
-                          <div className={cn(
-                            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 group relative overflow-hidden",
-                            isActive 
-                              ? "bg-primary/10 text-primary shadow-sm" 
-                              : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-                          )}>
-                            {isActive && (
-                              <motion.div
-                                layoutId="activeNav"
-                                className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full"
-                              />
-                            )}
-                            <Icon className={cn(
-                              "w-4 h-4 transition-colors",
-                              isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                            )} />
-                            <span className="flex-1">{item.name}</span>
-                            {item.badge && (
-                              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-primary/20 text-primary border border-primary/20">
-                                {item.badge}
-                              </span>
-                            )}
-                          </div>
-                        </Link>
-                      );
-                    })}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          ))}
-
-          {/* Admin Role Workflows */}
-          {user?.role === 'admin' && (
-            <div className="space-y-1 pt-4 border-t border-sidebar-border">
-              <Collapsible>
-                <CollapsibleTrigger className="flex items-center justify-between w-full px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors group">
-                  <span>Role Workflows</span>
-                  <ChevronDown className="w-3 h-3 transition-transform duration-200 group-data-[state=closed]:-rotate-90" />
-                </CollapsibleTrigger>
-                <CollapsibleContent className="space-y-4 mt-2">
-                  {ROLE_WORKFLOW_PAGES.map((section) => (
-                    <div key={section.category} className="space-y-1 pl-2">
-                      <div className="px-2 text-[10px] font-medium text-muted-foreground/70 uppercase">
-                        {section.category}
-                      </div>
-                      {section.pages.map((page) => {
-                        const isActive = location === page.href;
-                        const Icon = page.icon;
-                        
-                        return (
-                          <Link
-                            key={page.href}
-                            href={page.href}
-                            onClick={() => isMobile && onNavigate?.()}
-                          >
-                            <div className={cn(
-                              "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200",
-                              isActive 
-                                ? "bg-primary/10 text-primary" 
-                                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-                            )}>
-                              <Icon className="w-4 h-4" />
-                              <span>{page.name}</span>
-                            </div>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </CollapsibleContent>
-              </Collapsible>
+                          <Home className="w-5 h-5" />
+                        </div>
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="font-medium">
+                      Home
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              ) : (
+                <Link
+                  href={ROLE_HOME_PATHS[user.role]}
+                  onClick={() => isMobile && onNavigate?.()}
+                >
+                  <div className={cn(
+                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group relative overflow-hidden",
+                    location === ROLE_HOME_PATHS[user.role]
+                      ? "bg-gradient-to-r from-primary/20 to-primary/10 text-primary shadow-sm border border-primary/20" 
+                      : "text-muted-foreground hover:text-foreground hover:bg-white/10 border border-transparent"
+                  )}
+                  data-testid="link-role-home"
+                  >
+                    <Home className={cn(
+                      "w-5 h-5 transition-colors",
+                      location === ROLE_HOME_PATHS[user.role] ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                    )} />
+                    <span className="flex-1">Home</span>
+                  </div>
+                </Link>
+              )}
             </div>
           )}
+
+          {navigation.map(group => renderGroup(group))}
         </div>
       </ScrollArea>
 
-      {/* Bottom Navigation & User Profile */}
-      <div className="p-4 border-t border-sidebar-border bg-sidebar/50 backdrop-blur-sm space-y-4">
-        {/* Bottom Links */}
-        <div className="space-y-1">
-          {bottomItems.map((item) => {
-            const isActive = location === item.href;
-            const Icon = item.iconComponent;
-            
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => isMobile && onNavigate?.()}
-              >
-                <div className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200",
-                  isActive 
-                    ? "bg-primary/10 text-primary" 
-                    : "text-muted-foreground hover:text-foreground hover:bg-white/5"
-                )}>
-                  <Icon className="w-4 h-4" />
-                  <span>{item.name}</span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* User Profile */}
-        <div className="flex items-center gap-3 pt-4 border-t border-sidebar-border">
-          <Avatar className="w-9 h-9 border border-sidebar-border">
-            <AvatarImage src={user?.profileImageUrl} />
-            <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-              {user?.firstName?.charAt(0) || user?.email?.charAt(0) || "U"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate text-foreground">
-              {user?.firstName && user?.lastName 
-                ? `${user.firstName} ${user.lastName}`
-                : user?.email || "User"
-              }
-            </p>
-            <p className="text-xs text-muted-foreground truncate capitalize">
-              {user?.role || "User"}
-            </p>
+      <div className={cn(
+        "border-t border-sidebar-border bg-sidebar/50 backdrop-blur-sm",
+        isCollapsed ? "p-2" : "p-4"
+      )}>
+        {isCollapsed ? (
+          <div className="flex flex-col items-center gap-2">
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Avatar className="w-9 h-9 border border-sidebar-border cursor-pointer">
+                    <AvatarImage src={user?.profileImageUrl} />
+                    <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                      {user?.firstName?.charAt(0) || user?.email?.charAt(0) || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="font-medium">
+                    {user?.firstName && user?.lastName 
+                      ? `${user.firstName} ${user.lastName}`
+                      : user?.email || "User"
+                    }
+                  </p>
+                  <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => window.location.href = '/api/logout'}
+                    data-testid="button-logout"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Log out</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={() => window.location.href = '/api/logout'}
-          >
-            <LogOut className="w-4 h-4" />
-          </Button>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Avatar className="w-9 h-9 border border-sidebar-border">
+              <AvatarImage src={user?.profileImageUrl} />
+              <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                {user?.firstName?.charAt(0) || user?.email?.charAt(0) || "U"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate text-foreground">
+                {user?.firstName && user?.lastName 
+                  ? `${user.firstName} ${user.lastName}`
+                  : user?.email || "User"
+                }
+              </p>
+              <p className="text-xs text-muted-foreground truncate capitalize">
+                {user?.role || "User"}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              onClick={() => window.location.href = '/api/logout'}
+              data-testid="button-logout"
+            >
+              <LogOut className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
       </div>
     </aside>
   );
