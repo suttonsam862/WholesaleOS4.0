@@ -69,9 +69,10 @@ export function GlowingActionButton({
 
   return (
     <motion.button
-      onClick={onClick}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      onClick={isComingSoon ? undefined : onClick}
+      disabled={isComingSoon}
+      whileHover={isComingSoon ? {} : { scale: 1.02 }}
+      whileTap={isComingSoon ? {} : { scale: 0.98 }}
       className={cn(
         "relative group w-full text-left rounded-xl overflow-hidden",
         "bg-gradient-to-br backdrop-blur-sm",

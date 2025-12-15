@@ -75,8 +75,9 @@ export function RoleHomeLayout({
               {quickActions.map((action) => (
                 <DropdownMenuItem
                   key={action.id}
-                  onClick={action.onClick}
-                  className="cursor-pointer"
+                  onClick={undefined}
+                  disabled={true}
+                  className="cursor-not-allowed"
                   data-testid={`quick-action-${action.id}`}
                 >
                   <action.icon className="w-4 h-4 mr-2" />

@@ -17,68 +17,75 @@ function ActionCard({ action, hubId, index }: { action: ActionConfig; hubId: str
   const hubConfig = getHubActions(hubId);
   const actionRoute = `${hubConfig?.actionsRoute}/${action.id}`;
 
-  return (
-    <Link href={actionRoute} data-testid={`action-card-${action.id}`}>
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: index * 0.05 }}
+  const card = (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05 }}
+    >
+      <Card
+        className={cn(
+          "transition-all focus-visible:ring-2 focus-visible:ring-ring",
+          "border border-primary/20",
+          "h-full relative overflow-hidden group",
+          "bg-gradient-to-br from-background to-background/80",
+          !action.isComingSoon && "cursor-pointer hover:shadow-lg hover:scale-[1.02] hover:border-primary/40"
+        )}
+        tabIndex={0}
+        role="button"
+        aria-label={action.title}
       >
-        <Card
-          className={cn(
-            "cursor-pointer transition-all hover:shadow-lg hover:scale-[1.02] focus-visible:ring-2 focus-visible:ring-ring",
-            "border border-primary/20 hover:border-primary/40",
-            "h-full relative overflow-hidden group",
-            "bg-gradient-to-br from-background to-background/80"
-          )}
-          tabIndex={0}
-          role="button"
-          aria-label={action.title}
-        >
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div 
-            className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50 opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{
-              boxShadow: '0 0 20px hsl(var(--primary) / 0.5)'
-            }}
-          />
-          <CardContent className="p-5 relative">
-            <div className="flex items-start gap-3 mb-3">
-              <div className={cn(
-                "p-2.5 rounded-lg shrink-0 transition-all",
-                "bg-primary/10 group-hover:bg-primary/20",
-                "ring-1 ring-primary/20 group-hover:ring-primary/40"
-              )}>
-                <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
-              </div>
-              <div className="ml-auto flex items-center gap-1.5">
-                {action.requiresAI && (
-                  <span className="px-2 py-0.5 text-xs font-medium bg-purple-500/20 text-purple-400 rounded-full flex items-center gap-1">
-                    <Sparkles className="h-3 w-3" />
-                    AI
-                  </span>
-                )}
-                {action.isComingSoon && (
-                  <span className="px-2 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-500 rounded-full flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Soon
-                  </span>
-                )}
-              </div>
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div 
+          className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50 opacity-0 group-hover:opacity-100 transition-opacity"
+          style={{
+            boxShadow: '0 0 20px hsl(var(--primary) / 0.5)'
+          }}
+        />
+        <CardContent className="p-5 relative">
+          <div className="flex items-start gap-3 mb-3">
+            <div className={cn(
+              "p-2.5 rounded-lg shrink-0 transition-all",
+              "bg-primary/10 group-hover:bg-primary/20",
+              "ring-1 ring-primary/20 group-hover:ring-primary/40"
+            )}>
+              <Icon className="h-5 w-5 text-primary" aria-hidden="true" />
             </div>
-            <h3 className="font-semibold text-base mb-1" data-testid={`action-title-${action.id}`}>
-              {action.title}
-            </h3>
-            <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-              {action.description}
-            </p>
-            <div className="flex items-center text-sm font-medium text-primary group-hover:translate-x-1 transition-transform">
-              Start
-              <ArrowRight className="h-4 w-4 ml-1" aria-hidden="true" />
+            <div className="ml-auto flex items-center gap-1.5">
+              {action.requiresAI && (
+                <span className="px-2 py-0.5 text-xs font-medium bg-purple-500/20 text-purple-400 rounded-full flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" />
+                  AI
+                </span>
+              )}
+              {action.isComingSoon && (
+                <span className="px-2 py-0.5 text-xs font-medium bg-amber-500/20 text-amber-500 rounded-full flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Soon
+                </span>
+              )}
             </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+          </div>
+          <h3 className="font-semibold text-base mb-1" data-testid={`action-title-${action.id}`}>
+            {action.title}
+          </h3>
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+            {action.description}
+          </p>
+          <div className="flex items-center text-sm font-medium text-primary group-hover:translate-x-1 transition-transform">
+            Start
+            <ArrowRight className="h-4 w-4 ml-1" aria-hidden="true" />
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+
+  return action.isComingSoon ? (
+    <div data-testid={`action-card-${action.id}`}>{card}</div>
+  ) : (
+    <Link href={actionRoute} data-testid={`action-card-${action.id}`}>
+      {card}
     </Link>
   );
 }

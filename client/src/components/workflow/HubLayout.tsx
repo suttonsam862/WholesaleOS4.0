@@ -103,27 +103,16 @@ export function HubLayout({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               {quickActions.map((action) => (
-                action.href ? (
-                  <Link key={action.id} href={action.href}>
-                    <DropdownMenuItem
-                      className="cursor-pointer"
-                      data-testid={`quick-action-${action.id}`}
-                    >
-                      <action.icon className="w-4 h-4 mr-2" />
-                      {action.label}
-                    </DropdownMenuItem>
-                  </Link>
-                ) : (
-                  <DropdownMenuItem
-                    key={action.id}
-                    onClick={action.onClick}
-                    className="cursor-pointer"
-                    data-testid={`quick-action-${action.id}`}
-                  >
-                    <action.icon className="w-4 h-4 mr-2" />
-                    {action.label}
-                  </DropdownMenuItem>
-                )
+                <DropdownMenuItem
+                  key={action.id}
+                  onClick={undefined}
+                  disabled={true}
+                  className="cursor-not-allowed"
+                  data-testid={`quick-action-${action.id}`}
+                >
+                  <action.icon className="w-4 h-4 mr-2" />
+                  {action.label}
+                </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
