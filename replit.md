@@ -27,6 +27,14 @@ A comprehensive wholesale management platform designed to streamline wholesale o
 - **API Structure**: Authentication, resource-specific CRUD for all entities, user-specific permission overrides, communication logging, lead archiving, sales analytics, task management, manufacturing updates with auto-populated line items and image uploads, operational tools, and dynamic configuration endpoint for manufacturing stages. Includes endpoints for role-specific home pages and manufacturer portal jobs.
 - **Frontend Components**: Reusable `LandingHub` component, `ObjectUploader` for Google Cloud Storage integration, `ImageViewer`, `DesignAttachmentManager`, `WorkflowTile`, `QueueWidget`, `RoleHomeLayout`, `DataCapsule` for quick views, and components for financial matching.
 - **Routing System**: Centralized routing configuration with automatic permission enforcement using `AppShell`, `PermissionGuard` (resource-based), and `RoleGuard` (role-based) components. Supports feature flag gating for gradual deployment of new features.
+- **Navigation System**: Unified navigation registry (`navigationRegistry.ts`) with:
+  - `buildNavigationForUser(role, location, featureFlags)` - Returns permission-filtered navigation groups
+  - `getGroupLandingForRole(group, role, featureFlags)` - Returns role-specific landing path for a group
+  - `getDefaultLandingForRole(role, featureFlags)` - Returns the default home page for a role
+  - **FloatingDock** (desktop): Bottom dock showing Home, group landings, Settings, More popover, and Search
+  - **MobileFloatingDock** (mobile): Bottom bar with first 4 groups + expandable More menu
+  - **Sidebar**: Collapsed (group icons only) and expanded (grouped page sections) states
+  - **Sales Map Rule**: For sales role with `enableSalesMap` flag, Sales Map becomes the Sales group landing
 
 ### Feature Specifications
 - **Manufacturing Workflow**: Auto-population of line items, image upload via GCS, automatic and manual image sync, warnings for missing manufacturer assignments, inline editing, smart line item name fallback, line item refresh, support for various design file uploads, server-side PDF generation, and a 7-stage workflow system with role-based transitions and dynamic configuration. Includes tracking number and carrier synchronization.
