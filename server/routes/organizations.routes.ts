@@ -3,6 +3,17 @@ import { storage } from "../storage";
 import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
 import { insertOrganizationSchema } from "@shared/schema";
 import { z } from "zod";
+import { geocodeUSCity } from "../utils/geocoding";
+
+async function autoGeocode(data: { city?: string | null; state?: string | null }): Promise<{ geoLat?: string; geoLng?: string }> {
+  if (data.city && data.state) {
+    const coords = geocodeUSCity(data.city, data.state);
+    if (coords) {
+      return { geoLat: String(coords.lat), geoLng: String(coords.lng) };
+    }
+  }
+  return {};
+}
 
 export function registerOrganizationRoutes(app: Express): void {
   // Organizations
@@ -20,7 +31,12 @@ export function registerOrganizationRoutes(app: Express): void {
   app.post('/api/organizations', isAuthenticated, loadUserData, requirePermission('organizations', 'write'), async (req, res) => {
     try {
       const validatedData = insertOrganizationSchema.parse(req.body);
-      const organization = await storage.createOrganization(validatedData);
+      
+      // Auto-geocode if city/state provided and no geo coordinates
+      const geoData = await autoGeocode(validatedData);
+      const dataWithGeo = { ...validatedData, ...geoData };
+      
+      const organization = await storage.createOrganization(dataWithGeo);
 
       // Log activity
       await storage.logActivity(
@@ -69,7 +85,19 @@ export function registerOrganizationRoutes(app: Express): void {
         return res.status(404).json({ message: "Organization not found" });
       }
 
-      const updatedOrg = await storage.updateOrganization(id, validatedData);
+      // Auto-geocode if city/state changed
+      let dataWithGeo = { ...validatedData };
+      const cityChanged = validatedData.city && validatedData.city !== existingOrg.city;
+      const stateChanged = validatedData.state && validatedData.state !== existingOrg.state;
+      
+      if (cityChanged || stateChanged) {
+        const newCity = validatedData.city || existingOrg.city;
+        const newState = validatedData.state || existingOrg.state;
+        const geoData = await autoGeocode({ city: newCity, state: newState });
+        dataWithGeo = { ...validatedData, ...geoData };
+      }
+
+      const updatedOrg = await storage.updateOrganization(id, dataWithGeo);
 
       // Log activity
       await storage.logActivity(

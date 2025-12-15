@@ -117,10 +117,14 @@ export function MapCanvas({
 
       const el = document.createElement("div");
       el.className = "sales-map-marker org-marker";
+      
+      const hasLogo = org.logoUrl && org.logoUrl.trim() !== '';
+      const pinSize = hasLogo ? 36 : 28;
+      
       el.style.cssText = `
-        width: 28px;
-        height: 28px;
-        background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+        width: ${pinSize}px;
+        height: ${pinSize}px;
+        background: ${hasLogo ? '#ffffff' : 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)'};
         border: 2px solid rgba(255,255,255,0.9);
         border-radius: 50%;
         cursor: pointer;
@@ -129,7 +133,42 @@ export function MapCanvas({
         display: flex;
         align-items: center;
         justify-content: center;
+        overflow: hidden;
       `;
+      
+      if (hasLogo) {
+        const logoImg = document.createElement("img");
+        logoImg.src = org.logoUrl!;
+        logoImg.alt = org.name;
+        logoImg.style.cssText = `
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 50%;
+        `;
+        logoImg.onerror = () => {
+          logoImg.style.display = 'none';
+          el.style.background = 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)';
+          const fallbackInitials = document.createElement("span");
+          fallbackInitials.textContent = org.name.slice(0, 2).toUpperCase();
+          fallbackInitials.style.cssText = `
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+          `;
+          el.appendChild(fallbackInitials);
+        };
+        el.appendChild(logoImg);
+      } else {
+        const initials = document.createElement("span");
+        initials.textContent = org.name.slice(0, 2).toUpperCase();
+        initials.style.cssText = `
+          color: white;
+          font-size: 10px;
+          font-weight: bold;
+        `;
+        el.appendChild(initials);
+      }
       
       if (selectedEntity?.id === org.id && selectedEntity?.type === 'organization') {
         el.style.transform = "scale(1.3)";

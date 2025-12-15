@@ -12,6 +12,7 @@ export interface MapEntity {
   orderCount?: number;
   leadCount?: number;
   ownerUserId?: string;
+  logoUrl?: string;
 }
 
 export interface MapFeedResponse {

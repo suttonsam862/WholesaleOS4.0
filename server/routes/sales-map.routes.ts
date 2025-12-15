@@ -79,6 +79,7 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
           city: organizations.city,
           state: organizations.state,
           clientType: organizations.clientType,
+          logoUrl: organizations.logoUrl,
         })
         .from(organizations)
         .where(and(...orgConditions))
@@ -168,6 +169,7 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
       clientType: org.clientType || undefined,
       orderCount: orderCounts[org.id] || 0,
       leadCount: leadCounts[org.id] || 0,
+      logoUrl: org.logoUrl || undefined,
     }));
 
     const orgNameMap: Record<number, string> = {};
