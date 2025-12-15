@@ -132,118 +132,122 @@ export function ActionPageShell({ hubId, actionId, children }: ActionPageShellPr
   const Icon = action.icon;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="mb-6">
-        <Link href={`/${hubId}`}>
-          <Button variant="ghost" size="sm" data-testid="button-back-to-hub">
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to {action.title.split(" ")[0]}
-          </Button>
-        </Link>
+    <div className="min-h-screen flex flex-col pb-28">
+      <div className="flex-1 p-6 max-w-4xl mx-auto w-full">
+        <div className="mb-6">
+          <Link href={`/${hubId}`}>
+            <Button variant="ghost" size="sm" data-testid="button-back-to-hub">
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back to {action.title.split(" ")[0]}
+            </Button>
+          </Link>
+        </div>
+
+        <Card className="mb-6">
+          <CardHeader className="pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-lg bg-primary/10">
+                <Icon className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="flex items-center gap-2" data-testid="action-page-title">
+                  {action.title}
+                  {action.requiresAI && (
+                    <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 rounded-full flex items-center gap-1">
+                      <Zap className="h-3 w-3" />
+                      AI-powered
+                    </span>
+                  )}
+                </CardTitle>
+                <CardDescription>{action.description}</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+
+        <StepIndicator steps={steps} currentStepIndex={currentStepIndex} />
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg" data-testid="current-step-title">
+              {currentStep.title}
+            </CardTitle>
+            {currentStep.description && (
+              <CardDescription>{currentStep.description}</CardDescription>
+            )}
+          </CardHeader>
+          <CardContent>
+            {children({
+              currentStep,
+              stepIndex: currentStepIndex,
+              totalSteps: steps.length,
+              goNext,
+              goBack,
+              isFirstStep,
+              isLastStep,
+              isLoading,
+              setLoading: setIsLoading,
+              setStepData: updateStepData,
+              stepData,
+              action,
+            })}
+
+            {currentStep.type === "done" && (
+              <div className="flex justify-center mt-6">
+                <Link href={`/${hubId}`}>
+                  <Button data-testid="button-finish">
+                    Finish
+                    <Check className="h-4 w-4 ml-1" />
+                  </Button>
+                </Link>
+              </div>
+            )}
+
+          </CardContent>
+        </Card>
       </div>
 
-      <Card className="mb-6">
-        <CardHeader className="pb-4">
-          <div className="flex items-center gap-3">
-            <div className="p-3 rounded-lg bg-primary/10">
-              <Icon className="h-6 w-6 text-primary" />
-            </div>
-            <div>
-              <CardTitle className="flex items-center gap-2" data-testid="action-page-title">
-                {action.title}
-                {action.requiresAI && (
-                  <span className="px-2 py-0.5 text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 rounded-full flex items-center gap-1">
-                    <Zap className="h-3 w-3" />
-                    AI-powered
-                  </span>
-                )}
-              </CardTitle>
-              <CardDescription>{action.description}</CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
-
-      <StepIndicator steps={steps} currentStepIndex={currentStepIndex} />
-
-      {/* Top navigation bar - always visible above content */}
+      {/* Bottom fixed footer navigation */}
       {currentStep.type !== "done" && (
-        <div className="flex justify-between items-center mb-6 p-4 rounded-lg bg-muted/50 border border-border">
-          <Button
-            variant="outline"
-            onClick={goBack}
-            disabled={isFirstStep || isLoading}
-            data-testid="button-back"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back
-          </Button>
-          <div className="text-sm text-muted-foreground">
-            Step {currentStepIndex + 1} of {steps.length}
+        <div className="fixed bottom-0 left-0 right-0 p-4 border-t border-border bg-background/95 backdrop-blur-sm">
+          <div className="max-w-4xl mx-auto flex justify-between items-center">
+            <Button
+              variant="outline"
+              onClick={goBack}
+              disabled={isFirstStep || isLoading}
+              data-testid="button-back"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+            <div className="text-sm text-muted-foreground">
+              Step {currentStepIndex + 1} of {steps.length}
+            </div>
+            <Button
+              onClick={goNext}
+              disabled={isLoading}
+              data-testid="button-next"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  Processing...
+                </>
+              ) : currentStep.type === "confirm" ? (
+                <>
+                  Confirm & Save
+                  <Check className="h-4 w-4 ml-1" />
+                </>
+              ) : (
+                <>
+                  Next
+                  <ArrowRight className="h-4 w-4 ml-1" />
+                </>
+              )}
+            </Button>
           </div>
-          <Button
-            onClick={goNext}
-            disabled={isLoading}
-            data-testid="button-next"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                Processing...
-              </>
-            ) : currentStep.type === "confirm" ? (
-              <>
-                Confirm & Save
-                <Check className="h-4 w-4 ml-1" />
-              </>
-            ) : (
-              <>
-                Next
-                <ArrowRight className="h-4 w-4 ml-1" />
-              </>
-            )}
-          </Button>
         </div>
       )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg" data-testid="current-step-title">
-            {currentStep.title}
-          </CardTitle>
-          {currentStep.description && (
-            <CardDescription>{currentStep.description}</CardDescription>
-          )}
-        </CardHeader>
-        <CardContent>
-          {children({
-            currentStep,
-            stepIndex: currentStepIndex,
-            totalSteps: steps.length,
-            goNext,
-            goBack,
-            isFirstStep,
-            isLastStep,
-            isLoading,
-            setLoading: setIsLoading,
-            setStepData: updateStepData,
-            stepData,
-            action,
-          })}
-
-          {currentStep.type === "done" && (
-            <div className="flex justify-center mt-6">
-              <Link href={`/${hubId}`}>
-                <Button data-testid="button-finish">
-                  Finish
-                  <Check className="h-4 w-4 ml-1" />
-                </Button>
-              </Link>
-            </div>
-          )}
-
-        </CardContent>
-      </Card>
     </div>
   );
 }
