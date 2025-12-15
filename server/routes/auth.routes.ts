@@ -284,12 +284,27 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
-  // Logout route
+  // Unified logout endpoint (handles both local and Replit Auth)
   app.post('/api/auth/logout', async (req, res) => {
+    const user = req.user as any;
+    
+    // Check if this is a Replit Auth session
+    const isReplitAuth = user?.claims?.iss && user.claims.iss.includes('replit');
+    
     req.session.destroy((err) => {
       if (err) {
         return res.status(500).json({ message: 'Logout failed' });
       }
+      
+      // For Replit Auth, return the end session URL for client-side redirect
+      if (isReplitAuth) {
+        return res.json({ 
+          message: 'Logged out successfully',
+          redirectTo: '/api/logout' // Replit Auth end session endpoint
+        });
+      }
+      
+      // For local auth, just confirm logout
       res.json({ message: 'Logged out successfully' });
     });
   });

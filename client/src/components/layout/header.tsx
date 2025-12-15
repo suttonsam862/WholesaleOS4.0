@@ -157,16 +157,23 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
 
   const handleLogout = async () => {
     try {
-      // Try local logout first
-      await apiRequest("POST", "/api/auth/local/logout", {});
+      const response = await apiRequest("POST", "/api/auth/logout", {});
+      
       toast({
         title: "Logged out successfully",
-        description: "You have been logged out of your local session.",
+        description: "You have been logged out.",
       });
-      window.location.href = "/";
+      
+      // If response includes a redirect URL (Replit Auth), use it
+      if (response.redirectTo) {
+        window.location.href = response.redirectTo;
+      } else {
+        // Local auth - redirect to home
+        window.location.href = "/";
+      }
     } catch (error) {
-      // Fallback to Replit Auth logout
-      window.location.href = "/api/logout";
+      // Fallback to home page
+      window.location.href = "/";
     }
   };
 

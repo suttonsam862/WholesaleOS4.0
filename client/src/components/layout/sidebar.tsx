@@ -464,7 +464,18 @@ export function Sidebar({ user, isMobile = false, onNavigate, isCollapsed = fals
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => window.location.href = '/api/logout'}
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('/api/auth/logout', {
+                          method: 'POST',
+                          credentials: 'include',
+                        });
+                        const data = await response.json();
+                        window.location.href = data.redirectTo || '/';
+                      } catch {
+                        window.location.href = '/';
+                      }
+                    }}
                     data-testid="button-logout"
                   >
                     <LogOut className="w-4 h-4" />
@@ -497,7 +508,18 @@ export function Sidebar({ user, isMobile = false, onNavigate, isCollapsed = fals
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-              onClick={() => window.location.href = '/api/logout'}
+              onClick={async () => {
+                try {
+                  const response = await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    credentials: 'include',
+                  });
+                  const data = await response.json();
+                  window.location.href = data.redirectTo || '/';
+                } catch {
+                  window.location.href = '/';
+                }
+              }}
               data-testid="button-logout"
             >
               <LogOut className="w-4 h-4" />
