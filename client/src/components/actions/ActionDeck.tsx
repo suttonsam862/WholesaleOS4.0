@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { ArrowRight, Zap, ExternalLink, Clock, Sparkles } from "lucide-react";
 import { getPinnedActions, getHubActions, type ActionConfig } from "@/lib/actionsConfig";
 import { motion } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ActionDeckProps {
   hubId: string;
@@ -85,8 +86,16 @@ function ActionCard({ action, hubId, index }: { action: ActionConfig; hubId: str
 export function ActionDeck({ hubId, className }: ActionDeckProps) {
   const pinnedActions = getPinnedActions(hubId);
   const hubConfig = getHubActions(hubId);
+  const { user } = useAuth();
 
-  if (!hubConfig || pinnedActions.length === 0) {
+  const filteredPinnedActions = pinnedActions.filter(action => {
+    if (action.requiresRole && user?.role !== action.requiresRole) {
+      return false;
+    }
+    return true;
+  });
+
+  if (!hubConfig || filteredPinnedActions.length === 0) {
     return null;
   }
 
@@ -117,7 +126,7 @@ export function ActionDeck({ hubId, className }: ActionDeckProps) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {pinnedActions.map((action, index) => (
+        {filteredPinnedActions.map((action, index) => (
           <ActionCard key={action.id} action={action} hubId={hubId} index={index} />
         ))}
       </div>

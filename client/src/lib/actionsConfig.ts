@@ -20,6 +20,7 @@ export interface ActionConfig {
   isComingSoon?: boolean;
   steps: ActionStep[];
   requires?: string[];
+  requiresRole?: string;
 }
 
 export interface HubActionsConfig {
@@ -86,28 +87,6 @@ export const ordersActions: HubActionsConfig = {
         { id: "preview", type: "preview", title: "Preview Message", description: "Review the message" },
         { id: "confirm", type: "confirm", title: "Send", description: "Send to customer" },
         { id: "done", type: "done", title: "Done", description: "Link sent successfully" },
-      ],
-    },
-    {
-      id: "fix-missing-info",
-      title: "Fix Missing Order Info",
-      description: "Scan and fix incomplete order data",
-      icon: AlertTriangle,
-      pinned: true,
-      steps: defaultSteps,
-    },
-    {
-      id: "push-to-printful",
-      title: "Push to Printful",
-      description: "Send order items to Printful for fulfillment",
-      icon: Printer,
-      pinned: true,
-      steps: [
-        { id: "pick", type: "pick", title: "Pick Order", description: "Select the order to push" },
-        { id: "choose", type: "choose", title: "Select Items", description: "Choose items to send to Printful" },
-        { id: "preview", type: "preview", title: "Preview", description: "Review Printful order details" },
-        { id: "confirm", type: "confirm", title: "Push", description: "Create Printful order" },
-        { id: "done", type: "done", title: "Done", description: "Order pushed to Printful" },
       ],
     },
     {
@@ -193,20 +172,6 @@ export const manufacturingActions: HubActionsConfig = {
   actionsRoute: "/manufacturing/actions",
   actions: [
     {
-      id: "push-to-printful",
-      title: "Push to Printful",
-      description: "Send confirmed orders to Printful for POD fulfillment",
-      icon: Printer,
-      pinned: true,
-      steps: [
-        { id: "pick", type: "pick", title: "Pick Order", description: "Select order with approved designs" },
-        { id: "choose", type: "choose", title: "Select Items", description: "Choose items for Printful" },
-        { id: "preview", type: "preview", title: "Preview", description: "Review order split and details" },
-        { id: "confirm", type: "confirm", title: "Push", description: "Create Printful order" },
-        { id: "done", type: "done", title: "Done", description: "No manual entry needed!" },
-      ],
-    },
-    {
       id: "add-pantones",
       title: "Add Pantones",
       description: "Assign Pantone colors from uploaded images",
@@ -234,6 +199,7 @@ export const manufacturingActions: HubActionsConfig = {
       description: "Upload and approve first piece samples",
       icon: Eye,
       pinned: true,
+      requiresRole: "manufacturing",
       steps: defaultSteps,
     },
     {
@@ -332,22 +298,6 @@ export const designJobsActions: HubActionsConfig = {
   actionsRoute: "/design-jobs/actions",
   actions: [
     {
-      id: "ai-design-starter",
-      title: "AI Design Starter",
-      description: "Generate on-brand concepts using AI and past designs by product type",
-      icon: Wand2,
-      pinned: true,
-      requiresAI: true,
-      aiActionId: "ai-design-starter",
-      steps: [
-        { id: "pick", type: "pick", title: "Pick Product Type", description: "Select variant type (t-shirt, hoodie, cap, etc.)" },
-        { id: "choose", type: "choose", title: "Design Brief", description: "Set style, colors, and preferences" },
-        { id: "preview", type: "preview", title: "AI Concepts", description: "Review AI-generated design ideas" },
-        { id: "confirm", type: "confirm", title: "Create Job", description: "Create design job with AI brief" },
-        { id: "done", type: "done", title: "Done", description: "Design job created" },
-      ],
-    },
-    {
       id: "create-design-job",
       title: "Create Design Job",
       description: "Start a new design job manually",
@@ -402,6 +352,7 @@ export const eventsActions: HubActionsConfig = {
       description: "Generate designs and create store in under 3 minutes",
       icon: Music,
       pinned: true,
+      isComingSoon: true,
       requiresAI: true,
       steps: [
         { id: "pick", type: "pick", title: "Enter Event", description: "Enter event code or create new" },
@@ -432,14 +383,6 @@ export const eventsActions: HubActionsConfig = {
       title: "Setup Merchandise",
       description: "Allocate products for event sales",
       icon: Package,
-      pinned: true,
-      steps: defaultSteps,
-    },
-    {
-      id: "contractor-payments",
-      title: "Manage Contractors",
-      description: "View and pay event contractors",
-      icon: DollarSign,
       pinned: true,
       steps: defaultSteps,
     },
@@ -498,14 +441,6 @@ export const organizationsActions: HubActionsConfig = {
       steps: defaultSteps,
     },
     {
-      id: "onboarding-checklist",
-      title: "Make Onboarding Checklist",
-      description: "Create tasks for new client onboarding",
-      icon: CheckSquare,
-      pinned: true,
-      steps: defaultSteps,
-    },
-    {
       id: "client-summary",
       title: "Write Client Summary",
       description: "Generate an AI summary of client history",
@@ -533,20 +468,6 @@ export const catalogActions: HubActionsConfig = {
   actionsRoute: "/catalog/actions",
   actions: [
     {
-      id: "add-pantones",
-      title: "Add Pantones to Product",
-      description: "Pick colors from images for product specs",
-      icon: Palette,
-      pinned: true,
-      steps: [
-        { id: "pick", type: "pick", title: "Pick Product", description: "Select the product or variant" },
-        { id: "choose", type: "choose", title: "Pick Colors", description: "Upload image and pick up to 6 colors" },
-        { id: "preview", type: "preview", title: "Review", description: "Review selected colors and Pantone matches" },
-        { id: "confirm", type: "confirm", title: "Save", description: "Save Pantone assignments" },
-        { id: "done", type: "done", title: "Done", description: "Colors assigned successfully" },
-      ],
-    },
-    {
       id: "create-product",
       title: "Create Product",
       description: "Add a new product to the catalog",
@@ -567,14 +488,6 @@ export const catalogActions: HubActionsConfig = {
       title: "Update COGS",
       description: "Update cost of goods sold for products",
       icon: DollarSign,
-      pinned: true,
-      steps: defaultSteps,
-    },
-    {
-      id: "bulk-import",
-      title: "Bulk Import",
-      description: "Import multiple products from CSV",
-      icon: Upload,
       pinned: true,
       steps: defaultSteps,
     },
@@ -713,14 +626,6 @@ export const leadsActions: HubActionsConfig = {
   actionsRoute: "/leads/actions",
   actions: [
     {
-      id: "follow-up-plan",
-      title: "Plan My Follow-ups",
-      description: "Generate a follow-up plan for the week",
-      icon: Calendar,
-      pinned: true,
-      steps: defaultSteps,
-    },
-    {
       id: "lead-to-quote",
       title: "Turn Lead into Quote",
       description: "Create a quote from a hot lead",
@@ -733,14 +638,6 @@ export const leadsActions: HubActionsConfig = {
       title: "Ask for Missing Info",
       description: "Request missing details from a lead",
       icon: Phone,
-      pinned: true,
-      steps: defaultSteps,
-    },
-    {
-      id: "clean-pipeline",
-      title: "Move Stale Leads",
-      description: "Archive or move inactive leads",
-      icon: Archive,
       pinned: true,
       steps: defaultSteps,
     },

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { ArrowLeft, ArrowRight, Search, Zap } from "lucide-react";
 import { useState, useMemo } from "react";
 import { getHubActions, type ActionConfig } from "@/lib/actionsConfig";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ActionIndexPageProps {
   hubId: string;
@@ -57,18 +58,27 @@ function ActionListItem({ action, hubId }: { action: ActionConfig; hubId: string
 export function ActionIndexPage({ hubId }: ActionIndexPageProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const hubConfig = getHubActions(hubId);
+  const { user } = useAuth();
 
   const filteredActions = useMemo(() => {
     if (!hubConfig) return [];
-    if (!searchQuery.trim()) return hubConfig.actions;
+    
+    let actions = hubConfig.actions.filter(action => {
+      if (action.requiresRole && user?.role !== action.requiresRole) {
+        return false;
+      }
+      return true;
+    });
+
+    if (!searchQuery.trim()) return actions;
 
     const query = searchQuery.toLowerCase();
-    return hubConfig.actions.filter(
+    return actions.filter(
       (action) =>
         action.title.toLowerCase().includes(query) ||
         action.description.toLowerCase().includes(query)
     );
-  }, [hubConfig, searchQuery]);
+  }, [hubConfig, searchQuery, user?.role]);
 
   if (!hubConfig) {
     return (
