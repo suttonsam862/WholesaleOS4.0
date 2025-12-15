@@ -97,15 +97,15 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
         isActive={isHomeActive}
         testId="dock-home"
       />
-      
+
       <div className="w-[1px] h-8 bg-white/10 mx-1 self-center" />
-      
+
       {navigation.map((group) => {
         const landingPath = getGroupLandingForRole(group, user?.role as UserRole, featureFlags);
         const Icon = getGroupIcon(group.icon);
         const isActive = isGroupActive(group);
         const shortTitle = getShortTitle(group.title);
-        
+
         return (
           <DockGroupItem
             key={group.id}
@@ -118,9 +118,9 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
           />
         );
       })}
-      
+
       <div className="w-[1px] h-8 bg-white/10 mx-1 self-center" />
-      
+
       <DockGroupItem
         mouseX={mouseX}
         href="/settings"
@@ -129,7 +129,7 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
         isActive={location === "/settings" || location.startsWith("/settings/")}
         testId="dock-settings"
       />
-      
+
       <Popover open={isMoreOpen} onOpenChange={setIsMoreOpen}>
         <PopoverTrigger asChild>
           <div>
@@ -159,7 +159,7 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
               <X className="w-4 h-4" />
             </button>
           </div>
-          
+
           <ScrollArea className="max-h-[calc(70vh-60px)]">
             <div className="p-3 space-y-4">
               <div className="grid grid-cols-4 gap-2">
@@ -177,13 +177,13 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
                     <span className="text-xs font-medium">Home</span>
                   </div>
                 </Link>
-                
+
                 {navigation.map((group) => {
                   const landingPath = getGroupLandingForRole(group, user?.role as UserRole, featureFlags);
                   const Icon = getGroupIcon(group.icon);
                   const isActive = isGroupActive(group);
                   const shortTitle = getShortTitle(group.title);
-                  
+
                   return (
                     <Link 
                       key={group.id} 
@@ -205,7 +205,7 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
                     </Link>
                   );
                 })}
-                
+
                 <Link href="/settings" onClick={() => setIsMoreOpen(false)}>
                   <div
                     className={cn(
@@ -221,15 +221,15 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
                   </div>
                 </Link>
               </div>
-              
+
               <div className="border-t border-white/10 pt-4 space-y-3">
                 {navigation.map((group) => {
                   const Icon = getGroupIcon(group.icon);
                   const visiblePages = group.pages.filter(p => !p.hideFromMoreMenu);
                   const landingPath = getGroupLandingForRole(group, user?.role as UserRole, featureFlags);
-                  
+
                   if (visiblePages.length <= 1) return null;
-                  
+
                   return (
                     <div key={group.id} className="space-y-1">
                       <Link 
@@ -244,7 +244,7 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
                           <ChevronRight className="w-3 h-3 ml-auto flex-shrink-0" />
                         </div>
                       </Link>
-                      
+
                       <div className="ml-6 space-y-0.5">
                         {visiblePages.map((page) => (
                           <Link
@@ -274,7 +274,7 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
           </ScrollArea>
         </PopoverContent>
       </Popover>
-      
+
       <DockIconButton 
         mouseX={mouseX} 
         onClick={onSearchClick} 

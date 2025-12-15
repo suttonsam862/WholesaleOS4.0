@@ -97,7 +97,7 @@ export function MobileFloatingDock({ onSearchClick, user }: MobileFloatingDockPr
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-                
+
                 <div className="overflow-y-auto flex-1 p-3">
                   <div className="space-y-3">
                     {allGroups.map((group) => {
@@ -106,7 +106,7 @@ export function MobileFloatingDock({ onSearchClick, user }: MobileFloatingDockPr
                       const landingPath = getGroupLandingForRole(group, user?.role as UserRole, featureFlags);
                       const isActive = isGroupActive(group);
                       const visiblePages = group.pages.filter(p => !p.hideFromMoreMenu);
-                      
+
                       return (
                         <div key={group.id} className="space-y-1">
                           <Link href={landingPath} onClick={() => setIsExpanded(false)}>
@@ -129,7 +129,7 @@ export function MobileFloatingDock({ onSearchClick, user }: MobileFloatingDockPr
                               <ChevronRight className="w-4 h-4 text-white/40 flex-shrink-0" />
                             </div>
                           </Link>
-                          
+
                           {visiblePages.length > 1 && (
                             <div className="ml-4 pl-4 border-l border-white/10 space-y-0.5">
                               {visiblePages.map((page) => (
