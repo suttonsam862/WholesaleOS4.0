@@ -83,7 +83,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
 
       {/* Mobile Floating Dock */}
       {isMobile && (
-        <MobileFloatingDock onSearchClick={() => setIsCommandPaletteOpen(true)} />
+        <MobileFloatingDock onSearchClick={() => setIsCommandPaletteOpen(true)} user={user} />
       )}
 
       <CommandPalette open={isCommandPaletteOpen} setOpen={setIsCommandPaletteOpen} />
