@@ -57,7 +57,7 @@ export function FloatingDock({ onSearchClick }: { onSearchClick: () => void }) {
   const mouseX = useMotionValue(Infinity);
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 hidden md:flex items-end gap-4 pb-3 px-4 h-16 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl shadow-neon-blue/10">
+    <div className="fixed bottom-0 left-0 right-0 z-50 hidden md:flex items-center justify-center gap-4 py-3 px-4 bg-black/60 backdrop-blur-xl border-t border-white/10 shadow-2xl shadow-neon-blue/10">
       {DOCK_ITEMS.map((item) => (
         <DockIcon key={item.name} mouseX={mouseX} item={item} />
       ))}
