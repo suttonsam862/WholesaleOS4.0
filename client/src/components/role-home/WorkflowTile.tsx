@@ -73,8 +73,8 @@ export function WorkflowTile({
         </div>
       )}
 
-      <div className="p-6 space-y-5">
-        <div className="flex items-start gap-4">
+      <div className="p-6">
+        <div className="flex items-start gap-4 mb-5">
           <div
             className={cn(
               "w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center flex-shrink-0",
@@ -91,41 +91,43 @@ export function WorkflowTile({
           </div>
         </div>
 
-        <Link href={primaryAction.href}>
-          <button
-            className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 transition-all text-sm font-medium text-white group/btn"
-            data-testid={`button-${id}-primary`}
-          >
-            <span>{primaryAction.label}</span>
-            <ChevronRight className="w-4 h-4 text-muted-foreground group-hover/btn:text-white transition-colors" />
-          </button>
-        </Link>
+        <div className="space-y-3">
+          <Link href={primaryAction.href}>
+            <button
+              className="w-full flex items-center justify-between px-4 py-3 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/20 transition-all text-sm font-medium text-white group/btn"
+              data-testid={`button-${id}-primary`}
+            >
+              <span>{primaryAction.label}</span>
+              <ChevronRight className="w-4 h-4 text-muted-foreground group-hover/btn:text-white transition-colors" />
+            </button>
+          </Link>
 
-        {subActions && subActions.length > 0 && (
-          <div className="flex flex-wrap gap-2.5">
-            {subActions.map((action, idx) => (
-              action.href ? (
-                <Link key={idx} href={action.href}>
+          {subActions && subActions.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {subActions.map((action, idx) => (
+                action.href ? (
+                  <Link key={idx} href={action.href}>
+                    <button
+                      className="px-3 py-1.5 text-xs rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-white transition-all"
+                      data-testid={`link-${id}-${action.label.toLowerCase().replace(/\s+/g, "-")}`}
+                    >
+                      {action.label}
+                    </button>
+                  </Link>
+                ) : (
                   <button
+                    key={idx}
+                    onClick={action.onClick}
                     className="px-3 py-1.5 text-xs rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-white transition-all"
-                    data-testid={`link-${id}-${action.label.toLowerCase().replace(/\s+/g, "-")}`}
+                    data-testid={`button-${id}-${action.label.toLowerCase().replace(/\s+/g, "-")}`}
                   >
                     {action.label}
                   </button>
-                </Link>
-              ) : (
-                <button
-                  key={idx}
-                  onClick={action.onClick}
-                  className="px-3 py-1.5 text-xs rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-white transition-all"
-                  data-testid={`button-${id}-${action.label.toLowerCase().replace(/\s+/g, "-")}`}
-                >
-                  {action.label}
-                </button>
-              )
-            ))}
-          </div>
-        )}
+                )
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </motion.div>
   );

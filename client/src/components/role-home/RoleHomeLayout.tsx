@@ -103,7 +103,7 @@ export function WorkflowGrid({ children, columns = 3, className }: WorkflowGridP
   return (
     <div
       className={cn(
-        "grid gap-5",
+        "grid gap-6",
         columns === 2 ? "md:grid-cols-2" : "md:grid-cols-2 lg:grid-cols-3",
         className
       )}
@@ -122,9 +122,9 @@ interface QueuesSectionProps {
 
 export function QueuesSection({ title = "My Work Queues", children, className }: QueuesSectionProps) {
   return (
-    <div className={cn("space-y-5", className)}>
+    <div className={cn("space-y-6", className)}>
       <h2 className="text-lg font-semibold text-white">{title}</h2>
-      <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">{children}</div>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">{children}</div>
     </div>
   );
 }
