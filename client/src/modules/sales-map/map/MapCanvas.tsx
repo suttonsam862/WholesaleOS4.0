@@ -106,22 +106,59 @@ export function MapCanvas({
     organizations.forEach((org) => {
       if (!org.lat || !org.lng) return;
 
+      const container = document.createElement("div");
+      container.className = "sales-map-marker-container";
+      container.style.cssText = `
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      `;
+
       const el = document.createElement("div");
       el.className = "sales-map-marker org-marker";
       el.style.cssText = `
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
         background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
         border: 2px solid rgba(255,255,255,0.9);
         border-radius: 50%;
         cursor: pointer;
         box-shadow: 0 2px 8px rgba(59, 130, 246, 0.5);
         transition: transform 0.2s, box-shadow 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       `;
       
       if (selectedEntity?.id === org.id && selectedEntity?.type === 'organization') {
         el.style.transform = "scale(1.3)";
         el.style.boxShadow = "0 0 20px rgba(59, 130, 246, 0.8)";
+      }
+
+      if (org.orderCount && org.orderCount > 0) {
+        const badge = document.createElement("div");
+        badge.className = "order-count-badge";
+        badge.style.cssText = `
+          position: absolute;
+          top: -6px;
+          right: -6px;
+          min-width: 18px;
+          height: 18px;
+          background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+          border: 2px solid white;
+          border-radius: 9px;
+          color: white;
+          font-size: 10px;
+          font-weight: bold;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0 4px;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        `;
+        badge.textContent = String(org.orderCount);
+        container.appendChild(badge);
       }
 
       el.addEventListener("mouseenter", () => {
@@ -134,7 +171,9 @@ export function MapCanvas({
       });
       el.addEventListener("click", () => onEntityClick?.(org));
 
-      const marker = new maplibregl.Marker({ element: el })
+      container.appendChild(el);
+
+      const marker = new maplibregl.Marker({ element: container })
         .setLngLat([org.lng, org.lat])
         .addTo(map.current!);
 

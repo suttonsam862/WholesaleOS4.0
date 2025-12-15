@@ -3,7 +3,8 @@ import { isAuthenticated } from "../replitAuth";
 import { loadUserData, type AuthenticatedRequest } from "../permissions";
 import { db } from "../db";
 import { organizations, leads, orders } from "@shared/schema";
-import { eq, and, isNotNull, sql, gte, lte, or } from "drizzle-orm";
+import { eq, and, isNotNull, isNull, sql, gte, lte, or } from "drizzle-orm";
+import { geocodeUSCity, availableCities } from "../utils/geocoding";
 
 const router = Router();
 
@@ -197,6 +198,219 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
   } catch (error) {
     console.error("Error fetching sales map feed:", error);
     res.status(500).json({ message: "Failed to fetch map feed" });
+  }
+});
+
+router.post("/geocode-organizations", isAuthenticated, loadUserData, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const userData = authReq.user?.userData;
+    
+    if (!userData?.salesMapEnabled) {
+      return res.status(403).json({ message: "Sales Map feature is not enabled for your account" });
+    }
+    
+    const orgsWithoutGeo = await db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        city: organizations.city,
+        state: organizations.state,
+      })
+      .from(organizations)
+      .where(
+        and(
+          eq(organizations.archived, false),
+          isNull(organizations.geoLat),
+          isNotNull(organizations.city),
+          isNotNull(organizations.state)
+        )
+      );
+
+    let geocoded = 0;
+    let failed = 0;
+    const results: { id: number; name: string; success: boolean; coords?: { lat: number; lng: number } }[] = [];
+
+    for (const org of orgsWithoutGeo) {
+      const coords = geocodeUSCity(org.city || "", org.state || "");
+      
+      if (coords) {
+        await db
+          .update(organizations)
+          .set({
+            geoLat: String(coords.lat),
+            geoLng: String(coords.lng),
+          })
+          .where(eq(organizations.id, org.id));
+        
+        geocoded++;
+        results.push({ id: org.id, name: org.name, success: true, coords });
+      } else {
+        failed++;
+        results.push({ id: org.id, name: org.name, success: false });
+      }
+    }
+
+    res.json({
+      message: `Geocoded ${geocoded} organizations, ${failed} could not be matched`,
+      geocoded,
+      failed,
+      total: orgsWithoutGeo.length,
+      availableCities,
+      results,
+    });
+  } catch (error) {
+    console.error("Error geocoding organizations:", error);
+    res.status(500).json({ message: "Failed to geocode organizations" });
+  }
+});
+
+router.post("/geocode-leads", isAuthenticated, loadUserData, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const userData = authReq.user?.userData;
+    
+    if (!userData?.salesMapEnabled) {
+      return res.status(403).json({ message: "Sales Map feature is not enabled for your account" });
+    }
+    
+    const leadsWithoutGeo = await db
+      .select({
+        id: leads.id,
+        leadCode: leads.leadCode,
+        orgId: leads.orgId,
+      })
+      .from(leads)
+      .where(
+        and(
+          eq(leads.archived, false),
+          isNull(leads.geoLat),
+          isNotNull(leads.orgId)
+        )
+      );
+
+    let geocoded = 0;
+    let failed = 0;
+
+    for (const lead of leadsWithoutGeo) {
+      if (!lead.orgId) {
+        failed++;
+        continue;
+      }
+      
+      const [org] = await db
+        .select({
+          geoLat: organizations.geoLat,
+          geoLng: organizations.geoLng,
+          city: organizations.city,
+          state: organizations.state,
+        })
+        .from(organizations)
+        .where(eq(organizations.id, lead.orgId))
+        .limit(1);
+      
+      if (org?.geoLat && org?.geoLng) {
+        await db
+          .update(leads)
+          .set({
+            geoLat: org.geoLat,
+            geoLng: org.geoLng,
+          })
+          .where(eq(leads.id, lead.id));
+        geocoded++;
+      } else if (org?.city && org?.state) {
+        const coords = geocodeUSCity(org.city, org.state);
+        if (coords) {
+          await db
+            .update(leads)
+            .set({
+              geoLat: String(coords.lat),
+              geoLng: String(coords.lng),
+            })
+            .where(eq(leads.id, lead.id));
+          geocoded++;
+        } else {
+          failed++;
+        }
+      } else {
+        failed++;
+      }
+    }
+
+    res.json({
+      message: `Geocoded ${geocoded} leads from organization locations, ${failed} could not be matched`,
+      geocoded,
+      failed,
+      total: leadsWithoutGeo.length,
+    });
+  } catch (error) {
+    console.error("Error geocoding leads:", error);
+    res.status(500).json({ message: "Failed to geocode leads" });
+  }
+});
+
+router.get("/orders", isAuthenticated, loadUserData, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const userData = authReq.user?.userData;
+    
+    if (!userData?.salesMapEnabled) {
+      return res.status(403).json({ message: "Sales Map feature is not enabled for your account" });
+    }
+    
+    const recentOrders = await db
+      .select({
+        id: orders.id,
+        orderCode: orders.orderCode,
+        orgId: orders.orgId,
+        status: orders.status,
+        estDelivery: orders.estDelivery,
+        createdAt: orders.createdAt,
+      })
+      .from(orders)
+      .orderBy(sql`${orders.createdAt} DESC`)
+      .limit(50);
+
+    const orderOrgIds = recentOrders.map(o => o.orgId).filter((id): id is number => id !== null);
+    
+    let orgMap: Record<number, { name: string; lat: number | null; lng: number | null }> = {};
+    
+    if (orderOrgIds.length > 0) {
+      const orgsData = await db
+        .select({
+          id: organizations.id,
+          name: organizations.name,
+          geoLat: organizations.geoLat,
+          geoLng: organizations.geoLng,
+        })
+        .from(organizations)
+        .where(sql`${organizations.id} IN (${sql.join(orderOrgIds.map(id => sql`${id}`), sql`, `)})`);
+
+      orgsData.forEach(org => {
+        orgMap[org.id] = {
+          name: org.name,
+          lat: org.geoLat ? parseFloat(String(org.geoLat)) : null,
+          lng: org.geoLng ? parseFloat(String(org.geoLng)) : null,
+        };
+      });
+    }
+
+    const mappedOrders = recentOrders.map(order => ({
+      id: order.id,
+      orderCode: order.orderCode,
+      orgId: order.orgId,
+      orgName: order.orgId ? orgMap[order.orgId]?.name : undefined,
+      status: order.status,
+      estDelivery: order.estDelivery,
+      createdAt: order.createdAt,
+      lat: order.orgId ? orgMap[order.orgId]?.lat : null,
+      lng: order.orgId ? orgMap[order.orgId]?.lng : null,
+    }));
+
+    res.json({ orders: mappedOrders });
+  } catch (error) {
+    console.error("Error fetching orders:", error);
+    res.status(500).json({ message: "Failed to fetch orders" });
   }
 });
 

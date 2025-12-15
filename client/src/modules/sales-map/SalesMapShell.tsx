@@ -1,18 +1,24 @@
 import { useState, useCallback, useMemo } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, Map } from "lucide-react";
+import { ArrowLeft, Map, MapPinned, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MapCanvas } from "./map/MapCanvas";
 import { TopHUD } from "./hud/TopHUD";
 import { RightDrawer } from "./panels/RightDrawer";
 import { CollapsibleSidebar } from "./panels/CollapsibleSidebar";
+import { OrdersPanel } from "./panels/OrdersPanel";
 import { useMapFeed } from "./data/useMapFeed";
 import type { MapEntity, MapMode, MapFilters } from "./types";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SalesMapShell() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [mode, setMode] = useState<MapMode>("view");
   const [filters, setFilters] = useState<MapFilters>({
     showOrganizations: true,
@@ -28,6 +34,31 @@ export default function SalesMapShell() {
     east: number;
     west: number;
   } | null>(null);
+
+  const geocodeMutation = useMutation({
+    mutationFn: async () => {
+      const orgRes = await apiRequest("POST", "/api/sales-map/geocode-organizations");
+      const orgData = await orgRes.json();
+      const leadRes = await apiRequest("POST", "/api/sales-map/geocode-leads");
+      const leadData = await leadRes.json();
+      return { orgs: orgData, leads: leadData };
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Geocoding Complete",
+        description: `Geocoded ${data.orgs.geocoded} organizations and ${data.leads.geocoded} leads`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales-map/feed"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/sales-map/orders"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Geocoding Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    },
+  });
 
   const { data: feedData, isLoading } = useMapFeed({
     bounds: bounds || undefined,
@@ -166,6 +197,43 @@ export default function SalesMapShell() {
         onClose={handleCloseDrawer}
         isOpen={!!selectedEntity}
       />
+
+      <OrdersPanel
+        onOrderClick={(order) => {
+          if (order.lat && order.lng && order.orgId) {
+            setSelectedEntity({
+              id: order.orgId,
+              type: "organization",
+              name: order.orgName || "Unknown",
+              lat: order.lat,
+              lng: order.lng,
+            });
+          }
+        }}
+      />
+
+      <div
+        className={cn(
+          "absolute bottom-4 z-20 transition-all duration-300",
+          sidebarExpanded ? "left-60" : "left-20"
+        )}
+      >
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => geocodeMutation.mutate()}
+          disabled={geocodeMutation.isPending}
+          className="bg-background/90 backdrop-blur-lg border-white/10 gap-2"
+          data-testid="geocode-button"
+        >
+          {geocodeMutation.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <MapPinned className="h-4 w-4" />
+          )}
+          {geocodeMutation.isPending ? "Geocoding..." : "Geocode Missing Locations"}
+        </Button>
+      </div>
 
       {isLoading && (
         <div
