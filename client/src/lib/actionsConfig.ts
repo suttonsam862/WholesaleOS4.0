@@ -51,6 +51,7 @@ export const ordersActions: HubActionsConfig = {
       description: "Pick colors from images using the eyedropper tool",
       icon: Palette,
       pinned: true,
+      isComingSoon: true,
       steps: [
         { id: "pick", type: "pick", title: "Pick Order", description: "Select the order to add colors to" },
         { id: "choose", type: "choose", title: "Pick Colors", description: "Upload image and pick up to 6 colors" },
@@ -67,6 +68,7 @@ export const ordersActions: HubActionsConfig = {
       pinned: true,
       requiresAI: true,
       aiActionId: "O1",
+      isComingSoon: true,
       steps: [
         { id: "pick", type: "pick", title: "Pick Order", description: "Select the order to quote from" },
         { id: "choose", type: "choose", title: "Select Items", description: "Choose which items to include" },
@@ -81,6 +83,7 @@ export const ordersActions: HubActionsConfig = {
       description: "Request sizes, shipping, or billing from customer",
       icon: Send,
       pinned: true,
+      isComingSoon: true,
       steps: [
         { id: "pick", type: "pick", title: "Pick Order", description: "Select the order" },
         { id: "choose", type: "choose", title: "Choose Info", description: "What do you need from the customer?" },
@@ -114,6 +117,7 @@ export const quotesActions: HubActionsConfig = {
       icon: Zap,
       pinned: true,
       requiresAI: true,
+      isComingSoon: true,
       steps: [
         { id: "pick", type: "pick", title: "Select Order", description: "Pick an existing order or start blank" },
         { id: "choose", type: "choose", title: "Configure", description: "Set margins and upsells" },
@@ -128,6 +132,7 @@ export const quotesActions: HubActionsConfig = {
       description: "Start a new quote from scratch",
       icon: FileText,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -136,6 +141,7 @@ export const quotesActions: HubActionsConfig = {
       description: "Turn an approved quote into an order",
       icon: ShoppingCart,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -144,6 +150,7 @@ export const quotesActions: HubActionsConfig = {
       description: "Email the quote to the customer",
       icon: Send,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -152,6 +159,7 @@ export const quotesActions: HubActionsConfig = {
       description: "Create a copy of an existing quote",
       icon: ClipboardList,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -160,6 +168,7 @@ export const quotesActions: HubActionsConfig = {
       description: "Send a follow-up message about a quote",
       icon: MessageSquare,
       pinned: false,
+      isComingSoon: true,
       steps: defaultSteps,
     },
   ],
@@ -177,6 +186,7 @@ export const manufacturingActions: HubActionsConfig = {
       description: "Assign Pantone colors from uploaded images",
       icon: Palette,
       pinned: true,
+      isComingSoon: true,
       steps: [
         { id: "pick", type: "pick", title: "Pick Order", description: "Select the manufacturing order" },
         { id: "choose", type: "choose", title: "Pick Colors", description: "Upload image and pick up to 6 colors" },
@@ -191,6 +201,7 @@ export const manufacturingActions: HubActionsConfig = {
       description: "Add or sync tracking numbers",
       icon: Truck,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -200,6 +211,7 @@ export const manufacturingActions: HubActionsConfig = {
       icon: Eye,
       pinned: true,
       requiresRole: "manufacturing",
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -208,6 +220,7 @@ export const manufacturingActions: HubActionsConfig = {
       description: "Update status for multiple orders at once",
       icon: Layers,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -216,6 +229,7 @@ export const manufacturingActions: HubActionsConfig = {
       description: "Create production sheets for manufacturers",
       icon: FileText,
       pinned: false,
+      isComingSoon: true,
       steps: defaultSteps,
     },
   ],
@@ -248,6 +262,7 @@ export const teamStoresActions: HubActionsConfig = {
       description: "Pick colors from images for store products",
       icon: Palette,
       pinned: true,
+      isComingSoon: true,
       steps: [
         { id: "pick", type: "pick", title: "Pick Store", description: "Select the team store" },
         { id: "choose", type: "choose", title: "Pick Colors", description: "Upload image and pick up to 6 colors" },
@@ -262,6 +277,7 @@ export const teamStoresActions: HubActionsConfig = {
       description: "Set up a new team store manually",
       icon: Building,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -270,6 +286,7 @@ export const teamStoresActions: HubActionsConfig = {
       description: "Change store close date",
       icon: Calendar,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -278,6 +295,7 @@ export const teamStoresActions: HubActionsConfig = {
       description: "Create QR codes for store access",
       icon: QrCode,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -286,6 +304,7 @@ export const teamStoresActions: HubActionsConfig = {
       description: "View store performance and sales",
       icon: BarChart3,
       pinned: false,
+      isComingSoon: true,
       steps: defaultSteps,
     },
   ],
@@ -303,6 +322,7 @@ export const designJobsActions: HubActionsConfig = {
       description: "Start a new design job manually",
       icon: PenTool,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -311,6 +331,7 @@ export const designJobsActions: HubActionsConfig = {
       description: "Assign or reassign a designer to a job",
       icon: Users,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -319,6 +340,7 @@ export const designJobsActions: HubActionsConfig = {
       description: "Upload completed design files",
       icon: Upload,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -327,6 +349,7 @@ export const designJobsActions: HubActionsConfig = {
       description: "Add feedback and request changes",
       icon: MessageSquare,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -335,6 +358,7 @@ export const designJobsActions: HubActionsConfig = {
       description: "Mark design as approved for production",
       icon: CheckSquare,
       pinned: false,
+      isComingSoon: true,
       steps: defaultSteps,
     },
   ],
@@ -368,6 +392,7 @@ export const eventsActions: HubActionsConfig = {
       description: "Start planning a new event",
       icon: Calendar,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -376,6 +401,7 @@ export const eventsActions: HubActionsConfig = {
       description: "Assign team members to an event",
       icon: Users,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -384,6 +410,7 @@ export const eventsActions: HubActionsConfig = {
       description: "Allocate products for event sales",
       icon: Package,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -392,6 +419,7 @@ export const eventsActions: HubActionsConfig = {
       description: "Generate post-event summary",
       icon: BarChart3,
       pinned: false,
+      isComingSoon: true,
       steps: defaultSteps,
     },
   ],
@@ -410,6 +438,7 @@ export const organizationsActions: HubActionsConfig = {
       icon: Zap,
       pinned: true,
       requiresAI: true,
+      isComingSoon: true,
       steps: [
         { id: "pick", type: "pick", title: "Type", description: "Select organization type" },
         { id: "choose", type: "choose", title: "Details", description: "Enter name and upload logo" },
@@ -424,6 +453,7 @@ export const organizationsActions: HubActionsConfig = {
       description: "Guided flow to add a new organization",
       icon: UserPlus,
       pinned: true,
+      isComingSoon: true,
       steps: [
         { id: "pick", type: "pick", title: "Client Type", description: "Choose client type" },
         { id: "choose", type: "choose", title: "Basic Info", description: "Enter organization details" },
@@ -438,6 +468,7 @@ export const organizationsActions: HubActionsConfig = {
       description: "Find and merge duplicate organizations",
       icon: GitMerge,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -447,6 +478,7 @@ export const organizationsActions: HubActionsConfig = {
       icon: Sparkles,
       pinned: true,
       requiresAI: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -473,6 +505,7 @@ export const catalogActions: HubActionsConfig = {
       description: "Add a new product to the catalog",
       icon: Box,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -481,6 +514,7 @@ export const catalogActions: HubActionsConfig = {
       description: "Add a new variant to an existing product",
       icon: Tags,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -489,6 +523,7 @@ export const catalogActions: HubActionsConfig = {
       description: "Update cost of goods sold for products",
       icon: DollarSign,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -517,6 +552,7 @@ export const salesAnalyticsActions: HubActionsConfig = {
       pinned: true,
       requiresAI: true,
       aiActionId: "SA1",
+      isComingSoon: true,
       steps: [
         { id: "pick", type: "pick", title: "Pick Client", description: "Select the client organization" },
         { id: "choose", type: "choose", title: "Time Window", description: "Choose the time period to analyze" },
@@ -531,6 +567,7 @@ export const salesAnalyticsActions: HubActionsConfig = {
       description: "Generate a list of clients needing follow-up",
       icon: ListChecks,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -539,6 +576,7 @@ export const salesAnalyticsActions: HubActionsConfig = {
       description: "Draft an update message for a client",
       icon: MessageSquare,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -549,6 +587,7 @@ export const salesAnalyticsActions: HubActionsConfig = {
       pinned: true,
       requiresAI: true,
       aiActionId: "SA4",
+      isComingSoon: true,
       steps: [
         { id: "pick", type: "pick", title: "Pick Metrics", description: "Select the time period to analyze" },
         { id: "choose", type: "choose", title: "Options", description: "Choose what to explain" },
@@ -564,6 +603,7 @@ export const salesAnalyticsActions: HubActionsConfig = {
       icon: BarChart3,
       pinned: true,
       requiresAI: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
   ],
@@ -581,6 +621,7 @@ export const contactsActions: HubActionsConfig = {
       description: "Designate a primary contact for an organization",
       icon: Users,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -589,6 +630,7 @@ export const contactsActions: HubActionsConfig = {
       description: "Find and fix incomplete contact data",
       icon: AlertTriangle,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -598,6 +640,7 @@ export const contactsActions: HubActionsConfig = {
       icon: MessageSquare,
       pinned: true,
       requiresAI: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -606,6 +649,7 @@ export const contactsActions: HubActionsConfig = {
       description: "Generate tasks for contact follow-ups",
       icon: ListChecks,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -614,6 +658,7 @@ export const contactsActions: HubActionsConfig = {
       description: "Export contacts to CSV",
       icon: Download,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
   ],
@@ -631,6 +676,7 @@ export const leadsActions: HubActionsConfig = {
       description: "Create a quote from a hot lead",
       icon: FileText,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -639,6 +685,7 @@ export const leadsActions: HubActionsConfig = {
       description: "Request missing details from a lead",
       icon: Phone,
       pinned: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
     {
@@ -648,6 +695,7 @@ export const leadsActions: HubActionsConfig = {
       icon: Sparkles,
       pinned: true,
       requiresAI: true,
+      isComingSoon: true,
       steps: defaultSteps,
     },
   ],
