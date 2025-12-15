@@ -7550,6 +7550,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== SALES MAP ROUTES ====================
+  const salesMapRoutes = (await import("./routes/sales-map.routes")).default;
+  app.use("/api/sales-map", salesMapRoutes);
+
   // ==================== AI INTERACTIONS ROUTE ====================
   const { processAIInteraction } = await import("./services/gemini");
 

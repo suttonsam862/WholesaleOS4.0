@@ -13,7 +13,8 @@ import {
   FileText,
   Users,
   Flame,
-  Clock
+  Clock,
+  Map
 } from "lucide-react";
 import { useState } from "react";
 import { QuickCreateModal } from "@/components/modals/quick-create-modal";
@@ -165,6 +166,23 @@ export default function SalesHome() {
               { label: "Sales Tracker", href: "/sales-tracker" },
             ]}
           />
+
+          {user?.salesMapEnabled && (
+            <WorkflowTile
+              id="sales-map"
+              title="Sales Map"
+              description="Geographic view of your territory"
+              icon={Map}
+              bgGradient="from-indigo-500/10 to-indigo-500/5"
+              iconColor="text-indigo-400"
+              primaryAction={{ label: "Open Sales Map", href: "/sales-map" }}
+              subActions={[
+                { label: "View Organizations", href: "/sales-map?view=orgs" },
+                { label: "View Leads", href: "/sales-map?view=leads" },
+              ]}
+              badge={{ count: 0, label: "BETA", variant: "default" }}
+            />
+          )}
         </WorkflowGrid>
 
         <QueuesSection>

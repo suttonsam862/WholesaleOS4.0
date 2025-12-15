@@ -63,6 +63,8 @@ export const users = pgTable("users", {
   hasCompletedSetup: boolean("has_completed_setup").default(false),
   invitedAt: timestamp("invited_at"),
   invitedBy: varchar("invited_by").references((): any => users.id),
+  // Feature flags
+  salesMapEnabled: boolean("sales_map_enabled").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -183,6 +185,12 @@ export const organizations = pgTable("organizations", {
   brandSecondaryColor: varchar("brand_secondary_color"),
   brandPantoneCode: varchar("brand_pantone_code"),
   brandGuidelinesUrl: text("brand_guidelines_url"),
+  // Geospatial fields for Sales Map
+  geoLat: decimal("geo_lat", { precision: 10, scale: 7 }),
+  geoLng: decimal("geo_lng", { precision: 10, scale: 7 }),
+  geoPrecision: varchar("geo_precision").$type<"rooftop" | "city" | "state" | "manual">(),
+  geoSource: varchar("geo_source"),
+  geoUpdatedAt: timestamp("geo_updated_at"),
   // Archive flag
   archived: boolean("archived").default(false),
   archivedAt: timestamp("archived_at"),
@@ -218,6 +226,12 @@ export const leads = pgTable("leads", {
   notes: text("notes"),
   claimedAt: timestamp("claimed_at"),
   score: integer("score").default(0),
+  // Geospatial fields for Sales Map
+  geoLat: decimal("geo_lat", { precision: 10, scale: 7 }),
+  geoLng: decimal("geo_lng", { precision: 10, scale: 7 }),
+  geoPrecision: varchar("geo_precision").$type<"rooftop" | "city" | "state" | "manual">(),
+  geoSource: varchar("geo_source"),
+  geoUpdatedAt: timestamp("geo_updated_at"),
   archived: boolean("archived").default(false),
   archivedAt: timestamp("archived_at"),
   archivedBy: varchar("archived_by").references(() => users.id),

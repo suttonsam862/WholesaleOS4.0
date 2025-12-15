@@ -119,6 +119,8 @@ const DesignerHome = lazy(() => import("@/pages/designer-home"));
 const OpsHome = lazy(() => import("@/pages/ops-home"));
 const ManufacturerHome = lazy(() => import("@/pages/manufacturer-home"));
 
+const SalesMapShell = lazy(() => import("@/modules/sales-map/SalesMapShell"));
+
 const Landing = lazy(() => import("@/pages/landing"));
 const LocalLogin = lazy(() => import("@/pages/local-login"));
 const AccountSetup = lazy(() => import("@/pages/account-setup"));
@@ -225,6 +227,7 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/sales-analytics/actions/:actionId", title: "Sales Analytics Action", component: SalesAnalyticsActionDetail, requiresAuth: true, requiresLayout: true, roles: ["admin", "sales"] },
   { path: "/sales-tracker", title: "Sales Tracker", component: SalesTracker, requiresAuth: true, requiresLayout: true, roles: ["admin", "sales"] },
   { path: "/sales-resources", title: "Sales Resources", component: SalesResources, requiresAuth: true, requiresLayout: true, roles: ["admin", "sales"] },
+  { path: "/sales-map", title: "Sales Map", component: SalesMapShell, requiresAuth: true, requiresLayout: false, roles: ["admin", "sales"], featureFlag: "salesMapEnabled" },
   { path: "/design-portfolio", title: "Design Portfolio", component: DesignPortfolio, requiresAuth: true, requiresLayout: true, roles: ["admin", "designer", "ops"] },
   { path: "/design-resources", title: "Design Resources", component: DesignResources, requiresAuth: true, requiresLayout: true, roles: ["admin", "designer", "ops"] },
   { path: "/size-checker", title: "Size Checker", component: SizeChecker, requiresAuth: true, requiresLayout: true, roles: ["admin", "ops"] },
