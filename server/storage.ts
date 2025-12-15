@@ -763,7 +763,7 @@ export interface IStorage {
   reviewFabricSubmission(id: number, reviewerId: string, status: "approved" | "rejected", reviewNotes?: string): Promise<FabricSubmission>;
 
   // Pantone Assignment operations
-  getPantoneAssignments(filters?: { lineItemId?: number; manufacturingUpdateId?: number }): Promise<PantoneAssignment[]>;
+  getPantoneAssignments(filters?: { lineItemId?: number; manufacturingUpdateId?: number; orderId?: number }): Promise<PantoneAssignment[]>;
   getPantoneAssignment(id: number): Promise<PantoneAssignment | undefined>;
   createPantoneAssignment(assignment: InsertPantoneAssignment): Promise<PantoneAssignment>;
   updatePantoneAssignment(id: number, assignment: Partial<InsertPantoneAssignment>): Promise<PantoneAssignment>;
@@ -5974,7 +5974,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Pantone Assignment operations
-  async getPantoneAssignments(filters?: { lineItemId?: number; manufacturingUpdateId?: number }): Promise<PantoneAssignment[]> {
+  async getPantoneAssignments(filters?: { lineItemId?: number; manufacturingUpdateId?: number; orderId?: number }): Promise<PantoneAssignment[]> {
+    // If filtering by orderId, we need to join with order_line_items to get pantones for that order
+    if (filters?.orderId) {
+      const results = await db
+        .select({ pantone: pantoneAssignments })
+        .from(pantoneAssignments)
+        .innerJoin(orderLineItems, eq(pantoneAssignments.lineItemId, orderLineItems.id))
+        .where(eq(orderLineItems.orderId, filters.orderId))
+        .orderBy(desc(pantoneAssignments.createdAt));
+      return results.map(r => r.pantone);
+    }
+
     let query = db.select().from(pantoneAssignments).$dynamic();
 
     const conditions: any[] = [];

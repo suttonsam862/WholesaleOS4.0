@@ -7438,6 +7438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filters: any = {};
       if (req.query.lineItemId) filters.lineItemId = parseInt(req.query.lineItemId as string);
       if (req.query.manufacturingUpdateId) filters.manufacturingUpdateId = parseInt(req.query.manufacturingUpdateId as string);
+      if (req.query.orderId) filters.orderId = parseInt(req.query.orderId as string);
 
       const assignments = await storage.getPantoneAssignments(filters);
       res.json(assignments);

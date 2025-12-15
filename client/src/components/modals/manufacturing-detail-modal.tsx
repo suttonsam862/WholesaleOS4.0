@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -16,12 +15,13 @@ import { format } from "date-fns";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Order, Organization, Manufacturer, ManufacturingUpdateLineItem } from "@shared/schema";
-import { CheckCircle2, Clock, Package, Printer, Scissors, Shirt, ShipIcon, AlertCircle, Upload, Calendar, User, Building2, Phone, Mail, FileText, Trash2, DollarSign, Image as ImageIcon, Plus, X, Pencil, Archive, ArchiveRestore, Download, FileArchive, PackageCheck, Truck, RefreshCcw, Copy } from "lucide-react";
+import { CheckCircle2, Clock, Package, Printer, Scissors, Shirt, ShipIcon, AlertCircle, Upload, Calendar, User, Building2, Phone, Mail, FileText, Trash2, DollarSign, Image as ImageIcon, Plus, X, Pencil, Archive, ArchiveRestore, Download, FileArchive, PackageCheck, Truck, RefreshCcw, Copy, Edit2, Save, ChevronRight } from "lucide-react";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
 import { FabricSubmissionForm, FabricStatusIndicator } from "@/components/FabricSubmissionForm";
 import { PantonePicker, PantoneAssignment } from "@/components/manufacturing/pantone-picker";
 import { FirstPieceApprovalPanel } from "@/components/manufacturing/FirstPieceApprovalPanel";
+import { PantoneSummarySection, PantoneDisplayItem } from "@/components/shared/PantoneSummarySection";
 import { Palette } from "lucide-react";
 
 interface ManufacturingDetailModalProps {
@@ -686,91 +686,154 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                 </Badge>
               )}
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    if (!latestUpdate?.id) {
+            <div className="flex items-center gap-2">
+              {/* Quick Action Buttons */}
+              <div className="flex items-center gap-1 mr-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      if (!latestUpdate?.id) {
+                        toast({
+                          title: "Error",
+                          description: "No manufacturing update found",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      const response = await fetch(`/api/manufacturing-updates/${latestUpdate.id}/export-pdf`, {
+                        credentials: 'include',
+                      });
+                      if (!response.ok) throw new Error('Export failed');
+                      const blob = await response.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `manufacturing-update-${latestUpdate.id}.pdf`;
+                      a.click();
+                      window.URL.revokeObjectURL(url);
+                      toast({
+                        title: "Success",
+                        description: "PDF exported successfully",
+                      });
+                    } catch (error) {
                       toast({
                         title: "Error",
-                        description: "No manufacturing update found",
+                        description: "Failed to export PDF",
                         variant: "destructive",
                       });
-                      return;
                     }
-                    const response = await fetch(`/api/manufacturing-updates/${latestUpdate.id}/export-pdf`, {
-                      credentials: 'include',
-                    });
-                    if (!response.ok) throw new Error('Export failed');
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `manufacturing-update-${latestUpdate.id}.pdf`;
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    toast({
-                      title: "Success",
-                      description: "PDF exported successfully",
-                    });
-                  } catch (error) {
-                    toast({
-                      title: "Error",
-                      description: "Failed to export PDF",
-                      variant: "destructive",
-                    });
-                  }
-                }}
-                data-testid="button-export-pdf"
-                disabled={!latestUpdate}
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export PDF
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    if (!latestUpdate?.id) {
+                  }}
+                  data-testid="button-export-pdf"
+                  disabled={!latestUpdate}
+                  title="Export PDF"
+                >
+                  <Download className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      if (!latestUpdate?.id) {
+                        toast({
+                          title: "Error",
+                          description: "No manufacturing update found",
+                          variant: "destructive",
+                        });
+                        return;
+                      }
+                      const response = await fetch(`/api/manufacturing-updates/${latestUpdate.id}/export-zip`, {
+                        credentials: 'include',
+                      });
+                      if (!response.ok) throw new Error('Export failed');
+                      const blob = await response.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `manufacturing-update-${latestUpdate.id}-attachments.zip`;
+                      a.click();
+                      window.URL.revokeObjectURL(url);
+                      toast({
+                        title: "Success",
+                        description: "ZIP exported successfully",
+                      });
+                    } catch (error) {
                       toast({
                         title: "Error",
-                        description: "No manufacturing update found",
+                        description: "Failed to export ZIP",
                         variant: "destructive",
                       });
-                      return;
                     }
-                    const response = await fetch(`/api/manufacturing-updates/${latestUpdate.id}/export-zip`, {
-                      credentials: 'include',
-                    });
-                    if (!response.ok) throw new Error('Export failed');
-                    const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `manufacturing-update-${latestUpdate.id}-attachments.zip`;
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    toast({
-                      title: "Success",
-                      description: "ZIP exported successfully",
-                    });
-                  } catch (error) {
-                    toast({
-                      title: "Error",
-                      description: "Failed to export ZIP",
-                      variant: "destructive",
-                    });
-                  }
-                }}
-                data-testid="button-export-zip"
-                disabled={!latestUpdate}
-              >
-                <FileArchive className="w-4 h-4 mr-2" />
-                Export ZIP
-              </Button>
+                  }}
+                  data-testid="button-export-zip"
+                  disabled={!latestUpdate}
+                  title="Export ZIP"
+                >
+                  <FileArchive className="h-4 w-4" />
+                </Button>
+                {(user?.role === 'admin' || user?.role === 'ops') && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => duplicateStructureMutation.mutate()}
+                    disabled={duplicateStructureMutation.isPending}
+                    data-testid="button-duplicate-header"
+                    title="Duplicate Structure"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Edit Controls */}
+              {canEdit && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={updateStatusMutation.isPending}
+                  data-testid="button-save-header"
+                >
+                  {updateStatusMutation.isPending ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-1" />
+                  )}
+                  Save
+                </Button>
+              )}
+              
+              {/* Archive/Delete for admin/ops */}
+              {(user?.role === 'admin' || user?.role === 'ops') && (
+                <>
+                  <Button
+                    variant={manufacturingUpdate?.archived ? "outline" : "secondary"}
+                    size="sm"
+                    onClick={handleArchive}
+                    disabled={archiveMutation.isPending}
+                    data-testid="button-archive-header"
+                    title={manufacturingUpdate?.archived ? "Unarchive" : "Archive"}
+                  >
+                    {manufacturingUpdate?.archived ? (
+                      <ArchiveRestore className="h-4 w-4" />
+                    ) : (
+                      <Archive className="h-4 w-4" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleDelete}
+                    disabled={deleteMutation.isPending}
+                    data-testid="button-delete-header"
+                    title="Delete"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </DialogHeader>
@@ -784,39 +847,46 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
 
           <div className="flex-1 overflow-y-auto p-4">
             <TabsContent value="overview" className="space-y-6 mt-0">
-              {/* Progress Overview */}
-              <Card className="glass-card border-white/10">
+              {/* Horizontal Chevron Workflow Steps - Matching Order Modal Style */}
+              <Card className="border-white/10">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium">Production Progress</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between text-sm">
-                      <span>Overall Progress</span>
-                      <span className="font-medium">{Math.round(getProgressPercentage())}%</span>
-                    </div>
-                    <Progress value={getProgressPercentage()} className="h-2" />
+                  <div className="flex items-center justify-between overflow-x-auto py-2">
+                    {statusSteps.map((step, index) => {
+                      const currentIndex = statusSteps.findIndex(s => s.key === status);
+                      const isCompleted = index < currentIndex;
+                      const isCurrent = index === currentIndex;
+                      const Icon = step.icon;
 
-                    <div className="flex justify-between mt-6">
-                      {statusSteps.map((step, index) => {
-                        const currentIndex = statusSteps.findIndex(s => s.key === status);
-                        const isCompleted = index <= currentIndex;
-                        const Icon = step.icon;
-
-                        return (
-                          <div
-                            key={step.key}
-                            className={`flex flex-col items-center ${isCompleted ? step.color : 'text-muted-foreground'}`}
+                      return (
+                        <div key={step.key} className="flex items-center flex-shrink-0">
+                          <button
+                            type="button"
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all ${
+                              isCurrent
+                                ? 'bg-primary text-primary-foreground shadow-md'
+                                : isCompleted
+                                ? 'bg-muted text-foreground'
+                                : 'text-muted-foreground hover:bg-muted/50'
+                            }`}
+                            onClick={() => canEdit && setStatus(step.key)}
+                            disabled={!canEdit}
                             data-testid={`status-step-${step.key}`}
                           >
-                            <div className={`p-2 rounded-full ${isCompleted ? 'bg-muted' : ''}`}>
-                              <Icon className="w-5 h-5" />
-                            </div>
-                            <span className="text-xs mt-1">{step.label}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                            <Icon className="w-4 h-4" />
+                            <span className="text-xs font-medium whitespace-nowrap">{step.label}</span>
+                            {isCompleted && <CheckCircle2 className="w-3 h-3 text-green-500" />}
+                          </button>
+                          {index < statusSteps.length - 1 && (
+                            <ChevronRight className={`w-4 h-4 mx-1 flex-shrink-0 ${
+                              index < currentIndex ? 'text-green-500' : 'text-muted-foreground/30'
+                            }`} />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -901,66 +971,43 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                 </Card>
               </div>
 
-              {/* Status Update */}
+              {/* Pantone Colors Summary */}
+              <PantoneSummarySection
+                pantones={pantoneAssignments.map((p: any) => ({
+                  id: p.id,
+                  pantoneCode: p.pantoneCode,
+                  pantoneName: p.pantoneName,
+                  hexValue: p.hexValue,
+                  usageLocation: p.usageLocation,
+                  matchQuality: p.matchQuality,
+                  lineItemId: p.lineItemId,
+                } as PantoneDisplayItem))}
+                canEdit={canEdit}
+                isEditing={false}
+                onDelete={(id) => deletePantoneAssignmentMutation.mutate(id)}
+                onAddClick={() => setActiveTab("lineitems")}
+                variant="compact"
+              />
+
+              {/* Status Update - Simplified since workflow is clickable */}
               {canEdit && (
-                <Card className="glass-card border-white/10">
+                <Card className="border-white/10">
                   <CardHeader className="pb-3">
-                    <CardTitle className="text-sm font-medium">Update Status</CardTitle>
+                    <CardTitle className="text-sm font-medium">Production Details</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div>
-                      <Label htmlFor="status">Production Status</Label>
-                      <Select value={status} onValueChange={setStatus} disabled={!canEdit}>
-                        <SelectTrigger id="status" data-testid="select-status">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableStatusOptions.map(step => (
-                            <SelectItem key={step.key} value={step.key}>
-                              {step.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {status === 'shipped' && (
-                      <>
-                        <div>
-                          <Label htmlFor="tracking">Tracking Number</Label>
-                          <Input
-                            id="tracking"
-                            value={trackingNumber}
-                            onChange={(e) => setTrackingNumber(e.target.value)}
-                            placeholder="Enter tracking number"
-                            disabled={!canEdit}
-                            data-testid="input-tracking"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="carrier">Carrier Company</Label>
-                          <Input
-                            id="carrier"
-                            value={carrierCompany}
-                            onChange={(e) => setCarrierCompany(e.target.value)}
-                            placeholder="e.g., UPS, FedEx, USPS"
-                            disabled={!canEdit}
-                            data-testid="input-carrier"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    <div>
-                      <Label htmlFor="completion">Actual Completion Date</Label>
-                      <Input
-                        id="completion"
-                        type="date"
-                        value={actualCompletionDate}
-                        onChange={(e) => setActualCompletionDate(e.target.value)}
-                        disabled={!canEdit}
-                        data-testid="input-completion-date"
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="completion">Actual Completion Date</Label>
+                        <Input
+                          id="completion"
+                          type="date"
+                          value={actualCompletionDate}
+                          onChange={(e) => setActualCompletionDate(e.target.value)}
+                          disabled={!canEdit}
+                          data-testid="input-completion-date"
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -1725,64 +1772,10 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
           </div>
         </Tabs>
 
-        <div className="flex justify-between pt-4 border-t">
-          <div className="flex gap-2">
-            {(user?.role === 'admin' || user?.role === 'ops') && (
-              <>
-                <Button
-                  variant="outline"
-                  onClick={() => duplicateStructureMutation.mutate()}
-                  disabled={duplicateStructureMutation.isPending}
-                  data-testid="button-duplicate-structure"
-                  title="Duplicate Manufacturing Structure (Zero Quantities)"
-                >
-                  <Copy className="w-4 h-4 mr-2" />
-                  {duplicateStructureMutation.isPending ? "Duplicating..." : "Duplicate Structure"}
-                </Button>
-                <Button 
-                  variant={manufacturingUpdate?.archived ? "outline" : "secondary"}
-                  onClick={handleArchive}
-                  disabled={archiveMutation.isPending}
-                  data-testid="button-archive"
-                >
-                  {manufacturingUpdate?.archived ? (
-                    <>
-                      <ArchiveRestore className="w-4 h-4 mr-2" />
-                      {archiveMutation.isPending ? "Unarchiving..." : "Unarchive"}
-                    </>
-                  ) : (
-                    <>
-                      <Archive className="w-4 h-4 mr-2" />
-                      {archiveMutation.isPending ? "Archiving..." : "Archive"}
-                    </>
-                  )}
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  onClick={handleDelete}
-                  disabled={deleteMutation.isPending}
-                  data-testid="button-delete"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  {deleteMutation.isPending ? "Deleting..." : "Delete"}
-                </Button>
-              </>
-            )}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onClose} data-testid="button-cancel">
-              Cancel
-            </Button>
-            {canEdit && (
-              <Button 
-                onClick={handleSave} 
-                disabled={updateStatusMutation.isPending}
-                data-testid="button-save"
-              >
-                {updateStatusMutation.isPending ? "Saving..." : "Save Changes"}
-              </Button>
-            )}
-          </div>
+        <div className="flex justify-end pt-4 border-t">
+          <Button variant="outline" onClick={onClose} data-testid="button-close">
+            Close
+          </Button>
         </div>
       </DialogContent>
 

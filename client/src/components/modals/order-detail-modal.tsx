@@ -24,6 +24,7 @@ import { useLocation } from "wouter";
 import type { UploadResult } from "@uppy/core";
 import { ClientLinkPanel } from "@/components/shared/ClientLinkPanel";
 import { IssueRequestTrigger } from "@/components/shared/IssueRequestModal";
+import { PantoneSummarySection, PantoneDisplayItem } from "@/components/shared/PantoneSummarySection";
 
 interface OrderLineItem {
   id: number;
@@ -231,6 +232,20 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
   // Fetch design jobs for this order
   const { data: orderDesignJobs = [], isLoading: designJobsLoading } = useQuery<any[]>({
     queryKey: [`/api/design-jobs/order/${orderId}`],
+    enabled: isOpen && !!orderId,
+  });
+
+  // Fetch pantone assignments for this order's line items (batched by orderId on server)
+  const { data: pantoneAssignments = [] } = useQuery<any[]>({
+    queryKey: ['/api/pantone-assignments', { orderId }],
+    queryFn: async () => {
+      if (!orderId) return [];
+      const response = await fetch(`/api/pantone-assignments?orderId=${orderId}`, {
+        credentials: 'include',
+      });
+      if (!response.ok) return [];
+      return response.json();
+    },
     enabled: isOpen && !!orderId,
   });
 
@@ -1065,6 +1080,24 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
                 onPreview={() => {
                   window.open(`/customer-portal/${orderId}`, '_blank');
                 }}
+              />
+
+              {/* Pantone Colors Summary */}
+              <PantoneSummarySection
+                pantones={pantoneAssignments.map((p: any) => ({
+                  id: p.id,
+                  pantoneCode: p.pantoneCode,
+                  pantoneName: p.pantoneName,
+                  hexValue: p.hexValue,
+                  usageLocation: p.usageLocation,
+                  matchQuality: p.matchQuality,
+                  lineItemId: p.lineItemId,
+                } as PantoneDisplayItem))}
+                canEdit={false}
+                isEditing={false}
+                variant="compact"
+                showQuickAction={order?.manufacturingRecords?.length > 0}
+                quickActionLabel="View in Manufacturing"
               />
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
