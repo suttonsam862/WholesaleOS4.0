@@ -899,6 +899,133 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     sortOrderGlobal: 751,
     sortOrderInGroup: 51,
     resourceKey: "tasks"
+  },
+
+  // ============ Additional Pages (Dashboard, Role Homes, Customer Portal, etc.) ============
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    path: "/dashboard",
+    groupId: "admin-system",
+    isGroupLanding: false,
+    sortOrderGlobal: 760,
+    sortOrderInGroup: 60,
+    resourceKey: null,
+    roles: ["admin"]
+  },
+  {
+    id: "admin-home",
+    label: "Admin Home",
+    path: "/admin/home",
+    groupId: "admin-system",
+    isGroupLanding: false,
+    sortOrderGlobal: 761,
+    sortOrderInGroup: 61,
+    resourceKey: null,
+    roles: ["admin"],
+    hideFromMoreMenu: true
+  },
+  {
+    id: "sales-home",
+    label: "Sales Home",
+    path: "/sales/home",
+    groupId: "sales-crm",
+    isGroupLanding: false,
+    sortOrderGlobal: 170,
+    sortOrderInGroup: 70,
+    resourceKey: "leads",
+    roles: ["sales"],
+    hideFromMoreMenu: true
+  },
+  {
+    id: "designer-home",
+    label: "Designer Home",
+    path: "/designer/home",
+    groupId: "design-operations",
+    isGroupLanding: false,
+    sortOrderGlobal: 410,
+    sortOrderInGroup: 10,
+    resourceKey: "designJobs",
+    roles: ["designer"],
+    hideFromMoreMenu: true
+  },
+  {
+    id: "ops-home",
+    label: "Ops Home",
+    path: "/ops/home",
+    groupId: "production-manufacturing",
+    isGroupLanding: false,
+    sortOrderGlobal: 310,
+    sortOrderInGroup: 10,
+    resourceKey: "manufacturing",
+    roles: ["ops"],
+    hideFromMoreMenu: true
+  },
+  {
+    id: "manufacturer-home",
+    label: "Manufacturer Home",
+    path: "/manufacturer/home",
+    groupId: "production-manufacturing",
+    isGroupLanding: false,
+    sortOrderGlobal: 311,
+    sortOrderInGroup: 11,
+    resourceKey: "manufacturing",
+    roles: ["manufacturer"],
+    hideFromMoreMenu: true
+  },
+  {
+    id: "sales-resources",
+    label: "Sales Resources",
+    path: "/sales-resources",
+    groupId: "sales-crm",
+    isGroupLanding: false,
+    sortOrderGlobal: 171,
+    sortOrderInGroup: 71,
+    resourceKey: "leads",
+    roles: ["admin", "sales"]
+  },
+  {
+    id: "customer-portal",
+    label: "Customer Portal",
+    path: "/customer-portal",
+    groupId: "orders-stores",
+    isGroupLanding: false,
+    sortOrderGlobal: 230,
+    sortOrderInGroup: 30,
+    resourceKey: null,
+    hideFromMoreMenu: true
+  },
+  {
+    id: "customer-order-form",
+    label: "Customer Order Form",
+    path: "/customer-order-form",
+    groupId: "orders-stores",
+    isGroupLanding: false,
+    sortOrderGlobal: 231,
+    sortOrderInGroup: 31,
+    resourceKey: null,
+    hideFromMoreMenu: true
+  },
+  {
+    id: "production-schedule",
+    label: "Production Schedule",
+    path: "/production-schedule",
+    groupId: "production-manufacturing",
+    isGroupLanding: false,
+    sortOrderGlobal: 308,
+    sortOrderInGroup: 9,
+    resourceKey: "manufacturing",
+    roles: ["admin", "ops"]
+  },
+  {
+    id: "variant-design-archive",
+    label: "Variant Design Archive",
+    path: "/catalog/variant-design-archive",
+    groupId: "catalog-materials",
+    isGroupLanding: false,
+    sortOrderGlobal: 507,
+    sortOrderInGroup: 8,
+    resourceKey: "catalog"
   }
 ];
 
@@ -968,7 +1095,18 @@ export function buildNavigationForUser(
             (page.path !== "/" && currentPath.startsWith(page.path))
         }));
 
-      const landingPage = groupPages.find(p => p.isGroupLanding) || null;
+      let landingPage = groupPages.find(p => p.isGroupLanding) || null;
+      
+      if (!landingPage && groupPages.length > 0) {
+        const primaryLandingPath = getGroupLandingForRole(group, role, featureFlags);
+        let foundPage = groupPages.find(p => p.path === primaryLandingPath);
+        
+        if (!foundPage) {
+          foundPage = groupPages.find(p => p.path === group.landingPathDefault);
+        }
+        
+        landingPage = foundPage || groupPages[0];
+      }
 
       return {
         ...group,
@@ -1009,9 +1147,15 @@ export function getDefaultLandingForRole(role: UserRole, featureFlags: Record<st
 
 export function getGroupLandingForRole(
   group: NavigationGroup,
-  role: UserRole
+  role: UserRole,
+  featureFlags?: Record<string, boolean>
 ): string {
   if (role === "sales" && group.landingPathSales) {
+    if (group.landingPathSales === "/sales-map") {
+      if (featureFlags && !featureFlags.salesMapEnabled) {
+        return group.landingPathDefault;
+      }
+    }
     return group.landingPathSales;
   }
   return group.landingPathDefault;

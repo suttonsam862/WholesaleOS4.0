@@ -256,7 +256,8 @@ export function Sidebar({ user, isMobile = false, onNavigate, isCollapsed = fals
   const renderGroup = (group: NavigationGroupWithPages) => {
     const GroupIcon = GROUP_ICONS[group.icon] || LayoutDashboard;
     const isExpanded = expandedGroups[group.id] ?? false;
-    const landingPath = getGroupLandingForRole(group, user?.role as UserRole);
+    const featureFlags = getAllFlags();
+    const landingPath = getGroupLandingForRole(group, user?.role as UserRole, featureFlags);
     
     const nonLandingPages = group.pages.filter(p => !p.isGroupLanding && !p.hideFromMoreMenu);
     const hasMorePages = nonLandingPages.length > 0;
