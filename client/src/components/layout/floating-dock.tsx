@@ -6,6 +6,7 @@ import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
 import {
   buildNavigationForUser,
   getGroupLandingForRole,
+  getDefaultLandingForRole,
   type NavigationGroupWithPages,
 } from "@/lib/navigationRegistry";
 import type { UserRole } from "@/lib/permissions";
@@ -22,6 +23,7 @@ import {
   MoreHorizontal,
   ChevronRight,
   X,
+  Home,
   type LucideIcon
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -76,6 +78,9 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
   };
 
   const featureFlags = getAllFlags();
+  const homePath = user?.role ? getDefaultLandingForRole(user.role as UserRole, featureFlags) : "/";
+  const isHomeActive = location === homePath || location === "/" || 
+    (user?.role && location === `/${user.role}/home`);
 
   return (
     <div 
@@ -84,6 +89,17 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
       onMouseLeave={() => mouseX.set(Infinity)}
       data-testid="floating-dock"
     >
+      <DockGroupItem
+        mouseX={mouseX}
+        href={homePath}
+        icon={Home}
+        label="Home"
+        isActive={isHomeActive}
+        testId="dock-home"
+      />
+      
+      <div className="w-[1px] h-8 bg-white/10 mx-1 self-center" />
+      
       {navigation.map((group) => {
         const landingPath = getGroupLandingForRole(group, user?.role as UserRole, featureFlags);
         const Icon = getGroupIcon(group.icon);
@@ -147,6 +163,21 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
           <ScrollArea className="max-h-[calc(70vh-60px)]">
             <div className="p-3 space-y-4">
               <div className="grid grid-cols-4 gap-2">
+                <Link href={homePath} onClick={() => setIsMoreOpen(false)}>
+                  <div
+                    className={cn(
+                      "flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all",
+                      isHomeActive
+                        ? "bg-neon-blue/20 text-neon-blue border border-neon-blue/30"
+                        : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                    )}
+                    data-testid="more-home"
+                  >
+                    <Home className="w-5 h-5" />
+                    <span className="text-xs font-medium">Home</span>
+                  </div>
+                </Link>
+                
                 {navigation.map((group) => {
                   const landingPath = getGroupLandingForRole(group, user?.role as UserRole, featureFlags);
                   const Icon = getGroupIcon(group.icon);
