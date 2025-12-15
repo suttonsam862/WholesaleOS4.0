@@ -1278,6 +1278,30 @@ export const insertRequestSchema = createInsertSchema(requests).omit({
   updatedAt: true,
 });
 
+// ==================== LICENSE MANAGEMENT ====================
+
+export const licenseAcceptances = pgTable("license_acceptances", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  licenseVersion: varchar("license_version").notNull().default("1.0"),
+  acceptedAt: timestamp("accepted_at").defaultNow(),
+  ipAddress: varchar("ip_address"),
+  userAgent: varchar("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_license_acceptances_user_id").on(table.userId),
+  index("idx_license_acceptances_version").on(table.licenseVersion),
+]);
+
+export type LicenseAcceptance = typeof licenseAcceptances.$inferSelect;
+export type InsertLicenseAcceptance = typeof licenseAcceptances.$inferInsert;
+
+export const insertLicenseAcceptanceSchema = createInsertSchema(licenseAcceptances).omit({
+  id: true,
+  createdAt: true,
+  acceptedAt: true,
+});
+
 export type InsertRequest = z.infer<typeof insertRequestSchema>;
 export type Request = typeof requests.$inferSelect;
 

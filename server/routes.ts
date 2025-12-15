@@ -33,7 +33,8 @@ import {
   insertSalesResourceSchema,
   insertManufacturingAttachmentSchema,
   insertTeamStoreSchema,
-  insertTeamStoreLineItemSchema
+  insertTeamStoreLineItemSchema,
+  licenseAcceptances
 } from "@shared/schema";
 import * as bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -7547,6 +7548,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating printful sync record:", error);
       res.status(400).json({ message: error instanceof Error ? error.message : "Failed to update printful sync record" });
+    }
+  });
+
+  // ==================== LICENSE MANAGEMENT ROUTES ====================
+  app.post('/api/license/accept', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const { version = "1.0" } = req.body;
+      
+      const acceptance = await db.insert(licenseAcceptances).values({
+        userId: user.id,
+        licenseVersion: version,
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      }).returning();
+      
+      res.status(201).json(acceptance[0]);
+    } catch (error) {
+      console.error("Error accepting license:", error);
+      res.status(400).json({ message: "Failed to accept license" });
+    }
+  });
+
+  app.get('/api/license/acceptance', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const acceptance = await db.query.licenseAcceptances.findFirst({
+        where: (la) => eq(la.userId, user.id),
+      });
+      res.json(acceptance || null);
+    } catch (error) {
+      console.error("Error fetching license acceptance:", error);
+      res.status(400).json({ message: "Failed to fetch license acceptance" });
     }
   });
 

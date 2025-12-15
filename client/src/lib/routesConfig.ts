@@ -126,6 +126,8 @@ const LocalLogin = lazy(() => import("@/pages/local-login"));
 const AccountSetup = lazy(() => import("@/pages/account-setup"));
 const CustomerOrderForm = lazy(() => import("@/pages/customer-order-form"));
 const CustomerPortal = lazy(() => import("@/pages/customer-portal"));
+const LicenseAgreement = lazy(() => import("@/pages/license-agreement"));
+const PrivacyPolicy = lazy(() => import("@/pages/privacy-policy"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
 export const publicRoutes: RouteConfig[] = [
@@ -134,6 +136,8 @@ export const publicRoutes: RouteConfig[] = [
   { path: "/setup-account", title: "Account Setup", component: AccountSetup, requiresAuth: false, requiresLayout: false },
   { path: "/customer-order-form/:id", title: "Order Form", component: CustomerOrderForm, requiresAuth: false, requiresLayout: false },
   { path: "/customer-portal/:id", title: "Customer Portal", component: CustomerPortal, requiresAuth: false, requiresLayout: false },
+  { path: "/license", title: "License Agreement", component: LicenseAgreement, requiresAuth: false, requiresLayout: false },
+  { path: "/privacy", title: "Privacy Policy", component: PrivacyPolicy, requiresAuth: false, requiresLayout: false },
 ];
 
 export const roleHomeRoutes: RouteConfig[] = [
