@@ -1455,7 +1455,7 @@ function FormWizardModal({
                 <div className="text-sm text-white/70">
                   {lineItems.map(item => {
                     const sizes = formData.lineItemSizes[item.id] || {};
-                    const total = SIZE_COLUMNS.reduce((sum, col) => sum + (sizes[col.key as keyof typeof sizes] || 0), 0);
+                    const total = SIZE_COLUMNS.reduce((sum, col) => sum + (Number(sizes[col.key as keyof typeof sizes]) || 0), 0);
                     return total > 0 ? (
                       <div key={item.id} className="flex justify-between py-1">
                         <span>{item.itemName || item.productName || 'Item'}</span>

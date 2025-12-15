@@ -1497,10 +1497,10 @@ function OverviewModule({
       <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
         <CollapsibleTrigger asChild>
           <button
-            id={`advanced-sections-trigger-${orderId}`}
+            id={order?.id ? `advanced-sections-trigger-${order.id}` : "advanced-sections-trigger"}
             className="flex items-center gap-2 text-sm text-white/60 hover:text-white transition-colors py-2"
             aria-expanded={showAdvanced}
-            aria-controls={`advanced-sections-content-${orderId}`}
+            aria-controls={order?.id ? `advanced-sections-content-${order.id}` : "advanced-sections-content"}
             aria-label={showAdvanced ? "Hide advanced options" : "Show advanced options"}
             data-testid="button-toggle-advanced"
           >
@@ -1510,9 +1510,9 @@ function OverviewModule({
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent 
-          id={`advanced-sections-content-${orderId}`}
+          id={order?.id ? `advanced-sections-content-${order.id}` : "advanced-sections-content"}
           role="region"
-          aria-labelledby={`advanced-sections-trigger-${orderId}`}
+          aria-labelledby={order?.id ? `advanced-sections-trigger-${order.id}` : "advanced-sections-trigger"}
         >
           <motion.div
             initial={{ opacity: 0, height: 0 }}
