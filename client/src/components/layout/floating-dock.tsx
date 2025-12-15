@@ -192,7 +192,7 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
                     >
                       <div
                         className={cn(
-                          "flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all",
+                          "flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all overflow-hidden",
                           isActive
                             ? "bg-neon-blue/20 text-neon-blue border border-neon-blue/30"
                             : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
@@ -200,7 +200,7 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
                         data-testid={`more-group-${group.id}`}
                       >
                         <Icon className="w-5 h-5" />
-                        <span className="text-xs font-medium">{shortTitle}</span>
+                        <span className="text-xs font-medium truncate px-1 max-w-full">{shortTitle}</span>
                       </div>
                     </Link>
                   );
@@ -209,7 +209,7 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
                 <Link href="/settings" onClick={() => setIsMoreOpen(false)}>
                   <div
                     className={cn(
-                      "flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all",
+                      "flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all overflow-hidden",
                       location === "/settings" || location.startsWith("/settings/")
                         ? "bg-neon-blue/20 text-neon-blue border border-neon-blue/30"
                         : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
@@ -217,7 +217,7 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
                     data-testid="more-settings"
                   >
                     <Settings className="w-5 h-5" />
-                    <span className="text-xs font-medium">Settings</span>
+                    <span className="text-xs font-medium truncate px-1 max-w-full">Settings</span>
                   </div>
                 </Link>
               </div>
@@ -236,12 +236,12 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
                         href={landingPath}
                         onClick={() => setIsMoreOpen(false)}
                       >
-                        <div className="flex items-center gap-2 px-2 py-1.5 text-white/50 hover:text-white transition-colors">
-                          <Icon className="w-4 h-4" />
-                          <span className="text-xs font-semibold uppercase tracking-wider">
+                        <div className="flex items-center gap-2 px-2 py-1.5 text-white/50 hover:text-white transition-colors overflow-hidden">
+                          <Icon className="w-4 h-4 flex-shrink-0" />
+                          <span className="text-xs font-semibold uppercase tracking-wider truncate flex-1">
                             {group.title}
                           </span>
-                          <ChevronRight className="w-3 h-3 ml-auto" />
+                          <ChevronRight className="w-3 h-3 ml-auto flex-shrink-0" />
                         </div>
                       </Link>
                       
@@ -254,7 +254,7 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
                           >
                             <div
                               className={cn(
-                                "px-3 py-2 rounded-lg text-sm transition-all",
+                                "px-3 py-2 rounded-lg text-sm transition-all truncate overflow-hidden",
                                 page.isActive
                                   ? "text-neon-blue bg-neon-blue/10"
                                   : "text-white/60 hover:text-white hover:bg-white/5"
@@ -315,7 +315,7 @@ function DockGroupItem({ mouseX, href, icon: Icon, label, isActive, testId }: Do
               ref={ref}
               style={{ width }}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl relative transition-colors cursor-pointer",
+                "flex flex-col items-center justify-center gap-1 py-1.5 rounded-xl relative transition-colors cursor-pointer overflow-hidden",
                 isActive 
                   ? "bg-neon-blue/20 text-neon-blue border border-neon-blue/50 shadow-[0_0_15px_rgba(0,243,255,0.3)]" 
                   : "bg-white/5 text-muted-foreground hover:bg-white/10 border border-white/5"
@@ -323,7 +323,7 @@ function DockGroupItem({ mouseX, href, icon: Icon, label, isActive, testId }: Do
               data-testid={testId}
             >
               <Icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium truncate px-1">{label}</span>
+              <span className="text-[10px] font-medium truncate px-1 max-w-full">{label}</span>
               {isActive && (
                 <div className="absolute -bottom-1 w-1 h-1 rounded-full bg-neon-blue" />
               )}

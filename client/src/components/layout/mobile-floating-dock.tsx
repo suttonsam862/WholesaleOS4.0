@@ -112,7 +112,7 @@ export function MobileFloatingDock({ onSearchClick, user }: MobileFloatingDockPr
                           <Link href={landingPath} onClick={() => setIsExpanded(false)}>
                             <div
                               className={cn(
-                                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all",
+                                "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all overflow-hidden",
                                 isActive
                                   ? "bg-neon-blue/20 text-neon-blue border border-neon-blue/30"
                                   : "bg-white/5 text-white hover:bg-white/10"
@@ -120,13 +120,13 @@ export function MobileFloatingDock({ onSearchClick, user }: MobileFloatingDockPr
                               data-testid={`mobile-nav-group-${group.id}`}
                             >
                               <div className={cn(
-                                "p-2 rounded-lg",
+                                "p-2 rounded-lg flex-shrink-0",
                                 isActive ? "bg-neon-blue/20" : "bg-white/10"
                               )}>
                                 <GroupIcon className="w-4 h-4" />
                               </div>
-                              <span className="flex-1 font-medium text-sm">{group.title}</span>
-                              <ChevronRight className="w-4 h-4 text-white/40" />
+                              <span className="flex-1 font-medium text-sm truncate">{group.title}</span>
+                              <ChevronRight className="w-4 h-4 text-white/40 flex-shrink-0" />
                             </div>
                           </Link>
                           
@@ -140,7 +140,7 @@ export function MobileFloatingDock({ onSearchClick, user }: MobileFloatingDockPr
                                 >
                                   <div
                                     className={cn(
-                                      "px-3 py-2 rounded-lg text-sm transition-all",
+                                      "px-3 py-2 rounded-lg text-sm transition-all truncate overflow-hidden",
                                       page.isActive
                                         ? "text-neon-blue bg-neon-blue/10"
                                         : "text-white/60 hover:text-white hover:bg-white/5"
