@@ -49,7 +49,7 @@ function translatePermissionToDb(permission: Permission, dbPermissions: RolePerm
 }
 
 export function usePermissions() {
-  const { user } = useAuth();
+  const { data: user } = useAuth();
 
   const { data, isLoading, error } = useQuery<PermissionsData>({
     queryKey: ["/api/permissions/user-permissions"],
