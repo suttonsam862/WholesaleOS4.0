@@ -36,9 +36,14 @@ import { registerRequestsRoutes } from "./requests.routes";
 import { registerAIRoutes } from "./ai.routes";
 import salesMapRoutes from "./sales-map.routes";
 
+import { csrfProtection } from '../middleware/csrf.middleware';
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware must be set up first
   await setupAuth(app);
+  
+  // Apply CSRF protection globally (after session middleware)
+  app.use(csrfProtection);
 
   // Auto-seed permissions if roles or resources are missing/outdated
   try {

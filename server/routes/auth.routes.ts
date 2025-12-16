@@ -1,6 +1,10 @@
 import type { Express } from "express";
 import { storage } from "../storage";
-import { isAuthenticated, loadUserData, type AuthenticatedRequest } from "./shared/middleware";
+import { isAuthenticated } from "../replitAuth";
+import type { AuthenticatedRequest } from './shared/types';
+import { loadUserData } from './shared/middleware';
+import { getCsrfToken } from '../middleware/csrf.middleware';
+import { authRateLimiter } from '../middleware/rateLimit.middleware';
 
 export function registerAuthRoutes(app: Express): void {
   // Auth routes
@@ -14,7 +18,7 @@ export function registerAuthRoutes(app: Express): void {
   });
 
   // Local authentication routes
-  app.post('/api/auth/local/login', async (req, res) => {
+  app.post('/api/auth/local/login', authRateLimiter, async (req, res) => {
     try {
       const { email, password } = req.body;
       console.log(`[LocalAuth] Login attempt for: ${email}`);
@@ -101,7 +105,7 @@ export function registerAuthRoutes(app: Express): void {
 
       const { role = 'admin' } = req.body;
       const validRoles = ['admin', 'sales', 'designer', 'ops', 'manufacturer'];
-      
+
       if (!validRoles.includes(role)) {
         return res.status(400).json({ 
           message: `Invalid role. Must be one of: ${validRoles.join(', ')}` 
@@ -109,11 +113,11 @@ export function registerAuthRoutes(app: Express): void {
       }
 
       const { TestAuthenticationManager } = await import("../testAuth");
-      
+
       console.log(`🔐 [API] Test login for role: ${role}`);
-      
+
       const authSetup = await TestAuthenticationManager.setupDeterministicAuthForRole(role as any);
-      
+
       // Set the session cookie directly (secure is false in dev)
       res.cookie('connect.sid', authSetup.sessionCookie, {
         httpOnly: true,
@@ -287,15 +291,15 @@ export function registerAuthRoutes(app: Express): void {
   // Unified logout endpoint (handles both local and Replit Auth)
   app.post('/api/auth/logout', async (req, res) => {
     const user = req.user as any;
-    
+
     // Check if this is a Replit Auth session
     const isReplitAuth = user?.claims?.iss && user.claims.iss.includes('replit');
-    
+
     req.session.destroy((err) => {
       if (err) {
         return res.status(500).json({ message: 'Logout failed' });
       }
-      
+
       // For Replit Auth, return the end session URL for client-side redirect
       if (isReplitAuth) {
         return res.json({ 
@@ -303,7 +307,7 @@ export function registerAuthRoutes(app: Express): void {
           redirectTo: '/api/logout' // Replit Auth end session endpoint
         });
       }
-      
+
       // For local auth, just confirm logout
       res.json({ message: 'Logged out successfully' });
     });

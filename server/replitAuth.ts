@@ -58,10 +58,11 @@ export function getSession() {
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
+    rolling: true, // Reset expiration on activity
     cookie: {
       httpOnly: true,
       secure: isProduction, // Secure cookies in production
-      sameSite: isProduction ? 'lax' : 'lax', // Protect against CSRF
+      sameSite: 'strict', // Strict CSRF protection
       maxAge: sessionTtl,
       domain: isProduction ? undefined : undefined, // Let browser handle domain
     },
