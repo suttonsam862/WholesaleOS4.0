@@ -44,7 +44,7 @@ interface ManufacturerJob {
 const VIEW_STORAGE_KEY = "manufacturer-home-view";
 
 export default function ManufacturerHome() {
-  const { data: user } = useAuth();
+  const { user } = useAuth();
   const [view, setView] = useState<"tiles" | "floor">(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(VIEW_STORAGE_KEY);

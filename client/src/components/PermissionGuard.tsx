@@ -21,7 +21,7 @@ export function PermissionGuard({
   showAccessDenied = true 
 }: PermissionGuardProps) {
   const { isPageVisible, isLoading } = usePermissions();
-  const { data: user, isPending: authLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
 
   const hasAccess = isPageVisible(resource);

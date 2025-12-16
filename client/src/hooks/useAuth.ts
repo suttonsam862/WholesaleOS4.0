@@ -5,45 +5,47 @@ import { useTestMode } from "@/contexts/TestModeContext";
 // Frontend-safe User type that excludes passwordHash
 type FrontendUser = Omit<User, 'passwordHash'>;
 
-export function useAuth() {
+// Consistent auth interface for all components
+interface AuthState {
+  user: FrontendUser | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  isError: boolean;
+  error: Error | null;
+  refetch: () => void;
+}
+
+export function useAuth(): AuthState {
   const { isTestMode } = useTestMode();
   
-  return useQuery<FrontendUser>({
+  const query = useQuery<FrontendUser>({
     queryKey: ["/api/auth/user"],
     queryFn: async () => {
-      try {
-        const res = await fetch("/api/auth/user", {
-          credentials: "include",
-        });
+      const res = await fetch("/api/auth/user", {
+        credentials: "include",
+      });
 
-        if (!res.ok) {
-          // In test mode, log more details
-          if (isTestMode) {
-            console.log('🔐 [useAuth] Authentication check failed (expected for unauthenticated users):', {
-              error: await res.text(),
-              isAuthenticated: false,
-              timestamp: new Date().toISOString()
-            });
-          }
-          throw new Error("Unauthorized");
+      if (!res.ok) {
+        if (isTestMode) {
+          console.log('🔐 [useAuth] Not authenticated (expected for logged-out users)');
         }
-
-        return res.json() as Promise<User>;
-      } catch (error) {
-        // Log error only in test mode for debugging
-        if (isTestMode && error instanceof Error) {
-          console.log('🔐 [useAuth] Authentication check failed (expected for unauthenticated users):', {
-            error: error.message,
-            isAuthenticated: false,
-            timestamp: new Date().toISOString()
-          });
-        }
-        throw error;
+        throw new Error("Unauthorized");
       }
+
+      return res.json() as Promise<FrontendUser>;
     },
     retry: false,
-    throwOnError: false, // Don't throw on 401, handle gracefully
-    refetchInterval: 5 * 60 * 1000, // Optional: Check auth every 5 minutes
-    refetchOnWindowFocus: true, // Refresh when user returns to tab
+    throwOnError: false,
+    refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
   });
+
+  return {
+    user: query.data ?? null,
+    isLoading: query.isPending,
+    isAuthenticated: !!query.data && !query.isError,
+    isError: query.isError,
+    error: query.error,
+    refetch: query.refetch,
+  };
 }

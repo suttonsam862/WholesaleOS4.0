@@ -57,16 +57,16 @@ function RouteRenderer({ route, user }: { route: RouteConfig; user: any }) {
 }
 
 export function AppShell() {
-  const { data: user, isPending, isError } = useAuth();
+  const { user, isLoading, isAuthenticated } = useAuth();
   const { isEnabled } = useFeatureFlags();
 
   useSalesLandingRedirect();
 
-  if (isPending) {
+  if (isLoading) {
     return <AuthLoadingScreen />;
   }
 
-  if (!user || isError) {
+  if (!isAuthenticated || !user) {
     return (
       <Switch>
         {publicRoutes.map((route) => (

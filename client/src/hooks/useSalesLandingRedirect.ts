@@ -1,47 +1,38 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
-import { getSalesDefaultLanding } from "@/lib/navigationRegistry";
+import { getRoleHomePath, isFeatureEnabled } from "@/lib/featureFlags";
 
 export function useSalesLandingRedirect() {
-  const { data: user } = useAuth();
-  const { isEnabled } = useFeatureFlags();
+  const { user, isAuthenticated } = useAuth();
   const [location, setLocation] = useLocation();
-  const redirectedUserRef = useRef<string | null>(null);
+  const hasRedirected = useRef(false);
 
   useEffect(() => {
-    // Only redirect if we're at home and user just logged in
-    if (!user || location !== "/" || redirectedUserRef.current === user.id) return;
-    
-    // Only redirect to role home if the feature is enabled
-    if (!isEnabled("enableRoleHome")) return;
-
-    redirectedUserRef.current = user.id;
-
-    // Map roles to their home pages
-    const roleHomeMap: Record<string, string> = {
-      admin: "/admin/home",
-      sales: "/sales/home",
-      designer: "/designer/home",
-      ops: "/ops/home",
-      manufacturer: "/manufacturer/home",
-    };
-
-    const homeRoute = roleHomeMap[user.role];
-    if (homeRoute) {
-      setLocation(homeRoute);
-    } else if (user.role === "sales") {
-      // Fallback for sales role with custom landing
-      const salesLanding = getSalesDefaultLanding({ enableRoleHome: isEnabled("enableRoleHome") });
-      setLocation(salesLanding);
+    // Only redirect authenticated users at "/" who haven't been redirected yet
+    if (!isAuthenticated || !user || location !== "/" || hasRedirected.current) {
+      return;
     }
-  }, [user?.id, user?.role, location, isEnabled, setLocation]);
+
+    // Only redirect if role home feature is enabled
+    if (!isFeatureEnabled("enableRoleHome")) {
+      return;
+    }
+
+    // Mark as redirected to prevent loops
+    hasRedirected.current = true;
+
+    // Get the role-specific home page
+    const homeRoute = getRoleHomePath(user.role);
+    if (homeRoute && homeRoute !== "/") {
+      setLocation(homeRoute);
+    }
+  }, [isAuthenticated, user, location, setLocation]);
 
   // Reset redirect flag when user logs out
   useEffect(() => {
-    if (!user) {
-      redirectedUserRef.current = null;
+    if (!isAuthenticated) {
+      hasRedirected.current = false;
     }
-  }, [user]);
+  }, [isAuthenticated]);
 }
