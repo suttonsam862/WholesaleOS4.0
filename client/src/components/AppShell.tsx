@@ -7,12 +7,12 @@ import { AuthLoadingScreen } from "@/components/auth-loading-screen";
 import { PermissionGuard } from "@/components/PermissionGuard";
 import { RoleGuard } from "@/components/role-home/RoleGuard";
 import { useSalesLandingRedirect } from "@/hooks/useSalesLandingRedirect";
-import { 
-  publicRoutes, 
-  roleHomeRoutes, 
-  authenticatedRoutes, 
+import {
+  publicRoutes,
+  roleHomeRoutes,
+  authenticatedRoutes,
   notFoundRoute,
-  RouteConfig 
+  RouteConfig
 } from "@/lib/routesConfig";
 import type { FeatureFlags } from "@/lib/featureFlags";
 
@@ -26,7 +26,7 @@ function RouteLoadingFallback() {
 
 function RouteRenderer({ route, user }: { route: RouteConfig; user: any }) {
   const Component = route.component;
-  
+
   let content = (
     <Suspense fallback={<RouteLoadingFallback />}>
       <Component />
@@ -59,17 +59,8 @@ function RouteRenderer({ route, user }: { route: RouteConfig; user: any }) {
 export function AppShell() {
   const { isAuthenticated, isLoading, isError, user } = useAuth();
   const { isEnabled } = useFeatureFlags();
-  
-  useSalesLandingRedirect();
 
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🔍 [AppShell] Auth state:', {
-      isAuthenticated,
-      isLoading,
-      isError,
-      timestamp: new Date().toISOString()
-    });
-  }
+  useSalesLandingRedirect();
 
   if (isLoading) {
     return <AuthLoadingScreen />;

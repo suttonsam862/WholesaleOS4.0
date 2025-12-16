@@ -142,6 +142,22 @@ export async function apiRequest<T = any>(
   // Construct the full URL by combining the base origin with the endpoint.
   const url = `${window.location.origin}${endpoint}`;
 
+  // Check if we're in development mode for logging
+  const isDevelopment = process.env.NODE_ENV === 'development' || import.meta.env.DEV;
+
+  // Safe logging that only outputs in development
+  function devLog(...args: unknown[]): void {
+    if (isDevelopment) {
+      console.log(...args);
+    }
+  }
+
+  function devError(...args: unknown[]): void {
+    if (isDevelopment) {
+      console.error(...args);
+    }
+  }
+
   devLog(`[API Request] ${method} ${url}`);
   if (requestBody && method !== "GET") {
     devLog(`[API Request Body]`, JSON.stringify(requestBody, null, 2));

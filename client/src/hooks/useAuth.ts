@@ -6,39 +6,23 @@ import { useTestMode } from "@/contexts/TestModeContext";
 type FrontendUser = Omit<User, 'passwordHash'>;
 
 export function useAuth() {
-  const { data: actualUser, isLoading, error, isError } = useQuery<FrontendUser>({
+  return useQuery<FrontendUser>({
     queryKey: ["/api/auth/user"],
+    queryFn: async () => {
+      const res = await fetch("/api/auth/user", {
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || "Unauthorized");
+      }
+
+      return res.json() as Promise<User>;
+    },
     retry: false,
     throwOnError: false, // Don't throw on 401, handle gracefully
     refetchInterval: 5 * 60 * 1000, // Optional: Check auth every 5 minutes
     refetchOnWindowFocus: true, // Refresh when user returns to tab
   });
-  
-  // Development mode logging for authentication errors
-  if (process.env.NODE_ENV === 'development' && isError && error) {
-    console.log('🔐 [useAuth] Authentication check failed (expected for unauthenticated users):', {
-      error: error.message,
-      isAuthenticated: false,
-      timestamp: new Date().toISOString()
-    });
-  }
-  
-  const { isTestMode, testUser } = useTestMode();
-
-  // If in test mode, return test user data instead of actual user
-  // But preserve isAuthenticated based on actual user auth status
-  const effectiveUser = isTestMode && testUser ? {
-    ...testUser,
-    isActive: true,
-  } as FrontendUser : actualUser;
-
-  return {
-    user: effectiveUser,
-    actualUser, // Expose actual user for admin panel
-    isLoading,
-    isAuthenticated: !!actualUser,
-    isTestMode,
-    error, // Expose error for debugging
-    isError, // Expose error flag
-  };
 }

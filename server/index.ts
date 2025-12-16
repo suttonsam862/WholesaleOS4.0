@@ -4,13 +4,6 @@ import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 
-// Add request body logging middleware before JSON parsing
-app.use((req, res, next) => {
-  console.log(`[MIDDLEWARE] ${req.method} ${req.path} - Content-Type: ${req.headers['content-type']}`);
-  console.log(`[MIDDLEWARE] Content-Length: ${req.headers['content-length']}`);
-  next();
-});
-
 // Configure JSON parsing with proper error handling
 app.use(express.json({ 
   limit: '50mb',
@@ -22,17 +15,6 @@ app.use(express.urlencoded({
   extended: true, 
   limit: '50mb'
 }));
-
-// Add middleware to log parsed body
-app.use((req, res, next) => {
-  if (req.method === 'POST' || req.method === 'PUT') {
-    console.log(`[BODY] ${req.method} ${req.path} - Body:`, JSON.stringify(req.body, null, 2));
-    console.log(`[BODY] Body type:`, typeof req.body);
-    console.log(`[BODY] Body keys:`, Object.keys(req.body || {}));
-    console.log(`[BODY] Body is empty object:`, Object.keys(req.body || {}).length === 0);
-  }
-  next();
-});
 
 app.use((req, res, next) => {
   const start = Date.now();

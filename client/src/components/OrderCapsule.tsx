@@ -1,6 +1,6 @@
 /**
  * Order Capsule Component
- * 
+ *
  * A unified modal for viewing and managing Orders with full editing capabilities,
  * glass design, progress indicator, role-based modules, and actionable items everywhere.
  */
@@ -96,10 +96,10 @@ import {
 } from "lucide-react";
 
 import type { StageId, UserRole } from "@/lib/ordersStageConfig";
-import { 
-  getDefaultModule, 
+import {
+  getDefaultModule,
   getVisibleModules,
-  type ModuleId 
+  type ModuleId
 } from "@/lib/orderDetailConfig";
 
 interface OrderCapsuleProps {
@@ -217,16 +217,16 @@ function VelocityIndicatorBadge({ velocity }: { velocity: VelocityIndicator }) {
   );
 }
 
-function ModuleTab({ 
-  label, 
-  icon: Icon, 
-  active, 
-  onClick, 
-  badge 
-}: { 
-  label: string; 
-  icon: any; 
-  active: boolean; 
+function ModuleTab({
+  label,
+  icon: Icon,
+  active,
+  onClick,
+  badge
+}: {
+  label: string;
+  icon: any;
+  active: boolean;
   onClick: () => void;
   badge?: number;
 }) {
@@ -252,16 +252,16 @@ function ModuleTab({
   );
 }
 
-function ActionButton({ 
-  icon: Icon, 
-  label, 
-  onClick, 
+function ActionButton({
+  icon: Icon,
+  label,
+  onClick,
   variant = "default",
   disabled = false,
   className = ""
-}: { 
-  icon: any; 
-  label: string; 
+}: {
+  icon: any;
+  label: string;
   onClick: () => void;
   variant?: "default" | "primary" | "success" | "warning" | "danger";
   disabled?: boolean;
@@ -323,7 +323,7 @@ function ManufacturingStageIndicator({ status }: { status: ManufacturingStatus |
         const Icon = stage.icon;
         const isComplete = currentIndex >= index;
         const isCurrent = currentIndex === index;
-        
+
         return (
           <div key={stage.key} className="flex items-center">
             <motion.div
@@ -371,13 +371,13 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
-  
+
   const userRole = (user?.role || 'sales') as UserRole;
-  
+
   // Role-aware: admin/ops see advanced sections by default
   const shouldShowAdvancedByDefault = userRole === 'admin' || userRole === 'ops' || userRole === 'finance';
-  
-  const [activeModule, setActiveModule] = useState<ModuleId>(() => 
+
+  const [activeModule, setActiveModule] = useState<ModuleId>(() =>
     getDefaultModule(userRole, stage)
   );
   const [isEditing, setIsEditing] = useState(false);
@@ -390,7 +390,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
   const [newNote, setNewNote] = useState("");
   const [copied, setCopied] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(shouldShowAdvancedByDefault);
-  
+
   const [newLineItem, setNewLineItem] = useState<Partial<OrderLineItem>>({
     yxs: 0, ys: 0, ym: 0, yl: 0, xs: 0, s: 0, m: 0, l: 0, xl: 0, xxl: 0, xxxl: 0, xxxxl: 0,
   });
@@ -414,21 +414,9 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
     enabled: isOpen && !!orderId,
   });
 
-  // Debug line items fetch
-  useEffect(() => {
-    if (isOpen && orderId) {
-      console.log('[OrderCapsule] Line items query status:', { 
-        lineItemsLoading, 
-        lineItemsError, 
-        lineItemsCount: lineItems?.length,
-        lineItems: lineItems 
-      });
-    }
-  }, [isOpen, orderId, lineItemsLoading, lineItemsError, lineItems]);
-
   // Track which orderId we've initialized for (to reset on order change)
   const initializedForOrderId = useRef<number | null>(null);
-  
+
   // Reset initialization state when orderId changes
   useEffect(() => {
     if (orderId !== initializedForOrderId.current) {
@@ -442,15 +430,15 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
       // Set role-aware defaults for showAdvanced
       const shouldShow = userRole === 'admin' || userRole === 'ops' || userRole === 'finance';
       setShowAdvanced(shouldShow);
-      
+
       // Compute stage-aware module default with fallback
       const computedModule = getDefaultModule(userRole, stage, order.status);
       const visible = getVisibleModules(userRole);
-      const newModule = visible.includes(computedModule) 
-        ? computedModule 
+      const newModule = visible.includes(computedModule)
+        ? computedModule
         : visible[0] || "overview";
       setActiveModule(newModule);
-      
+
       // Mark as initialized for this order
       initializedForOrderId.current = orderId;
     }
@@ -793,7 +781,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent 
+      <DialogContent
         className="max-w-5xl max-h-[90vh] p-0 overflow-hidden bg-transparent border-0"
         onPointerDownOutside={(e) => e.preventDefault()}
         aria-describedby={undefined}
@@ -811,16 +799,16 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
           <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl" />
           <div className="absolute inset-0 bg-gradient-to-br from-neon-blue/5 via-transparent to-neon-purple/5" />
           <div className="absolute inset-0 border border-white/10 rounded-2xl" />
-          
+
           {/* Velocity glow effect */}
-          <div 
+          <div
             className="absolute inset-0 opacity-20 rounded-2xl"
             style={{ boxShadow: `inset 0 0 60px ${VELOCITY_CONFIG[velocity].color}20` }}
           />
 
           {/* Content */}
           <div className="relative z-10 flex flex-col max-h-[90vh]">
-            
+
             {/* ========== HEADER ========== */}
             <div className="p-6 border-b border-white/10">
               <div className="flex items-start justify-between gap-4 mb-4">
@@ -942,7 +930,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
                     <span>ETA: </span>
                     <span className={cn(
                       "font-medium",
-                      velocity === 'red' ? "text-red-400" : 
+                      velocity === 'red' ? "text-red-400" :
                       velocity === 'yellow' ? "text-yellow-400" : "text-white"
                     )}>
                       {calculateETA(order.estDelivery)}
@@ -990,7 +978,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
             <div className="flex-1 overflow-y-auto p-6">
               <AnimatePresence mode="wait">
                 {activeModule === 'overview' && (
-                  <OverviewModule 
+                  <OverviewModule
                     key="overview"
                     order={order}
                     organization={organization}
@@ -1092,12 +1080,12 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Delete Order</AlertDialogTitle>
             <AlertDialogDescription className="text-white/60">
-              Are you sure you want to delete order <span className="font-semibold text-white">{order?.orderCode}</span>? 
+              Are you sure you want to delete order <span className="font-semibold text-white">{order?.orderCode}</span>?
               This action cannot be undone. All line items, manufacturing records, and related data will be permanently removed.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel 
+            <AlertDialogCancel
               className="bg-white/5 border-white/10 text-white hover:bg-white/10 hover:text-white"
               data-testid="button-cancel-delete"
             >
@@ -1122,21 +1110,21 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
 // MODULE COMPONENTS
 // =============================================================================
 
-function OverviewModule({ 
-  order, 
-  organization, 
-  lineItems, 
-  isEditing, 
-  formData, 
+function OverviewModule({
+  order,
+  organization,
+  lineItems,
+  isEditing,
+  formData,
   setFormData,
   trackingNumbers,
   contacts,
   showAdvanced,
   setShowAdvanced,
   userRole
-}: { 
-  order: any; 
-  organization: any; 
+}: {
+  order: any;
+  organization: any;
   lineItems: any[];
   isEditing: boolean;
   formData: any;
@@ -1291,9 +1279,9 @@ function OverviewModule({
                 className="group relative aspect-square rounded-lg overflow-hidden border border-white/10 cursor-pointer hover:border-neon-blue/50 transition-all"
                 onClick={() => setSelectedImage(item.imageUrl)}
               >
-                <img 
-                  src={item.imageUrl} 
-                  alt={item.itemName || 'Product'} 
+                <img
+                  src={item.imageUrl}
+                  alt={item.itemName || 'Product'}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1509,7 +1497,7 @@ function OverviewModule({
             <span>{showAdvanced ? "Hide Advanced" : "Show Advanced"}</span>
           </button>
         </CollapsibleTrigger>
-        <CollapsibleContent 
+        <CollapsibleContent
           id={order?.id ? `advanced-sections-content-${order.id}` : "advanced-sections-content"}
           role="region"
           aria-labelledby={order?.id ? `advanced-sections-trigger-${order.id}` : "advanced-sections-trigger"}
@@ -1688,9 +1676,9 @@ function LineItemsModule({
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}/line-items`] });
       queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
-      toast({ 
-        title: "AI Name Cleanup Complete", 
-        description: `Cleaned up ${data.cleanedItems} of ${data.totalItems} line item names` 
+      toast({
+        title: "AI Name Cleanup Complete",
+        description: `Cleaned up ${data.cleanedItems} of ${data.totalItems} line item names`
       });
     },
     onError: () => {
@@ -1729,8 +1717,8 @@ function LineItemsModule({
   };
 
   const handleSelectVariant = (variant: any) => {
-    setNewLineItem((prev: any) => ({ 
-      ...prev, 
+    setNewLineItem((prev: any) => ({
+      ...prev,
       variantId: variant.id,
       itemName: `${selectedProduct?.name} - ${variant.variantCode}`
     }));
@@ -1799,7 +1787,7 @@ function LineItemsModule({
           className="p-4 rounded-xl bg-neon-blue/5 border border-neon-blue/20"
         >
           <h4 className="text-sm font-semibold text-white mb-4">Add New Line Item</h4>
-          
+
           {/* Step 1: Search Product */}
           <div className="mb-4">
             <Label className="text-xs text-white/50 mb-2 flex items-center gap-2">
@@ -1831,7 +1819,7 @@ function LineItemsModule({
                   </button>
                 )}
               </div>
-              
+
               {/* Product Dropdown */}
               {showProductDropdown && productSearch && !selectedProductId && (
                 <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto rounded-lg bg-[#0f0f2a] border border-white/20 shadow-xl">
@@ -1891,7 +1879,7 @@ function LineItemsModule({
                     data-testid="input-variant-search"
                   />
                 </div>
-                
+
                 {/* Variant Dropdown */}
                 {showVariantDropdown && (
                   <div className="absolute z-50 w-full mt-1 max-h-48 overflow-y-auto rounded-lg bg-[#0f0f2a] border border-white/20 shadow-xl">
@@ -1906,7 +1894,7 @@ function LineItemsModule({
                           )}
                         >
                           <div className="flex items-center gap-3">
-                            <div 
+                            <div
                               className="w-6 h-6 rounded border border-white/20"
                               style={{ backgroundColor: variant.colorHex || '#666' }}
                             />
@@ -1926,7 +1914,7 @@ function LineItemsModule({
                   </div>
                 )}
               </div>
-              
+
               {/* Show all variants if nothing typed */}
               {!variantSearch && !showVariantDropdown && filteredVariants.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -1941,7 +1929,7 @@ function LineItemsModule({
                           : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
                       )}
                     >
-                      <div 
+                      <div
                         className="w-3 h-3 rounded-full border border-white/20"
                         style={{ backgroundColor: variant.colorHex || '#666' }}
                       />
@@ -1979,7 +1967,7 @@ function LineItemsModule({
               data-testid="input-item-name"
             />
           </div>
-          
+
           {/* Size Grid */}
           <div className="mb-4">
             <Label className="text-xs text-white/50 mb-2 block">Sizes</Label>
@@ -2045,8 +2033,8 @@ function LineItemsModule({
                   transition={{ delay: index * 0.03 }}
                   className={cn(
                     "rounded-lg border transition-all",
-                    expandedItems.has(item.id) 
-                      ? "bg-white/10 border-neon-blue/30" 
+                    expandedItems.has(item.id)
+                      ? "bg-white/10 border-neon-blue/30"
                       : "bg-white/5 border-white/5 hover:border-white/20"
                   )}
                 >
@@ -2055,12 +2043,12 @@ function LineItemsModule({
                       <div className="flex items-center gap-3">
                         {displayItem.imageUrl ? (
                           <div className="relative group">
-                            <img 
-                              src={displayItem.imageUrl} 
-                              alt="" 
+                            <img
+                              src={displayItem.imageUrl}
+                              alt=""
                               className="w-12 h-12 rounded-lg object-cover border border-white/10"
                             />
-                            <div 
+                            <div
                               className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center cursor-pointer"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -2118,7 +2106,7 @@ function LineItemsModule({
                       </div>
                     </button>
                   </CollapsibleTrigger>
-                  
+
                   <CollapsibleContent>
                     <motion.div
                       initial={{ opacity: 0 }}
@@ -2139,7 +2127,7 @@ function LineItemsModule({
                                 data-testid={`input-line-item-name-${item.id}`}
                               />
                             </div>
-                            
+
                             {/* Edit Size Grid */}
                             <div>
                               <Label className="text-xs text-white/50 mb-2 block">Edit Sizes</Label>
@@ -2158,15 +2146,15 @@ function LineItemsModule({
                                 ))}
                               </div>
                             </div>
-                            
+
                             {/* Upload Custom Graphic */}
                             <div>
                               <Label className="text-xs text-white/50 mb-2 block">Line Item Graphic</Label>
                               <div className="flex items-center gap-3">
                                 {editingLineItemData?.imageUrl && (
                                   <div className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/20 bg-white/5">
-                                    <img 
-                                      src={editingLineItemData.imageUrl} 
+                                    <img
+                                      src={editingLineItemData.imageUrl}
                                       alt="Line item graphic"
                                       className="w-full h-full object-cover"
                                     />
@@ -2299,8 +2287,8 @@ function LineItemsModule({
                                   const qty = item[size.key] || 0;
                                   if (qty === 0) return null;
                                   return (
-                                    <span 
-                                      key={size.key} 
+                                    <span
+                                      key={size.key}
                                       className="px-2 py-1 text-xs rounded bg-white/10 text-white/80 border border-white/10"
                                     >
                                       {size.label}: {qty}
@@ -2367,10 +2355,10 @@ function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: a
     enabled: dialogMode === 'search',
   });
 
-  const availableJobs = allDesignJobs.filter((job: any) => 
+  const availableJobs = allDesignJobs.filter((job: any) =>
     !job.orderId || job.orderId === null
   ).filter((job: any) =>
-    !searchQuery || 
+    !searchQuery ||
     job.jobCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     job.brief?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     job.status?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -2460,8 +2448,8 @@ function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: a
           />
           <div className={cn(
             "px-3 py-1.5 rounded-full text-sm border",
-            order.designApproved 
-              ? "bg-green-500/20 text-green-400 border-green-500/30" 
+            order.designApproved
+              ? "bg-green-500/20 text-green-400 border-green-500/30"
               : "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
           )}>
             {order.designApproved ? 'Design Approved' : 'Pending Approval'}
@@ -2478,13 +2466,13 @@ function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: a
             const hasReferenceFiles = job.referenceFiles && job.referenceFiles.length > 0;
 
             return (
-              <motion.div 
-                key={job.id} 
+              <motion.div
+                key={job.id}
                 layout
                 className="rounded-xl bg-white/5 border border-white/10 overflow-hidden"
               >
                 {/* Job Header - Always visible */}
-                <div 
+                <div
                   className="p-4 cursor-pointer hover:bg-white/5 transition-colors"
                   onClick={() => toggleJobExpand(job.id)}
                   data-testid={`design-job-header-${job.id}`}
@@ -2638,7 +2626,7 @@ function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: a
                             </div>
                             <div className="flex flex-wrap gap-2">
                               {job.referenceFiles.map((file: string, idx: number) => (
-                                <a 
+                                <a
                                   key={idx}
                                   href={file}
                                   target="_blank"
@@ -2684,7 +2672,7 @@ function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: a
                                 <Link2 className="w-4 h-4 text-green-400" />
                                 <span className="text-xs font-medium text-green-400 uppercase">Final Approved Design</span>
                               </div>
-                              <a 
+                              <a
                                 href={job.finalLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
@@ -2783,8 +2771,8 @@ function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: a
                           animate={{ opacity: 1, y: 0 }}
                           className={cn(
                             "p-4 rounded-lg bg-white/5 border border-white/10 transition-all group",
-                            attachJobMutation.isPending 
-                              ? "opacity-50 cursor-wait" 
+                            attachJobMutation.isPending
+                              ? "opacity-50 cursor-wait"
                               : "hover:border-neon-blue/50 cursor-pointer"
                           )}
                           onClick={() => !attachJobMutation.isPending && attachJobMutation.mutate(job.id)}
@@ -2918,13 +2906,13 @@ function ManufacturingModule({ manufacturing, order }: { manufacturing: any; ord
                 Schedule
               </h3>
               <div className="space-y-1">
-                <InfoRow 
-                  label="Start Date" 
+                <InfoRow
+                  label="Start Date"
                   value={manufacturing.startDate ? format(new Date(manufacturing.startDate), 'MMM d, yyyy') : null}
                   icon={Calendar}
                 />
-                <InfoRow 
-                  label="Est. Completion" 
+                <InfoRow
+                  label="Est. Completion"
                   value={manufacturing.estCompletion ? format(new Date(manufacturing.estCompletion), 'MMM d, yyyy') : null}
                   icon={Clock}
                 />
@@ -3036,8 +3024,8 @@ function FormLinkModule({
   const getSubmissionTotal = () => {
     if (!formSubmissionData?.lineItemSizes) return 0;
     return formSubmissionData.lineItemSizes.reduce((sum, item) => {
-      return sum + item.yxs + item.ys + item.ym + item.yl + 
-             item.xs + item.s + item.m + item.l + 
+      return sum + item.yxs + item.ys + item.ym + item.yl +
+             item.xs + item.s + item.m + item.l +
              item.xl + item.xxl + item.xxxl + item.xxxxl;
     }, 0);
   };
@@ -3189,7 +3177,7 @@ function FormLinkModule({
                   <div className="p-3 rounded-lg bg-white/5 border border-white/10">
                     <div className="flex items-center gap-2 mb-2">
                       <FileText className="w-4 h-4 text-white/50" />
-                      <span className="text-xs text-white/50">Additional Information</span>
+                      <span className="text-xs font-medium text-white/50 uppercase">Additional Information</span>
                     </div>
                     {formSubmissionData.organizationName && (
                       <div className="text-sm text-white/80 mb-1">
@@ -3306,7 +3294,7 @@ function FormLinkModule({
             onClick={handleCopyLink}
             className={cn(
               "px-4 py-2 rounded-lg border text-sm font-medium transition-all",
-              copied 
+              copied
                 ? "bg-green-500/20 border-green-500/50 text-green-400"
                 : "bg-white/5 border-white/10 text-white hover:bg-white/10"
             )}
@@ -3495,7 +3483,7 @@ function ActivityModule({
                 transition={{ delay: index * 0.03 }}
                 className={cn(
                   "p-4 rounded-xl border transition-all hover:bg-white/5",
-                  isNote 
+                  isNote
                     ? "bg-gradient-to-r from-white/5 to-transparent border-l-2 border-l-neon-blue border-white/10"
                     : "bg-white/5 border-white/10"
                 )}
