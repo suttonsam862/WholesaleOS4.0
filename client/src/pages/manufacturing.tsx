@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/useAuth";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
@@ -95,6 +96,7 @@ interface ManufacturingStageConfig {
 export default function Manufacturing() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
+  const { canAccess } = usePermissions();
 
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -142,10 +144,11 @@ export default function Manufacturing() {
     retry: false,
   });
 
-  // Fetch organizations for display
+  // Fetch organizations for display - only if user has permission
   const { data: organizations = [] } = useQuery<any[]>({
     queryKey: ["/api/organizations"],
     retry: false,
+    enabled: canAccess("organizations"),
   });
 
   // Build statusConfig from dynamic data
