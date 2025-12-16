@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, QueryObserverResult } from "@tanstack/react-query";
 import { User } from "@shared/schema";
 import { useTestMode } from "@/contexts/TestModeContext";
 
@@ -12,7 +12,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isError: boolean;
   error: Error | null;
-  refetch: () => void;
+  refetch: () => Promise<QueryObserverResult<FrontendUser, Error>>;
 }
 
 export function useAuth(): AuthState {
@@ -40,11 +40,16 @@ export function useAuth(): AuthState {
     refetchOnWindowFocus: true,
   });
 
+  // Use isSuccess to preserve auth through refetch failures (cached user remains valid)
+  // Only treat as unauthenticated if we have no data AND initial fetch completed
+  const hasUser = !!query.data;
+  const isAuthenticated = hasUser || query.isSuccess;
+
   return {
     user: query.data ?? null,
     isLoading: query.isPending,
-    isAuthenticated: !!query.data && !query.isError,
-    isError: query.isError,
+    isAuthenticated,
+    isError: query.isError && !hasUser, // Only error if no cached user
     error: query.error,
     refetch: query.refetch,
   };
