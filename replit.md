@@ -6,7 +6,7 @@ This is a full-stack enterprise resource planning (ERP) application for Rich Hab
 
 - **Sales Pipeline**: Lead tracking, organization management, quotes, and order processing
 - **Design Management**: Design job workflows with Kanban boards and designer assignments
-- **Manufacturing**: Production tracking with status workflows, quality checkpoints, and manufacturer portal
+- **Manufacturing**: Production tracking with status workflows, quality checkpoints, manufacturer portal, and interactive floor view
 - **Finance**: Invoicing, payment tracking, and QuickBooks integration capabilities
 - **Team Stores**: Shopify-integrated custom storefronts for organizations
 - **Events**: Event planning and management with contractor coordination
@@ -98,3 +98,19 @@ The `shared/` directory contains code used by both frontend and backend:
 - Unit and integration tests in `tests/` directory
 - Test setup with mock data and database utilities
 - Coverage reporting with v8 provider
+
+## Recent Changes
+
+### Manufacturing Control Floor (December 2024)
+Added an interactive spatial floor view as an alternative to the tiles view on the manufacturer home page (`/manufacturer/home`).
+
+**New Components** (`client/src/components/manufacturing-control-floor/`):
+- `ViewSwitcher` - Toggle between tiles and floor views (persists to localStorage)
+- `ProductionFloorCanvas` - Main spatial layout with horizontal zone display
+- `ProductionZone` - Individual zone containers with capacity gauges
+- `ProductionUnit` - Job cards with priority/status display and click-to-navigate
+- `CapacityGauge` - Visual capacity indicator per zone
+- `FloorMetricsHUD` - Stats bar showing active jobs, urgent, overdue
+- `ExceptionPanel` - Sliding panel for urgent/overdue job alerts with escape key and click-outside-to-close
+
+The floor view leverages existing `ZONE_CONFIGS` and `FUNNEL_STAGE_CONFIGS` from `manufacturerFunnelConfig.ts` to display jobs organized by production zone (Intake → Specs → Samples → Production → Shipping).
