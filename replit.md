@@ -101,6 +101,13 @@ The `shared/` directory contains code used by both frontend and backend:
 
 ## Recent Changes
 
+### Authentication System Refactoring (December 2024)
+Refactored the `useAuth` hook to provide a consistent interface across all components:
+- Returns `{ user, isLoading, isAuthenticated, isError, error, refetch }`
+- Preserves authentication through transient refetch failures (cached user data remains valid)
+- Role-based redirect logic uses `getRoleHomePath()` utility from `featureFlags.ts`
+- Post-login redirects to role-specific home pages (admin, sales, designer, ops, manufacturer)
+
 ### Manufacturing Control Floor (December 2024)
 Added an interactive spatial floor view as an alternative to the tiles view on the manufacturer home page (`/manufacturer/home`).
 
