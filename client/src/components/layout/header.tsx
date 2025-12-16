@@ -14,7 +14,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, User, LogOut, Settings, Bell, Search, Plus, LayoutDashboard, Target, ShoppingCart, Palette, Factory, CheckSquare, DollarSign, Building2, Package, Store, Calendar, Briefcase, Paintbrush, Warehouse, Map, GitBranch, Shield, Users, FileText, Contact, Layers, Home, ChevronDown, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, performLogout } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Sidebar } from "./sidebar";
 import { QuickCreateModal } from "@/components/modals/quick-create-modal";
@@ -156,25 +156,12 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
   }
 
   const handleLogout = async () => {
-    try {
-      const response = await apiRequest("POST", "/api/auth/logout", {});
-      
-      toast({
-        title: "Logged out successfully",
-        description: "You have been logged out.",
-      });
-      
-      // If response includes a redirect URL (Replit Auth), use it
-      if (response.redirectTo) {
-        window.location.href = response.redirectTo;
-      } else {
-        // Local auth - redirect to home
-        window.location.href = "/";
-      }
-    } catch (error) {
-      // Fallback to home page
-      window.location.href = "/";
-    }
+    toast({
+      title: "Logging out...",
+      description: "You are being logged out.",
+    });
+    
+    await performLogout();
   };
 
   return (

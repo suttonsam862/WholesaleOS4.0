@@ -29,6 +29,7 @@ import {
   Contact
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { performLogout } from "@/lib/queryClient";
 
 const NAV_ITEMS = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -101,20 +102,8 @@ export function CommandPalette({ open, setOpen }: { open: boolean, setOpen: (ope
     command();
   };
 
-  const handleLogout = async () => {
-    try {
-      const response = await fetch('/api/auth/logout', { 
-        method: 'POST',
-        credentials: 'include'
-      });
-      if (response.ok) {
-        window.location.href = '/';
-      } else {
-        window.location.href = '/api/logout';
-      }
-    } catch {
-      window.location.href = '/api/logout';
-    }
+  const handleLogout = () => {
+    performLogout();
   };
 
   const hasResults = searchResults && (
