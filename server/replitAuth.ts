@@ -277,99 +277,31 @@ export async function setupAuth(app: Express) {
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const user = req.user as any;
 
-  // CRITICAL FIX: Handle test authentication in development mode  
-  if (process.env.NODE_ENV === 'development') {
-    console.log('🔍 [isAuthenticated] Development mode - checking test authentication');
-    // Extract session ID from cookie or session
-    let sessionId = null;
-    
-    if (req.session && req.session.id) {
-      sessionId = req.session.id;
-    } else if (req.sessionID) {
-      sessionId = req.sessionID;
-    } else if (req.headers.cookie) {
-      const cookieMatch = req.headers.cookie.match(/connect\.sid=([^;]+)/);
-      if (cookieMatch) {
-        const rawCookie = cookieMatch[1];
-        // Try to extract session ID from signed cookie
-        try {
-          const signature = require('cookie-signature');
-          sessionId = signature.unsign(rawCookie, process.env.SESSION_SECRET!);
-        } catch (error) {
-          console.log('❌ [isAuthenticated] Cookie signature verification failed:', (error as any).message);
-        }
-      }
-    }
-    
-    if (sessionId) {
-      // Import database modules to check test session directly
-      const { db } = await import("./db");
-      const { sessions } = await import("@shared/schema");
-      const { eq } = await import("drizzle-orm");
-      
-      try {
-        // Look up the session in the database
-        const [sessionRecord] = await db
-          .select()
-          .from(sessions)
-          .where(eq(sessions.sid, sessionId));
-        
-        if (sessionRecord && sessionRecord.sess) {
-          const sessionData = sessionRecord.sess as any;
-          
-          // Check if this is a test session (look for test user email)
-          if (sessionData.passport && 
-              sessionData.passport.user && 
-              sessionData.passport.user.claims &&
-              sessionData.passport.user.claims.email &&
-              sessionData.passport.user.claims.email.includes('test-admin@automated-testing.local')) {
-            
-            console.log('🔍 [isAuthenticated] Found test session in database');
-            console.log('   Session data structure:', JSON.stringify(sessionData, null, 2));
-            
-            // Validate test session expiration
-            const now = Math.floor(Date.now() / 1000);
-            const expiresAt = sessionData.passport.user.expires_at || sessionData.passport.user.claims.exp;
-            
-            console.log('   Current time:', now);
-            console.log('   Session expires at:', expiresAt);
-            console.log('   Is valid?', expiresAt && now <= expiresAt);
-            
-            if (expiresAt && now <= expiresAt) {
-              console.log('✅ [isAuthenticated] Test session is valid, proceeding');
-              
-              // Set up req.user for downstream middleware compatibility
-              req.user = sessionData.passport.user;
-              
-              return next();
-            } else {
-              console.log('❌ [isAuthenticated] Test session expired or invalid - skipping expiration check');
-              
-              // CRITICAL FIX: For test sessions, bypass expiration check entirely
-              req.user = sessionData.passport.user;
-              return next();
-            }
-          }
-        }
-      } catch (error) {
-        console.log('❌ [isAuthenticated] Error checking test session:', (error as any).message);
-      }
-    }
-  }
-
-  if (!req.isAuthenticated() || !user.expires_at) {
+  // Check if user is authenticated via passport
+  if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Unauthorized" });
   }
 
+  // For local auth sessions, we don't have expires_at
+  if (!user.expires_at) {
+    // If this is a local auth session, check if userData exists
+    if (user.userData && user.authMethod === 'local') {
+      return next();
+    }
+    // Otherwise, it's an incomplete session
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  // For Replit Auth, check token expiration
   const now = Math.floor(Date.now() / 1000);
   if (now <= user.expires_at) {
     return next();
   }
 
+  // Try to refresh the token
   const refreshToken = user.refresh_token;
   if (!refreshToken) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
+    return res.status(401).json({ message: "Unauthorized" });
   }
 
   try {
@@ -378,7 +310,6 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
     updateUserSession(user, tokenResponse);
     return next();
   } catch (error) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
+    return res.status(401).json({ message: "Unauthorized" });
   }
 };

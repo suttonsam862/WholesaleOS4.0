@@ -6,19 +6,40 @@ import { useTestMode } from "@/contexts/TestModeContext";
 type FrontendUser = Omit<User, 'passwordHash'>;
 
 export function useAuth() {
+  const { isTestMode } = useTestMode();
+  
   return useQuery<FrontendUser>({
     queryKey: ["/api/auth/user"],
     queryFn: async () => {
-      const res = await fetch("/api/auth/user", {
-        credentials: "include",
-      });
+      try {
+        const res = await fetch("/api/auth/user", {
+          credentials: "include",
+        });
 
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || "Unauthorized");
+        if (!res.ok) {
+          // In test mode, log more details
+          if (isTestMode) {
+            console.log('🔐 [useAuth] Authentication check failed (expected for unauthenticated users):', {
+              error: await res.text(),
+              isAuthenticated: false,
+              timestamp: new Date().toISOString()
+            });
+          }
+          throw new Error("Unauthorized");
+        }
+
+        return res.json() as Promise<User>;
+      } catch (error) {
+        // Log error only in test mode for debugging
+        if (isTestMode && error instanceof Error) {
+          console.log('🔐 [useAuth] Authentication check failed (expected for unauthenticated users):', {
+            error: error.message,
+            isAuthenticated: false,
+            timestamp: new Date().toISOString()
+          });
+        }
+        throw error;
       }
-
-      return res.json() as Promise<User>;
     },
     retry: false,
     throwOnError: false, // Don't throw on 401, handle gracefully
