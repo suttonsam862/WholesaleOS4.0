@@ -103,6 +103,15 @@ export function AppShell() {
 
   return (
     <Switch>
+      {/* Public routes first - these should be accessible even when authenticated */}
+      {publicRoutes.filter(r => r.path !== "/").map((route) => (
+        <Route key={route.path} path={route.path}>
+          <Suspense fallback={<RouteLoadingFallback />}>
+            <route.component />
+          </Suspense>
+        </Route>
+      ))}
+
       {enabledRoleHomeRoutes.map((route) => (
         <Route key={route.path} path={route.path}>
           <RouteRenderer route={route} user={user} />
