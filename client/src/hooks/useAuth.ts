@@ -10,6 +10,8 @@ export function useAuth() {
     queryKey: ["/api/auth/user"],
     retry: false,
     throwOnError: false, // Don't throw on 401, handle gracefully
+    refetchInterval: 5 * 60 * 1000, // Optional: Check auth every 5 minutes
+    refetchOnWindowFocus: true, // Refresh when user returns to tab
   });
   
   // Development mode logging for authentication errors
