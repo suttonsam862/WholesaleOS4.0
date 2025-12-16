@@ -89,9 +89,6 @@ export function CreateProductModal({ isOpen, onClose, categoryId }: CreateProduc
 
   const createProductMutation = useMutation({
     mutationFn: async (data: CreateProductForm) => {
-      console.log("Form submitted with data:", data);
-      console.log("Form validation errors:", form.formState.errors);
-      
       // Clean up data - remove empty strings for optional fields
       const cleanedData: any = { ...data };
       
@@ -128,9 +125,6 @@ export function CreateProductModal({ isOpen, onClose, categoryId }: CreateProduc
       cleanedData.categoryId = Number(cleanedData.categoryId);
       cleanedData.minOrderQty = Number(cleanedData.minOrderQty);
       
-      console.log("Cleaned data for API:", cleanedData);
-      console.log("Sending to API:", JSON.stringify(cleanedData, null, 2));
-      
       const product = await apiRequest("/api/catalog", {
         method: "POST",
         body: cleanedData
@@ -147,8 +141,7 @@ export function CreateProductModal({ isOpen, onClose, categoryId }: CreateProduc
             primaryImageUrl: primaryImageUrl || null,
             additionalImages: additionalImages.length > 0 ? additionalImages : null,
           });
-        } catch (error) {
-          console.error("Failed to update product images:", error);
+        } catch {
           toast({
             title: "Warning",
             description: "Product created but images could not be saved",
@@ -178,7 +171,6 @@ export function CreateProductModal({ isOpen, onClose, categoryId }: CreateProduc
   });
 
   const onSubmit = (data: CreateProductForm) => {
-    console.log("Form onSubmit triggered with:", data);
     createProductMutation.mutate(data);
   };
 
@@ -193,9 +185,7 @@ export function CreateProductModal({ isOpen, onClose, categoryId }: CreateProduc
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
-            console.error("Form validation failed:", errors);
-          })} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -368,7 +358,6 @@ export function CreateProductModal({ isOpen, onClose, categoryId }: CreateProduc
                       alt="Primary product" 
                       className="h-20 w-20 object-cover rounded-lg border"
                       onError={(e) => {
-                        console.error('Failed to load image:', primaryImageUrl);
                         e.currentTarget.style.display = 'none';
                       }}
                       data-testid="img-product-primary"
@@ -428,7 +417,6 @@ export function CreateProductModal({ isOpen, onClose, categoryId }: CreateProduc
                           alt={`Product ${index + 1}`} 
                           className="h-16 w-16 object-cover rounded-lg border"
                           onError={(e) => {
-                            console.error('Failed to load image:', img);
                             e.currentTarget.style.display = 'none';
                           }}
                           data-testid={`img-product-additional-${index}`}

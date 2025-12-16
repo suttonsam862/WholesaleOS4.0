@@ -172,8 +172,8 @@ export default function Organizations() {
         title: "Colors Extracted",
         description: `Found ${colors.length} brand colors from the logo`,
       });
-    } catch (error) {
-      console.error("Failed to extract colors:", error);
+    } catch {
+      // Color extraction failed silently
     } finally {
       setIsExtractingColors(false);
     }

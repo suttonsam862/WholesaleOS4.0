@@ -165,8 +165,6 @@ export function CreateOrderModal({ isOpen, onClose }: CreateOrderModalProps) {
   // Create order mutation
   const createOrderMutation = useMutation({
     mutationFn: async (data: any) => {
-      console.log('🔍 [CreateOrderModal] Sending order creation request:', data);
-
       // Create order with line items in a single request
       const requestPayload = {
         orderName: data.orderName,
@@ -179,8 +177,6 @@ export function CreateOrderModal({ isOpen, onClose }: CreateOrderModalProps) {
         notes: data.notes,
         lineItems: data.lineItems,
       };
-
-      console.log('🔍 [CreateOrderModal] Request payload:', JSON.stringify(requestPayload, null, 2));
 
       // Don't double-stringify - apiRequest will handle JSON serialization
       const response = await apiRequest("/api/orders", {
@@ -200,17 +196,8 @@ export function CreateOrderModal({ isOpen, onClose }: CreateOrderModalProps) {
       onClose();
     },
     onError: (error: any) => {
-      console.error('🔍 [CreateOrderModal] Order creation error:', error);
-      console.error('🔍 [CreateOrderModal] Error details:', {
-        status: error?.status,
-        statusText: error?.statusText,
-        data: error?.response?.data,
-        message: error?.message
-      });
-
       // Parse error response properly
       let errorMessage = 'Unknown error occurred';
-      let validationErrors = null;
 
       if (error?.response?.data) {
         const errorData = error.response.data;
@@ -218,18 +205,13 @@ export function CreateOrderModal({ isOpen, onClose }: CreateOrderModalProps) {
           errorMessage = errorData.message;
         }
         if (errorData.errors) {
-          validationErrors = errorData.errors;
+          const validationErrors = errorData.errors;
           errorMessage = `Validation failed: ${validationErrors.map((err: any) => err.message || err.path?.join('.') + ' ' + err.message).join(', ')}`;
         }
       } else if (error?.message) {
         errorMessage = error.message;
       } else if (typeof error === 'string') {
         errorMessage = error;
-      }
-
-      console.error('🔍 [CreateOrderModal] Parsed error message:', errorMessage);
-      if (validationErrors) {
-        console.error('🔍 [CreateOrderModal] Validation errors:', validationErrors);
       }
 
       toast({
@@ -381,11 +363,6 @@ export function CreateOrderModal({ isOpen, onClose }: CreateOrderModalProps) {
       unitPrice: String(item.unitPrice),
       notes: item.notes?.trim() || null,
     }));
-
-    console.log('🔍 [CreateOrderModal] Submitting order data:', {
-      formData: cleanedFormData,
-      lineItems: cleanedLineItems
-    });
 
     createOrderMutation.mutate({
       ...cleanedFormData,

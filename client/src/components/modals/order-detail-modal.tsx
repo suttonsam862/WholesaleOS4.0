@@ -2163,7 +2163,6 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
 
                                       // Construct the public URL directly from the uploadId
                                       const imageUrl = `/public-objects/${uploadId}`;
-                                      console.log("Setting image URL:", imageUrl);
 
                                       // Update the editing line item data with the new image URL
                                       if (editingLineItemData) {

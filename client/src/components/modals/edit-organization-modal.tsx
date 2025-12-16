@@ -358,7 +358,6 @@ export function EditOrganizationModal({ isOpen, onClose, organization }: EditOrg
       handleClose();
     },
     onError: (error: any) => {
-      console.error("[ARCHIVE ORG] Error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to archive organization",
@@ -369,31 +368,18 @@ export function EditOrganizationModal({ isOpen, onClose, organization }: EditOrg
 
   const editOrganizationMutation = useMutation({
     mutationFn: async (data: EditOrganizationForm) => {
-      console.log("[EDIT ORG] Starting organization update...");
-      console.log("[EDIT ORG] Organization ID:", organization?.id);
-      console.log("[EDIT ORG] Form data:", data);
-      console.log("[EDIT ORG] Logo URL:", logoUrl);
-      
       const payload = {
         ...data,
         logoUrl: logoUrl || undefined,
       };
-      console.log("[EDIT ORG] Request payload:", JSON.stringify(payload, null, 2));
       
-      try {
-        const result = await apiRequest(`/api/organizations/${organization?.id}`, { 
-          method: "PUT", 
-          body: payload
-        });
-        console.log("[EDIT ORG] Update successful! Response:", result);
-        return result;
-      } catch (error) {
-        console.error("[EDIT ORG] Update failed:", error);
-        throw error;
-      }
+      const result = await apiRequest(`/api/organizations/${organization?.id}`, { 
+        method: "PUT", 
+        body: payload
+      });
+      return result;
     },
-    onSuccess: (data) => {
-      console.log("[EDIT ORG] onSuccess triggered with data:", data);
+    onSuccess: () => {
       toast({
         title: "Success",
         description: "Organization updated successfully",
@@ -404,9 +390,6 @@ export function EditOrganizationModal({ isOpen, onClose, organization }: EditOrg
       onClose();
     },
     onError: (error: any) => {
-      console.error("[EDIT ORG] onError triggered:", error);
-      console.error("[EDIT ORG] Error message:", error.message);
-      console.error("[EDIT ORG] Error stack:", error.stack);
       toast({
         title: "Error",
         description: error.message || "Failed to update organization",
@@ -416,11 +399,7 @@ export function EditOrganizationModal({ isOpen, onClose, organization }: EditOrg
   });
 
   const handleSubmit = (data: EditOrganizationForm) => {
-    console.log("[EDIT ORG] handleSubmit called");
-    console.log("[EDIT ORG] Organization:", organization);
-    console.log("[EDIT ORG] Form data:", data);
     if (!organization) {
-      console.error("[EDIT ORG] No organization provided!");
       return;
     }
     editOrganizationMutation.mutate(data);

@@ -127,11 +127,6 @@ export default function Salespeople() {
   const canEdit = user?.role === 'admin';
   const canView = user?.role === 'admin' || user?.role === 'sales' || user?.role === 'ops';
 
-  console.log('🔍 [Salespeople] User role:', user?.role);
-  console.log('🔍 [Salespeople] Can view:', canView);
-  console.log('🔍 [Salespeople] Can edit:', canEdit);
-  console.log('🔍 [Salespeople] Is authenticated:', isAuthenticated);
-
   // Fetch salespeople with metrics
   const { data: salespeople = [], isLoading: salespeopleLoading, error: salespeopleError } = useQuery<Salesperson[]>({
     queryKey: ["/api/salespeople/with-metrics"],
@@ -139,10 +134,6 @@ export default function Salespeople() {
     enabled: isAuthenticated && canView,
   });
 
-  // Log any errors
-  if (salespeopleError) {
-    console.error('🔍 [Salespeople] Query error:', salespeopleError);
-  }
 
   // Fetch orders for assignment tab
   const { data: orders = [], isLoading: ordersLoading } = useQuery<Order[]>({
@@ -446,10 +437,6 @@ export default function Salespeople() {
       });
     }
   };
-
-  console.log('🔍 [Salespeople] Auth loading:', authLoading);
-  console.log('🔍 [Salespeople] Salespeople loading:', salespeopleLoading);
-  console.log('🔍 [Salespeople] Salespeople data length:', salespeople?.length);
 
   if (authLoading || salespeopleLoading) {
     return (

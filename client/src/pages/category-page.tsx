@@ -133,13 +133,11 @@ export default function CategoryPage() {
   });
 
   const handleEditProduct = (product: Product) => {
-    console.log("Edit product:", product.id);
     setSelectedProduct(product);
     setIsEditProductModalOpen(true);
   };
 
   const handleDeleteProduct = (product: Product) => {
-    console.log("Delete product:", product.id);
     if (confirm(`Are you sure you want to delete product "${product.name}"?`)) {
       deleteProductMutation.mutate(product.id);
     }
@@ -147,13 +145,11 @@ export default function CategoryPage() {
 
   // Placeholder functions for variant edit/delete - these would need to be implemented
   const handleEditVariant = (variant: Variant) => {
-    console.log("Edit variant:", variant.id);
     setSelectedVariant(variant);
     setIsEditVariantModalOpen(true);
   };
 
   const handleDeleteVariant = (variant: Variant) => {
-    console.log("Delete variant:", variant.id);
     if (confirm(`Are you sure you want to delete variant "${variant.variantCode}"?`)) {
       deleteVariantMutation.mutate(variant.id);
     }

@@ -361,8 +361,8 @@ function ActionStepContent({
             isPrimary: true,
           });
           queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
-        } catch (error) {
-          console.error("Failed to create contact:", error);
+        } catch {
+          // Contact creation failed silently - organization was still created
         }
       }
       
@@ -455,8 +455,8 @@ function ActionStepContent({
         setOrgPrimaryColor(sortedColors[0]);
         setOrgExtractedColors(sortedColors);
       }
-    } catch (error) {
-      console.error("Error extracting colors:", error);
+    } catch {
+      // Color extraction failed silently
     }
     
     setIsExtractingColors(false);
