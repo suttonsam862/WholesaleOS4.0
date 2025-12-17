@@ -121,3 +121,32 @@ Added an interactive spatial floor view as an alternative to the tiles view on t
 - `ExceptionPanel` - Sliding panel for urgent/overdue job alerts with escape key and click-outside-to-close
 
 The floor view leverages existing `ZONE_CONFIGS` and `FUNNEL_STAGE_CONFIGS` from `manufacturerFunnelConfig.ts` to display jobs organized by production zone (Intake → Specs → Samples → Production → Shipping).
+
+### Sales Map Performance and UX Improvements (December 2024)
+Optimized the Sales Map (`/sales-map`) for better performance and usability:
+
+**Performance Fixes** (`client/src/modules/sales-map/map/ClusteredMapCanvas.tsx`):
+- Added `requestAnimationFrame` throttling for marker position updates during map movement
+- Removed random animation delays that caused staggered re-renders
+- Added `rafRef` and `isMovingRef` refs to track animation state and prevent queue buildup
+- Moved heavy state updates from continuous `move` events to `moveend` events
+- Proper cleanup of animation frames on unmount
+
+**Cluster Visualization Improvements**:
+- Changed cluster colors from heat-based yellow gradient to **dominant entity type** colors
+- Added **pie-chart style conic gradient** showing entity type breakdown visually
+- Enlarged entity breakdown indicators below clusters with icons and counts
+- Entity colors: Organizations (blue), Leads (amber), Orders (green), Design Jobs (purple)
+
+**Orders Panel Enhancements** (`client/src/modules/sales-map/panels/OrdersPanel.tsx`):
+- Added tabbed interface with "Recent Orders" and "Needs Attention" tabs
+- "Needs Attention" tab shows items requiring action:
+  - Overdue orders (sorted by days overdue)
+  - Stalled design jobs (overdue or high urgency)
+  - Hot leads needing attention
+- Items sorted by severity (critical > high > medium > low) then by days overdue
+- Severity indicators with color-coded dots
+- Fallback navigation for items without coordinates (opens entity detail page)
+
+**Default Filter Changes** (`client/src/modules/sales-map/SalesMapShell.tsx`):
+- Changed `showOrders` filter default from `false` to `true` so orders are visible on the map by default
