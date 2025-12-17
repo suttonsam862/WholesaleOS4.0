@@ -107,7 +107,6 @@ function FloatingMarker({ entity, isSelected, isHighlighted, onClick, position, 
         type: "spring", 
         damping: 20, 
         stiffness: 300,
-        delay: Math.random() * 0.1,
       }}
       whileHover={{ scale: style.scale * 1.15 }}
       whileTap={{ scale: style.scale * 0.95 }}
@@ -194,11 +193,47 @@ interface ClusterMarkerProps {
 
 function ClusterMarker({ count, position, heatLevel, onClick, entityBreakdown }: ClusterMarkerProps) {
   const size = Math.min(60 + count * 0.5, 100);
-  const hue = 60 - heatLevel * 60;
-  const color = `hsl(${hue}, 90%, 50%)`;
-  const glowColor = `hsl(${hue}, 90%, 60%)`;
+  
+  const sortedTypes = Object.entries(entityBreakdown)
+    .filter(([_, c]) => c > 0)
+    .sort((a, b) => b[1] - a[1]) as [EntityType, number][];
+  
+  const dominantType = sortedTypes[0]?.[0] || "organization";
+  const dominantColor = ENTITY_COLORS[dominantType];
+  const dominantColorLight = `${dominantColor}cc`;
   
   const hasAttention = heatLevel > 0.6;
+  
+  const total = Object.values(entityBreakdown).reduce((a, b) => a + b, 0);
+  const pieSegments: { type: EntityType; percent: number; color: string }[] = sortedTypes.map(([type, c]) => ({
+    type: type as EntityType,
+    percent: (c / total) * 100,
+    color: ENTITY_COLORS[type as EntityType],
+  }));
+  
+  const generatePieGradient = () => {
+    if (pieSegments.length === 0) return dominantColor;
+    if (pieSegments.length === 1) return pieSegments[0].color;
+    
+    let gradient = "conic-gradient(";
+    let cumulative = 0;
+    pieSegments.forEach((seg, i) => {
+      const start = cumulative;
+      cumulative += seg.percent;
+      gradient += `${seg.color} ${start}% ${cumulative}%`;
+      if (i < pieSegments.length - 1) gradient += ", ";
+    });
+    gradient += ")";
+    return gradient;
+  };
+  
+  const topIcons = sortedTypes.slice(0, 3);
+  const IconMap: Record<EntityType, typeof Building2> = {
+    organization: Building2,
+    lead: Target,
+    order: ShoppingCart,
+    designJob: Palette,
+  };
 
   return (
     <motion.div
@@ -230,9 +265,9 @@ function ClusterMarker({ count, position, heatLevel, onClick, entityBreakdown }:
       <motion.div
         animate={{
           boxShadow: [
-            `0 0 20px ${glowColor}40, 0 0 40px ${glowColor}20`,
-            `0 0 30px ${glowColor}60, 0 0 60px ${glowColor}30`,
-            `0 0 20px ${glowColor}40, 0 0 40px ${glowColor}20`,
+            `0 0 20px ${dominantColor}40, 0 0 40px ${dominantColor}20`,
+            `0 0 30px ${dominantColor}60, 0 0 60px ${dominantColor}30`,
+            `0 0 20px ${dominantColor}40, 0 0 40px ${dominantColor}20`,
           ],
         }}
         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -240,18 +275,18 @@ function ClusterMarker({ count, position, heatLevel, onClick, entityBreakdown }:
         style={{
           width: size,
           height: size,
-          background: `radial-gradient(circle at 30% 30%, ${glowColor}, ${color} 70%)`,
-          border: "3px solid rgba(255,255,255,0.4)",
+          background: generatePieGradient(),
+          border: "3px solid rgba(255,255,255,0.5)",
         }}
       >
         <div 
-          className="absolute inset-2 rounded-full"
+          className="absolute rounded-full flex items-center justify-center"
           style={{
-            background: `radial-gradient(circle at 40% 40%, ${glowColor}80, ${color}60 60%, transparent 100%)`,
+            width: size * 0.7,
+            height: size * 0.7,
+            background: `radial-gradient(circle at 30% 30%, ${dominantColorLight}, ${dominantColor} 80%)`,
           }}
-        />
-        
-        <div className="relative z-10 flex flex-col items-center">
+        >
           <span className="text-white font-bold text-lg drop-shadow-lg">
             {count > 999 ? "999+" : count}
           </span>
@@ -268,15 +303,25 @@ function ClusterMarker({ count, position, heatLevel, onClick, entityBreakdown }:
         )}
       </motion.div>
       
-      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 flex gap-1">
-        {Object.entries(entityBreakdown).map(([type, c]) => c > 0 && (
-          <div 
-            key={type}
-            className="w-2 h-2 rounded-full"
-            style={{ background: ENTITY_COLORS[type as EntityType] }}
-            title={`${c} ${type}s`}
-          />
-        ))}
+      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1.5 flex gap-1.5 bg-black/50 px-2 py-1 rounded-full backdrop-blur-sm">
+        {topIcons.map(([type, c]) => {
+          const Icon = IconMap[type as EntityType];
+          return (
+            <div 
+              key={type}
+              className="flex items-center gap-0.5"
+              title={`${c} ${type}s`}
+            >
+              <div 
+                className="w-3 h-3 rounded-full flex items-center justify-center"
+                style={{ background: ENTITY_COLORS[type as EntityType] }}
+              >
+                <Icon className="w-2 h-2 text-white" />
+              </div>
+              <span className="text-[10px] text-white font-medium">{c}</span>
+            </div>
+          );
+        })}
       </div>
     </motion.div>
   );
@@ -295,6 +340,8 @@ export function ClusteredMapCanvas({
   const [isMapReady, setIsMapReady] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
   const [markerPositions, setMarkerPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+  const rafRef = useRef<number | null>(null);
+  const isMovingRef = useRef(false);
 
   const updateMarkerPositions = useCallback(() => {
     if (!map.current) return;
@@ -309,6 +356,14 @@ export function ClusteredMapCanvas({
     
     setMarkerPositions(newPositions);
   }, [entities]);
+
+  const throttledUpdatePositions = useCallback(() => {
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      updateMarkerPositions();
+      rafRef.current = null;
+    });
+  }, [updateMarkerPositions]);
 
   const handleMapMove = useCallback(() => {
     if (!map.current || !onBoundsChange) return;
@@ -356,15 +411,31 @@ export function ClusteredMapCanvas({
       handleMapMove();
     });
 
-    map.current.on("moveend", handleMapMove);
+    map.current.on("movestart", () => {
+      isMovingRef.current = true;
+    });
+
+    map.current.on("move", throttledUpdatePositions);
+
+    map.current.on("moveend", () => {
+      isMovingRef.current = false;
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      handleMapMove();
+    });
+    
     map.current.on("zoomend", handleZoom);
-    map.current.on("move", updateMarkerPositions);
 
     return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
       map.current?.remove();
       map.current = null;
     };
-  }, [handleMapMove, handleZoom, updateMarkerPositions]);
+  }, [handleMapMove, handleZoom, throttledUpdatePositions]);
 
   useEffect(() => {
     if (isMapReady) {

@@ -25,7 +25,7 @@ export default function SalesMapShell() {
   const [filters, setFilters] = useState<MapFilters>({
     showOrganizations: true,
     showLeads: true,
-    showOrders: false,
+    showOrders: true,
     showDesignJobs: false,
     myItemsOnly: false,
     showAttentionOnly: false,
