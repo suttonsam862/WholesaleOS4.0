@@ -288,6 +288,9 @@ export function registerAuthRoutes(app: Express): void {
     }
   });
 
+  // CSRF token endpoint
+  app.get('/api/auth/csrf-token', getCsrfToken);
+
   // Unified logout endpoint (handles both local and Replit Auth)
   app.post('/api/auth/logout', async (req, res) => {
     const user = req.user as any;
