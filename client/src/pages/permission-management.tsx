@@ -600,9 +600,9 @@ export default function PermissionManagement() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <ScrollArea className="h-[600px]">
-                    <div className="min-w-max">
+                <ScrollArea className="h-[600px]">
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[1200px]">
                     {/* Header Row */}
                     <div className="sticky top-0 z-20 bg-background border-b">
                       <div className="flex">
@@ -784,8 +784,8 @@ export default function PermissionManagement() {
                       );
                     })}
                     </div>
-                  </ScrollArea>
-                </div>
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           </TabsContent>
