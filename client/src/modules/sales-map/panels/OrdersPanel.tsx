@@ -140,7 +140,7 @@ export function OrdersPanel({ onOrderClick, onAttentionItemClick, filters, onFil
   return (
     <div
       className={cn(
-        "absolute bottom-4 right-4 z-30 w-80 max-w-[calc(100vw-2rem)] bg-background/95 backdrop-blur-lg rounded-lg border border-white/10 shadow-xl transition-all duration-300",
+        "absolute bottom-24 right-4 z-30 w-80 max-w-[calc(100vw-2rem)] bg-background/95 backdrop-blur-lg rounded-lg border border-white/10 shadow-xl transition-all duration-300",
         isExpanded ? "max-h-[500px]" : "max-h-12"
       )}
       data-testid="orders-panel"

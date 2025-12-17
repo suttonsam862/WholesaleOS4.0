@@ -150,3 +150,19 @@ Optimized the Sales Map (`/sales-map`) for better performance and usability:
 
 **Default Filter Changes** (`client/src/modules/sales-map/SalesMapShell.tsx`):
 - Changed `showOrders` filter default from `false` to `true` so orders are visible on the map by default
+
+### Footer Content Protection System (December 2024)
+Fixed systemic issue where content was hidden under the permanent footer across the application:
+
+**Global Layout Changes**:
+- **AppLayout** (`client/src/components/layout/app-layout.tsx`): Already had proper `pb-28 md:pb-32` padding on main content area to protect all pages using AppLayout
+- **SalesMapShell** (`client/src/modules/sales-map/SalesMapShell.tsx`): 
+  - Changed container height from `h-screen` to `height: calc(100vh - 5rem)` to reserve 80px for the fixed footer
+  - Moved Attention button container from `bottom-24` to `bottom-32` (128px from footer)
+  - Moved OrdersPanel from `bottom-4` to `bottom-24` (96px from footer)
+
+**Solution Architecture**:
+- All content-bearing pages use either AppLayout (with padding) or explicitly calculate available height
+- Floating panels are positioned with sufficient bottom margin to stay above the fixed footer (z-50)
+- Footer height (~80px including padding) is accounted for in all layout calculations
+- Ensures NO content is ever hidden under the footer across all pages, routes, and subpages

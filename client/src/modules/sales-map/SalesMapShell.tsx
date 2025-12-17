@@ -179,7 +179,7 @@ export default function SalesMapShell() {
   }), [feedData, attentionData]);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-background flex flex-col" data-testid="sales-map-shell">
+    <div className="relative w-screen overflow-hidden bg-background flex flex-col" style={{ height: "calc(100vh - 5rem)" }} data-testid="sales-map-shell">
       <div className="absolute top-4 left-4 z-30">
         <div className="flex items-center gap-2 px-4 py-2 bg-background/90 backdrop-blur-lg rounded-lg border border-white/10">
           <Map className="h-5 w-5 text-primary" />
@@ -246,7 +246,7 @@ export default function SalesMapShell() {
         onItemClick={handleAttentionItemClick}
       />
 
-      <div className="absolute bottom-24 left-4 z-20 flex flex-col gap-2">
+      <div className="absolute bottom-32 left-4 z-20 flex flex-col gap-2">
         <Button
           variant={isAttentionDashboardOpen ? "default" : "outline"}
           size="sm"
