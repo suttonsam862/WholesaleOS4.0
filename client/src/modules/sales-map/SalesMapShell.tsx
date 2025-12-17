@@ -40,7 +40,12 @@ export default function SalesMapShell() {
     south: number;
     east: number;
     west: number;
-  } | null>(null);
+  }>({
+    north: 49.384358,
+    south: 24.396308,
+    east: -66.93457,
+    west: -125.0,
+  });
 
   const { data: attentionData, isLoading: attentionLoading } = useAttentionData(true);
 
@@ -68,9 +73,9 @@ export default function SalesMapShell() {
   });
 
   const { data: feedData, isLoading } = useMapFeed({
-    bounds: bounds || undefined,
+    bounds,
     filters,
-    enabled: !!bounds,
+    enabled: true,
   });
 
   const handleBoundsChange = useCallback(

@@ -411,6 +411,10 @@ export function ClusteredMapCanvas({
       handleMapMove();
     });
 
+    map.current.once("idle", () => {
+      handleMapMove();
+    });
+
     map.current.on("movestart", () => {
       isMovingRef.current = true;
     });
