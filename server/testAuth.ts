@@ -91,6 +91,7 @@ export class TestAuthenticationManager {
         role,
         passwordHash: hashedPassword,
         isActive: true,
+        salesMapEnabled: true,
         createdAt: new Date(),
         updatedAt: new Date()
       })

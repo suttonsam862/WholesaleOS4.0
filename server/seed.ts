@@ -59,7 +59,8 @@ async function seedUsers() {
         isActive: userData.isActive,
         passwordHash: hashedPassword,
         firstName: userData.name.split(" ")[0],
-        lastName: userData.name.split(" ").slice(1).join(" ") || null
+        lastName: userData.name.split(" ").slice(1).join(" ") || null,
+        salesMapEnabled: true
       });
       console.log(`  Created user: ${userData.email}`);
     } else {

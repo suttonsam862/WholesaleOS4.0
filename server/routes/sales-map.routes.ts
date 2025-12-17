@@ -42,7 +42,9 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
     const userId = authReq.user?.userData?.id;
     const userData = authReq.user?.userData;
     
-    if (!userData?.salesMapEnabled) {
+    // Sales users have access by default; admins/ops/others need explicit flag
+    const canAccessSalesMap = userData?.salesMapEnabled || userData?.role === 'sales';
+    if (!canAccessSalesMap && userData?.role !== 'admin' && userData?.role !== 'ops') {
       return res.status(403).json({ message: "Sales Map feature is not enabled for your account" });
     }
     
@@ -305,7 +307,8 @@ router.post("/geocode-organizations", isAuthenticated, loadUserData, async (req:
     const authReq = req as AuthenticatedRequest;
     const userData = authReq.user?.userData;
     
-    if (!userData?.salesMapEnabled) {
+    const canAccessSalesMap = userData?.salesMapEnabled || userData?.role === 'sales' || userData?.role === 'admin' || userData?.role === 'ops';
+    if (!canAccessSalesMap) {
       return res.status(403).json({ message: "Sales Map feature is not enabled for your account" });
     }
     
@@ -369,7 +372,8 @@ router.post("/geocode-leads", isAuthenticated, loadUserData, async (req: Request
     const authReq = req as AuthenticatedRequest;
     const userData = authReq.user?.userData;
     
-    if (!userData?.salesMapEnabled) {
+    const canAccessSalesMap = userData?.salesMapEnabled || userData?.role === 'sales' || userData?.role === 'admin' || userData?.role === 'ops';
+    if (!canAccessSalesMap) {
       return res.status(403).json({ message: "Sales Map feature is not enabled for your account" });
     }
     
@@ -453,7 +457,8 @@ router.get("/orders", isAuthenticated, loadUserData, async (req: Request, res: R
     const authReq = req as AuthenticatedRequest;
     const userData = authReq.user?.userData;
     
-    if (!userData?.salesMapEnabled) {
+    const canAccessSalesMap = userData?.salesMapEnabled || userData?.role === 'sales' || userData?.role === 'admin' || userData?.role === 'ops';
+    if (!canAccessSalesMap) {
       return res.status(403).json({ message: "Sales Map feature is not enabled for your account" });
     }
     
@@ -519,7 +524,8 @@ router.get("/attention", isAuthenticated, loadUserData, async (req: Request, res
     const userData = authReq.user?.userData;
     const userId = authReq.user?.userData?.id;
     
-    if (!userData?.salesMapEnabled) {
+    const canAccessSalesMap = userData?.salesMapEnabled || userData?.role === 'sales' || userData?.role === 'admin' || userData?.role === 'ops';
+    if (!canAccessSalesMap) {
       return res.status(403).json({ message: "Sales Map feature is not enabled for your account" });
     }
     
