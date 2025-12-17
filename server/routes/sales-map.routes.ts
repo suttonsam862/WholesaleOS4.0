@@ -2,8 +2,8 @@ import { Router, Request, Response } from "express";
 import { isAuthenticated } from "../replitAuth";
 import { loadUserData, type AuthenticatedRequest } from "../permissions";
 import { db } from "../db";
-import { organizations, leads, orders } from "@shared/schema";
-import { eq, and, isNotNull, isNull, sql, gte, lte, or } from "drizzle-orm";
+import { organizations, leads, orders, designJobs } from "@shared/schema";
+import { eq, and, isNotNull, isNull, sql, gte, lte, or, lt } from "drizzle-orm";
 import { geocodeUSCity, availableCities } from "../utils/geocoding";
 
 const router = Router();
@@ -17,6 +17,9 @@ interface MapFeedQuery {
   myItemsOnly?: string;
   showOrganizations?: string;
   showLeads?: string;
+  showOrders?: string;
+  showDesignJobs?: string;
+  showAttentionOnly?: string;
 }
 
 function buildLngCondition(lngColumn: any, westVal: number, eastVal: number) {
@@ -43,7 +46,7 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
       return res.status(403).json({ message: "Sales Map feature is not enabled for your account" });
     }
     
-    const { north, south, east, west, myItemsOnly, showOrganizations, showLeads } = req.query as MapFeedQuery;
+    const { north, south, east, west, myItemsOnly, showOrganizations, showLeads, showOrders, showDesignJobs, showAttentionOnly } = req.query as MapFeedQuery;
 
     const hasBounds = north && south && east && west;
     const northVal = parseFloat(north || "90");
@@ -53,6 +56,10 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
     
     const wantOrgs = showOrganizations !== "false";
     const wantLeads = showLeads !== "false";
+    const wantOrders = showOrders === "true";
+    const wantDesignJobs = showDesignJobs === "true";
+    const attentionOnly = showAttentionOnly === "true";
+    const today = new Date().toISOString().split('T')[0];
 
     let orgResults: any[] = [];
     if (wantOrgs) {
@@ -173,23 +180,113 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
     }));
 
     const orgNameMap: Record<number, string> = {};
+    const orgGeoMap: Record<number, { lat: number; lng: number }> = {};
     orgResults.forEach((o) => {
       orgNameMap[o.id] = o.name;
+      if (o.geoLat && o.geoLng) {
+        orgGeoMap[o.id] = {
+          lat: parseFloat(String(o.geoLat)),
+          lng: parseFloat(String(o.geoLng)),
+        };
+      }
     });
 
-    const mappedLeads = leadResults.map((lead) => ({
-      id: lead.id,
-      type: "lead" as const,
-      name: lead.orgId ? orgNameMap[lead.orgId] || `Lead ${lead.leadCode}` : `Lead ${lead.leadCode}`,
-      lat: lead.geoLat ? parseFloat(String(lead.geoLat)) : 0,
-      lng: lead.geoLng ? parseFloat(String(lead.geoLng)) : 0,
-      stage: lead.stage,
-      ownerUserId: lead.ownerUserId || undefined,
-    }));
+    const mappedLeads = leadResults.map((lead) => {
+      const isHot = lead.stage === "hot_lead" || lead.stage === "lead" || lead.stage === "mock_up";
+      return {
+        id: lead.id,
+        type: "lead" as const,
+        name: lead.orgId ? orgNameMap[lead.orgId] || `Lead ${lead.leadCode}` : `Lead ${lead.leadCode}`,
+        lat: lead.geoLat ? parseFloat(String(lead.geoLat)) : 0,
+        lng: lead.geoLng ? parseFloat(String(lead.geoLng)) : 0,
+        stage: lead.stage,
+        ownerUserId: lead.ownerUserId || undefined,
+        needsAttention: isHot,
+        attentionReason: isHot ? "Active lead needs attention" : undefined,
+      };
+    });
+
+    let orderResults: any[] = [];
+    if (wantOrders) {
+      const activeStatuses = ["pending", "confirmed", "in_production", "ready_to_ship"];
+      orderResults = await db
+        .select({
+          id: orders.id,
+          orderCode: orders.orderCode,
+          orgId: orders.orgId,
+          status: orders.status,
+          estDelivery: orders.estDelivery,
+        })
+        .from(orders)
+        .where(
+          sql`${orders.status} IN (${sql.join(activeStatuses.map(s => sql`${s}`), sql`, `)})`
+        )
+        .limit(500);
+    }
+
+    const mappedOrders = orderResults.map((order) => {
+      const isOverdue = order.estDelivery && new Date(order.estDelivery) < new Date();
+      const orgInfo = order.orgId ? orgGeoMap[order.orgId] : null;
+      return {
+        id: order.id,
+        type: "order" as const,
+        name: `Order ${order.orderCode}`,
+        lat: orgInfo?.lat || 0,
+        lng: orgInfo?.lng || 0,
+        status: order.status,
+        estDelivery: order.estDelivery,
+        needsAttention: isOverdue,
+        attentionReason: isOverdue ? "Order overdue" : undefined,
+      };
+    }).filter(o => o.lat !== 0 && o.lng !== 0);
+
+    let designJobResults: any[] = [];
+    if (wantDesignJobs) {
+      const activeStatuses = ["pending", "assigned", "in_progress", "review"];
+      designJobResults = await db
+        .select({
+          id: designJobs.id,
+          jobCode: designJobs.jobCode,
+          orgId: designJobs.orgId,
+          status: designJobs.status,
+          urgency: designJobs.urgency,
+          priority: designJobs.priority,
+          deadline: designJobs.deadline,
+        })
+        .from(designJobs)
+        .where(
+          and(
+            sql`${designJobs.status} IN (${sql.join(activeStatuses.map(s => sql`${s}`), sql`, `)})`,
+            eq(designJobs.archived, false)
+          )
+        )
+        .limit(500);
+    }
+
+    const mappedDesignJobs = designJobResults.map((job) => {
+      const isOverdue = job.deadline && new Date(job.deadline) < new Date();
+      const isUrgent = job.urgency === "high" || job.urgency === "rush";
+      const orgInfo = job.orgId ? orgGeoMap[job.orgId] : null;
+      return {
+        id: job.id,
+        type: "designJob" as const,
+        name: `Design ${job.jobCode}`,
+        lat: orgInfo?.lat || 0,
+        lng: orgInfo?.lng || 0,
+        status: job.status,
+        urgency: job.urgency,
+        priority: job.priority,
+        deadline: job.deadline,
+        needsAttention: isOverdue || isUrgent,
+        attentionReason: isOverdue ? "Design job overdue" : isUrgent ? "Urgent design job" : undefined,
+      };
+    }).filter(j => j.lat !== 0 && j.lng !== 0);
 
     res.json({
       organizations: mappedOrgs,
-      leads: mappedLeads,
+      leads: attentionOnly ? mappedLeads.filter(l => l.needsAttention) : mappedLeads,
+      orders: attentionOnly ? mappedOrders.filter(o => o.needsAttention) : mappedOrders,
+      designJobs: attentionOnly ? mappedDesignJobs.filter(j => j.needsAttention) : mappedDesignJobs,
       bounds: {
         north: northVal,
         south: southVal,
@@ -413,6 +510,172 @@ router.get("/orders", isAuthenticated, loadUserData, async (req: Request, res: R
   } catch (error) {
     console.error("Error fetching orders:", error);
     res.status(500).json({ message: "Failed to fetch orders" });
+  }
+});
+
+router.get("/attention", isAuthenticated, loadUserData, async (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthenticatedRequest;
+    const userData = authReq.user?.userData;
+    const userId = authReq.user?.userData?.id;
+    
+    if (!userData?.salesMapEnabled) {
+      return res.status(403).json({ message: "Sales Map feature is not enabled for your account" });
+    }
+    
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const isAdminOrOps = userData.role === "admin" || userData.role === "ops";
+
+    const overdueOrdersQuery = await db
+      .select({
+        id: orders.id,
+        orderCode: orders.orderCode,
+        orgId: orders.orgId,
+        status: orders.status,
+        estDelivery: orders.estDelivery,
+      })
+      .from(orders)
+      .where(
+        and(
+          lt(orders.estDelivery, todayStr),
+          sql`${orders.status} NOT IN ('delivered', 'cancelled', 'completed')`
+        )
+      )
+      .limit(20);
+
+    const hotLeadsQuery = await db
+      .select({
+        id: leads.id,
+        leadCode: leads.leadCode,
+        orgId: leads.orgId,
+        stage: leads.stage,
+        ownerUserId: leads.ownerUserId,
+        geoLat: leads.geoLat,
+        geoLng: leads.geoLng,
+      })
+      .from(leads)
+      .where(
+        and(
+          eq(leads.archived, false),
+          sql`${leads.stage} IN ('hot_lead', 'lead', 'mock_up')`,
+          isAdminOrOps ? sql`1=1` : eq(leads.ownerUserId, userId || "")
+        )
+      )
+      .limit(20);
+
+    const stalledDesignJobsQuery = await db
+      .select({
+        id: designJobs.id,
+        jobCode: designJobs.jobCode,
+        orgId: designJobs.orgId,
+        status: designJobs.status,
+        urgency: designJobs.urgency,
+        deadline: designJobs.deadline,
+      })
+      .from(designJobs)
+      .where(
+        and(
+          eq(designJobs.archived, false),
+          or(
+            lt(designJobs.deadline, todayStr),
+            sql`${designJobs.urgency} IN ('high', 'rush')`
+          ),
+          sql`${designJobs.status} IN ('pending', 'assigned', 'in_progress', 'review')`
+        )
+      )
+      .limit(20);
+
+    const orgIds = new Set<number>();
+    overdueOrdersQuery.forEach(o => o.orgId && orgIds.add(o.orgId));
+    hotLeadsQuery.forEach(l => l.orgId && orgIds.add(l.orgId));
+    stalledDesignJobsQuery.forEach(j => j.orgId && orgIds.add(j.orgId));
+
+    const orgGeoMap: Record<number, { name: string; lat: number; lng: number }> = {};
+    if (orgIds.size > 0) {
+      const orgsData = await db
+        .select({
+          id: organizations.id,
+          name: organizations.name,
+          geoLat: organizations.geoLat,
+          geoLng: organizations.geoLng,
+        })
+        .from(organizations)
+        .where(sql`${organizations.id} IN (${sql.join(Array.from(orgIds).map(id => sql`${id}`), sql`, `)})`);
+
+      orgsData.forEach(org => {
+        if (org.geoLat && org.geoLng) {
+          orgGeoMap[org.id] = {
+            name: org.name,
+            lat: parseFloat(String(org.geoLat)),
+            lng: parseFloat(String(org.geoLng)),
+          };
+        }
+      });
+    }
+
+    const overdueOrders = overdueOrdersQuery.map(o => {
+      const daysOverdue = o.estDelivery ? Math.floor((today.getTime() - new Date(o.estDelivery).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+      const orgInfo = o.orgId ? orgGeoMap[o.orgId] : null;
+      return {
+        id: o.id,
+        type: "order" as const,
+        name: `Order ${o.orderCode}`,
+        reason: `${daysOverdue} days overdue`,
+        severity: daysOverdue > 7 ? "critical" as const : daysOverdue > 3 ? "high" as const : "medium" as const,
+        lat: orgInfo?.lat,
+        lng: orgInfo?.lng,
+        daysOverdue,
+        deadline: o.estDelivery,
+      };
+    });
+
+    const hotLeads = hotLeadsQuery.map(l => {
+      const orgInfo = l.orgId ? orgGeoMap[l.orgId] : null;
+      return {
+        id: l.id,
+        type: "lead" as const,
+        name: `Lead ${l.leadCode}`,
+        reason: `${l.stage === "hot_lead" ? "Hot" : l.stage === "mock_up" ? "Mock-up" : "Active"} lead needs attention`,
+        severity: l.stage === "hot_lead" ? "high" as const : "medium" as const,
+        lat: l.geoLat ? parseFloat(String(l.geoLat)) : orgInfo?.lat,
+        lng: l.geoLng ? parseFloat(String(l.geoLng)) : orgInfo?.lng,
+      };
+    });
+
+    const stalledDesignJobs = stalledDesignJobsQuery.map(j => {
+      const isOverdue = j.deadline && new Date(j.deadline) < today;
+      const daysOverdue = j.deadline ? Math.floor((today.getTime() - new Date(j.deadline).getTime()) / (1000 * 60 * 60 * 24)) : 0;
+      const orgInfo = j.orgId ? orgGeoMap[j.orgId] : null;
+      return {
+        id: j.id,
+        type: "designJob" as const,
+        name: `Design ${j.jobCode}`,
+        reason: isOverdue ? `${daysOverdue} days overdue` : `${j.urgency} urgency`,
+        severity: j.urgency === "rush" ? "critical" as const : j.urgency === "high" || isOverdue ? "high" as const : "medium" as const,
+        lat: orgInfo?.lat,
+        lng: orgInfo?.lng,
+        daysOverdue: isOverdue ? daysOverdue : undefined,
+        deadline: j.deadline,
+      };
+    });
+
+    res.json({
+      overdueOrders,
+      hotLeads,
+      stalledDesignJobs,
+      urgentOrders: [],
+      counts: {
+        overdueOrders: overdueOrders.length,
+        hotLeads: hotLeads.length,
+        stalledDesignJobs: stalledDesignJobs.length,
+        urgentOrders: 0,
+        total: overdueOrders.length + hotLeads.length + stalledDesignJobs.length,
+      },
+    });
+  } catch (error) {
+    console.error("Error fetching attention items:", error);
+    res.status(500).json({ message: "Failed to fetch attention items" });
   }
 });
 

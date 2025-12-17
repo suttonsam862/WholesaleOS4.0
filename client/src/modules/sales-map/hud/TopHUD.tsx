@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Filter, Eye, Crosshair, ListTodo, X } from "lucide-react";
+import { Search, Filter, Eye, Crosshair, ListTodo, X, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ const modeConfig = {
   view: { icon: Eye, label: "View", color: "bg-blue-500" },
   find_leads: { icon: Crosshair, label: "Find Leads", color: "bg-green-500" },
   work_queue: { icon: ListTodo, label: "Work Queue", color: "bg-amber-500" },
+  attention: { icon: AlertTriangle, label: "Attention", color: "bg-red-500" },
 };
 
 export function TopHUD({
@@ -110,6 +111,14 @@ export function TopHUD({
             }
           >
             My Items Only
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={filters.showAttentionOnly}
+            onCheckedChange={(checked) =>
+              onFiltersChange({ ...filters, showAttentionOnly: checked })
+            }
+          >
+            Attention Items Only
           </DropdownMenuCheckboxItem>
         </DropdownMenuContent>
       </DropdownMenu>

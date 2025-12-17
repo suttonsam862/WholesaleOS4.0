@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { MapFeedResponse, MapFilters } from "../types";
+import type { MapFeedResponse, MapFilters, AttentionDashboardData } from "../types";
 
 interface UseFeedOptions {
   bounds?: {
@@ -30,6 +30,15 @@ function buildQueryString(bounds: UseFeedOptions["bounds"], filters?: MapFilters
   if (filters?.showLeads !== undefined) {
     params.set("showLeads", String(filters.showLeads));
   }
+  if (filters?.showOrders !== undefined) {
+    params.set("showOrders", String(filters.showOrders));
+  }
+  if (filters?.showDesignJobs !== undefined) {
+    params.set("showDesignJobs", String(filters.showDesignJobs));
+  }
+  if (filters?.showAttentionOnly) {
+    params.set("showAttentionOnly", "true");
+  }
   return params.toString();
 }
 
@@ -47,6 +56,9 @@ export function useMapFeed({ bounds, zoom, filters, enabled = true }: UseFeedOpt
       filters?.myItemsOnly,
       filters?.showOrganizations,
       filters?.showLeads,
+      filters?.showOrders,
+      filters?.showDesignJobs,
+      filters?.showAttentionOnly,
     ],
     queryFn: async () => {
       const response = await fetch(`/api/sales-map/feed?${queryString}`);
@@ -58,5 +70,21 @@ export function useMapFeed({ bounds, zoom, filters, enabled = true }: UseFeedOpt
     enabled: enabled && !!bounds,
     staleTime: 30000,
     refetchInterval: 60000,
+  });
+}
+
+export function useAttentionData(enabled: boolean = true) {
+  return useQuery<AttentionDashboardData>({
+    queryKey: ["/api/sales-map/attention"],
+    queryFn: async () => {
+      const response = await fetch("/api/sales-map/attention");
+      if (!response.ok) {
+        throw new Error("Failed to fetch attention data");
+      }
+      return response.json();
+    },
+    enabled,
+    staleTime: 60000,
+    refetchInterval: 120000,
   });
 }

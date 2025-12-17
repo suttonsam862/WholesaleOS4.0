@@ -1,5 +1,5 @@
 
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import crypto from 'crypto';
 
 declare module 'express-session' {
@@ -66,6 +66,11 @@ export const csrfProtection: RequestHandler = (req, res, next) => {
   
   // Skip CSRF for local auth login (needs special handling)
   if (req.path === '/api/auth/local/login') {
+    return next();
+  }
+  
+  // Skip CSRF for internal geocoding endpoints (protected by authentication)
+  if (req.path === '/api/sales-map/geocode-organizations' || req.path === '/api/sales-map/geocode-leads') {
     return next();
   }
   
