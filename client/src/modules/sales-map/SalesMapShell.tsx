@@ -90,6 +90,16 @@ export default function SalesMapShell() {
     setHighlightedEntity(null);
   }, []);
 
+  const getEntityUrl = useCallback((type: string, id: number) => {
+    switch (type) {
+      case "order": return `/orders/${id}`;
+      case "lead": return `/leads/${id}`;
+      case "designJob": return `/design-jobs/${id}`;
+      case "organization": return `/organizations/${id}`;
+      default: return "#";
+    }
+  }, []);
+
   const handleAttentionItemClick = useCallback((item: AttentionItem) => {
     if (item.lat && item.lng) {
       const entity: MapEntity = {
@@ -103,8 +113,10 @@ export default function SalesMapShell() {
       };
       setSelectedEntity(entity);
       setHighlightedEntity({ type: item.type, id: item.id });
+    } else {
+      window.open(getEntityUrl(item.type, item.id), "_blank");
     }
-  }, []);
+  }, [getEntityUrl]);
 
   const handleCloseDrawer = useCallback(() => {
     setSelectedEntity(null);
@@ -221,6 +233,7 @@ export default function SalesMapShell() {
             });
           }
         }}
+        onAttentionItemClick={handleAttentionItemClick}
       />
 
       <AttentionDashboard
