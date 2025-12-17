@@ -99,8 +99,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     sortOrderInGroup: 1,
     resourceKey: "leads",
     featureFlag: "salesMapEnabled",
-    roles: ["admin", "sales"],
-    pageVisibleByRole: { admin: true, sales: true }
+    roles: ["admin", "sales", "ops"],
+    pageVisibleByRole: { admin: true, sales: true, ops: true }
   },
   {
     id: "leads-hub",
@@ -1131,6 +1131,10 @@ export function getSalesDefaultLanding(featureFlags: Record<string, boolean>): s
 export function getDefaultLandingForRole(role: UserRole, featureFlags: Record<string, boolean>): string {
   if (role === "sales") {
     return getSalesDefaultLanding(featureFlags);
+  }
+  
+  if (role === "ops" && featureFlags.salesMapEnabled) {
+    return "/sales-map";
   }
   
   const roleDefaults: Record<UserRole, string> = {

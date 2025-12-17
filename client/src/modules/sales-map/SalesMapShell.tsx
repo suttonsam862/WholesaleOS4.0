@@ -20,10 +20,11 @@ export default function SalesMapShell() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [mode, setMode] = useState<MapMode>("view");
+  const isAdminOrOps = user?.role === "admin" || user?.role === "ops";
   const [filters, setFilters] = useState<MapFilters>({
     showOrganizations: true,
     showLeads: true,
-    myItemsOnly: false,
+    myItemsOnly: isAdminOrOps ? false : false,
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEntity, setSelectedEntity] = useState<MapEntity | null>(null);

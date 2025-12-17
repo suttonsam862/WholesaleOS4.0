@@ -231,7 +231,7 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/sales-analytics/actions/:actionId", title: "Sales Analytics Action", component: SalesAnalyticsActionDetail, requiresAuth: true, requiresLayout: true, roles: ["admin", "sales"] },
   { path: "/sales-tracker", title: "Sales Tracker", component: SalesTracker, requiresAuth: true, requiresLayout: true, roles: ["admin", "sales"] },
   { path: "/sales-resources", title: "Sales Resources", component: SalesResources, requiresAuth: true, requiresLayout: true, roles: ["admin", "sales"] },
-  { path: "/sales-map", title: "Sales Map", component: SalesMapShell, requiresAuth: true, requiresLayout: false, roles: ["admin", "sales"], featureFlag: "salesMapEnabled" },
+  { path: "/sales-map", title: "Sales Map", component: SalesMapShell, requiresAuth: true, requiresLayout: false, roles: ["admin", "sales", "ops"], featureFlag: "salesMapEnabled" },
   { path: "/design-portfolio", title: "Design Portfolio", component: DesignPortfolio, requiresAuth: true, requiresLayout: true, roles: ["admin", "designer", "ops"] },
   { path: "/design-resources", title: "Design Resources", component: DesignResources, requiresAuth: true, requiresLayout: true, roles: ["admin", "designer", "ops"] },
   { path: "/size-checker", title: "Size Checker", component: SizeChecker, requiresAuth: true, requiresLayout: true, roles: ["admin", "ops"] },
