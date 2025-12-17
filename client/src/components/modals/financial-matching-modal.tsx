@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, DollarSign, TrendingUp, TrendingDown, ArrowRight, X } from "lucide-react";
+import { Plus, DollarSign, TrendingUp, TrendingDown, ArrowRight, X, Sparkles, Link2, Link2Off, Calculator, Zap } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,18 @@ export function FinancialMatchingModal({
     amount: '',
     date: new Date().toISOString().split('T')[0],
     category: '',
+    notes: ''
+  });
+
+  // Manual matching state
+  const [showManualMatch, setShowManualMatch] = useState(false);
+  const [matchingMode, setMatchingMode] = useState<'auto' | 'manual'>('auto');
+  const [manualMatchForm, setManualMatchForm] = useState({
+    inflowType: '' as 'invoice' | 'payment' | 'custom' | '',
+    inflowId: null as number | null,
+    outflowType: '' as 'commission' | 'custom' | '',
+    outflowId: null as number | null,
+    matchedAmount: '',
     notes: ''
   });
 
@@ -213,6 +225,126 @@ export function FinancialMatchingModal({
     },
   });
 
+  // Auto-match mutation - analyzes and suggests optimal matching
+  const autoMatchMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest('/api/financial-matching/auto-match', {
+        method: 'POST',
+        body: { orderId },
+      });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/order', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/orders'] });
+      toast({
+        title: "Auto-Match Complete",
+        description: data.message || "Financial records have been automatically matched",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Auto-Match Info",
+        description: "All items are already matched or no matching possible",
+      });
+    },
+  });
+
+  // Reset manual match form
+  const resetManualMatchForm = () => {
+    setManualMatchForm({
+      inflowType: '',
+      inflowId: null,
+      outflowType: '',
+      outflowId: null,
+      matchedAmount: '',
+      notes: ''
+    });
+  };
+
+  // Manual match mutation
+  const manualMatchMutation = useMutation({
+    mutationFn: async () => {
+      if (!manualMatchForm.inflowType || !manualMatchForm.inflowId || 
+          !manualMatchForm.outflowType || !manualMatchForm.outflowId || 
+          !manualMatchForm.matchedAmount) {
+        throw new Error('Missing required fields');
+      }
+      
+      const payload = {
+        orderId,
+        inflowType: manualMatchForm.inflowType,
+        inflowId: Number(manualMatchForm.inflowId),
+        outflowType: manualMatchForm.outflowType,
+        outflowId: Number(manualMatchForm.outflowId),
+        matchedAmount: parseFloat(manualMatchForm.matchedAmount),
+        notes: manualMatchForm.notes || undefined
+      };
+      
+      return await apiRequest('/api/financial-matching/manual-match', {
+        method: 'POST',
+        body: payload,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/order', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/orders'] });
+      toast({
+        title: "Match Created",
+        description: "Manual match recorded successfully",
+      });
+      resetManualMatchForm();
+      setShowManualMatch(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create manual match",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Helper to get all available inflows for matching
+  const getAvailableInflows = () => {
+    if (!financialData) return [];
+    const allInflows: any[] = [];
+    
+    if (financialData.inflows?.invoices) {
+      financialData.inflows.invoices.forEach((inv: any) => {
+        allInflows.push({ type: 'invoice', id: inv.id, label: inv.invoiceNumber, amount: inv.totalAmount });
+      });
+    }
+    if (financialData.inflows?.payments) {
+      financialData.inflows.payments.forEach((p: any) => {
+        allInflows.push({ type: 'payment', id: p.id, label: p.paymentNumber, amount: p.amount });
+      });
+    }
+    if (financialData.inflows?.customEntries) {
+      financialData.inflows.customEntries.forEach((e: any) => {
+        allInflows.push({ type: 'custom', id: e.id, label: e.description, amount: e.amount });
+      });
+    }
+    return allInflows;
+  };
+
+  // Helper to get all available outflows for matching  
+  const getAvailableOutflows = () => {
+    if (!financialData) return [];
+    const allOutflows: any[] = [];
+    
+    if (financialData.outflows?.commissions) {
+      financialData.outflows.commissions.forEach((c: any) => {
+        allOutflows.push({ type: 'commission', id: c.id, label: `${c.commissionType} Commission`, amount: c.commissionAmount });
+      });
+    }
+    if (financialData.outflows?.customEntries) {
+      financialData.outflows.customEntries.forEach((e: any) => {
+        allOutflows.push({ type: 'custom', id: e.id, label: e.description, amount: e.amount });
+      });
+    }
+    return allOutflows;
+  };
+
   const formatCurrency = (amount: number | string) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
     if (isNaN(num) || num === null || num === undefined) {
@@ -299,6 +431,89 @@ export function FinancialMatchingModal({
             </CardContent>
           </Card>
         </div>
+
+        {/* Matching Controls */}
+        <Card className="mb-4 border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-950/30">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                  <Link2 className="h-5 w-5 text-indigo-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-indigo-700 dark:text-indigo-300">Financial Matching</h3>
+                  <p className="text-sm text-muted-foreground">Match inflows with outflows</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="matching-mode" className="text-sm text-muted-foreground">Mode:</Label>
+                  <div className="flex items-center gap-2 bg-background/50 rounded-lg p-1">
+                    <Button
+                      variant={matchingMode === 'auto' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setMatchingMode('auto')}
+                      className="gap-1"
+                      data-testid="button-auto-mode"
+                    >
+                      <Zap className="h-3 w-3" />
+                      Auto
+                    </Button>
+                    <Button
+                      variant={matchingMode === 'manual' ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setMatchingMode('manual')}
+                      className="gap-1"
+                      data-testid="button-manual-mode"
+                    >
+                      <Calculator className="h-3 w-3" />
+                      Manual
+                    </Button>
+                  </div>
+                </div>
+                
+                {matchingMode === 'auto' ? (
+                  <Button
+                    onClick={() => autoMatchMutation.mutate()}
+                    disabled={autoMatchMutation.isPending}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+                    data-testid="button-run-auto-match"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {autoMatchMutation.isPending ? 'Matching...' : 'Run Auto-Match'}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={() => setShowManualMatch(true)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+                    data-testid="button-create-manual-match"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create Manual Match
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {matchingMode === 'auto' && (
+              <div className="mt-3 p-3 bg-indigo-100/50 dark:bg-indigo-900/30 rounded-lg">
+                <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                  <Sparkles className="h-4 w-4 inline mr-1" />
+                  Auto-match analyzes your inflows and outflows to suggest optimal matching based on amounts and dates.
+                </p>
+              </div>
+            )}
+
+            {matchingMode === 'manual' && (
+              <div className="mt-3 p-3 bg-indigo-100/50 dark:bg-indigo-900/30 rounded-lg">
+                <p className="text-sm text-indigo-700 dark:text-indigo-300">
+                  <Calculator className="h-4 w-4 inline mr-1" />
+                  Manual mode lets you explicitly link specific inflow and outflow records with custom match amounts.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         <div className="grid grid-cols-2 gap-6">
           {/* INFLOWS COLUMN */}
@@ -768,6 +983,156 @@ export function FinancialMatchingModal({
                 >
                   {createCustomEntryMutation.isPending ? 'Adding...' : 'Add Outflow'}
                 </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Manual Match Dialog */}
+        {showManualMatch && (
+          <Dialog open={showManualMatch} onOpenChange={(open) => {
+            setShowManualMatch(open);
+            if (!open) resetManualMatchForm();
+          }}>
+            <DialogContent className="max-w-lg" data-testid="dialog-manual-match">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2 text-indigo-700 dark:text-indigo-300">
+                  <Link2 className="h-5 w-5" />
+                  Create Manual Match
+                </DialogTitle>
+                <DialogDescription>
+                  Link a specific inflow with an outflow and specify the matched amount
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                    Select Inflow
+                  </Label>
+                  <Select 
+                    value={manualMatchForm.inflowId ? `${manualMatchForm.inflowType}:${manualMatchForm.inflowId}` : ""}
+                    onValueChange={(v) => {
+                      const [type, id] = v.split(':');
+                      const inflow = getAvailableInflows().find(i => i.type === type && i.id === parseInt(id));
+                      setManualMatchForm({
+                        ...manualMatchForm,
+                        inflowType: type as any,
+                        inflowId: parseInt(id),
+                        matchedAmount: inflow?.amount?.toString() || manualMatchForm.matchedAmount
+                      });
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-match-inflow">
+                      <SelectValue placeholder="Select an inflow to match" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailableInflows().length === 0 ? (
+                        <SelectItem value="none" disabled>No inflows available</SelectItem>
+                      ) : (
+                        getAvailableInflows().map((inflow) => (
+                          <SelectItem key={`${inflow.type}:${inflow.id}`} value={`${inflow.type}:${inflow.id}`}>
+                            <span className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs capitalize">{inflow.type}</Badge>
+                              {inflow.label} - {formatCurrency(inflow.amount)}
+                            </span>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                    Select Outflow
+                  </Label>
+                  <Select 
+                    value={manualMatchForm.outflowId ? `${manualMatchForm.outflowType}:${manualMatchForm.outflowId}` : ""}
+                    onValueChange={(v) => {
+                      const [type, id] = v.split(':');
+                      setManualMatchForm({
+                        ...manualMatchForm,
+                        outflowType: type as any,
+                        outflowId: parseInt(id)
+                      });
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-match-outflow">
+                      <SelectValue placeholder="Select an outflow to match" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailableOutflows().length === 0 ? (
+                        <SelectItem value="none" disabled>No outflows available</SelectItem>
+                      ) : (
+                        getAvailableOutflows().map((outflow) => (
+                          <SelectItem key={`${outflow.type}:${outflow.id}`} value={`${outflow.type}:${outflow.id}`}>
+                            <span className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs capitalize">{outflow.type}</Badge>
+                              {outflow.label} - {formatCurrency(outflow.amount)}
+                            </span>
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="match-amount" className="flex items-center gap-2">
+                    <DollarSign className="h-4 w-4 text-indigo-500" />
+                    Matched Amount
+                  </Label>
+                  <Input
+                    id="match-amount"
+                    type="number"
+                    step="0.01"
+                    value={manualMatchForm.matchedAmount}
+                    onChange={(e) => setManualMatchForm({ ...manualMatchForm, matchedAmount: e.target.value })}
+                    placeholder="0.00"
+                    data-testid="input-match-amount"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Amount applied from the inflow towards the outflow
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="match-notes">Notes (Optional)</Label>
+                  <Textarea
+                    id="match-notes"
+                    value={manualMatchForm.notes}
+                    onChange={(e) => setManualMatchForm({ ...manualMatchForm, notes: e.target.value })}
+                    placeholder="Optional notes about this match..."
+                    rows={2}
+                    data-testid="textarea-match-notes"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowManualMatch(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+                    onClick={() => manualMatchMutation.mutate()}
+                    disabled={
+                      !manualMatchForm.inflowId || 
+                      !manualMatchForm.outflowId || 
+                      !manualMatchForm.matchedAmount ||
+                      manualMatchMutation.isPending
+                    }
+                    data-testid="button-submit-manual-match"
+                  >
+                    <Link2 className="h-4 w-4" />
+                    {manualMatchMutation.isPending ? 'Creating...' : 'Create Match'}
+                  </Button>
+                </div>
               </div>
             </DialogContent>
           </Dialog>

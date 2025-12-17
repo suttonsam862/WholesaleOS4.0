@@ -45,7 +45,9 @@ import {
   Eye,
   CheckCircle2,
   AlertCircle,
-  Clock
+  Clock,
+  Sparkles,
+  Calculator
 } from "lucide-react";
 import { FinancialMatchingModal } from "@/components/modals/financial-matching-modal";
 import { format } from "date-fns";
@@ -288,6 +290,91 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
     },
     retry: false,
   });
+
+  const { data: quotes = [] } = useQuery<any[]>({
+    queryKey: ["/api/quotes"],
+    queryFn: async () => {
+      const response = await fetch('/api/quotes', { credentials: 'include' });
+      return response.ok ? response.json() : [];
+    },
+    retry: false,
+  });
+
+  const { data: commissions = [] } = useQuery<any[]>({
+    queryKey: ["/api/commissions"],
+    queryFn: async () => {
+      const response = await fetch('/api/commissions', { credentials: 'include' });
+      return response.ok ? response.json() : [];
+    },
+    retry: false,
+  });
+
+  const getAutoTotalOptions = () => {
+    const options: { label: string; value: string; source: string }[] = [];
+    
+    if (invoiceForm.orderId) {
+      const order = orders.find((o: any) => o.id === invoiceForm.orderId);
+      if (order?.totalAmount) {
+        options.push({
+          label: `Order Total: $${parseFloat(order.totalAmount).toFixed(2)}`,
+          value: order.totalAmount,
+          source: 'order'
+        });
+      }
+      
+      const orderQuotes = quotes.filter((q: any) => q.orgId === order?.orgId && q.status === 'accepted');
+      orderQuotes.forEach((q: any) => {
+        if (q.total) {
+          options.push({
+            label: `Quote ${q.quoteCode}: $${parseFloat(q.total).toFixed(2)}`,
+            value: q.total,
+            source: 'quote'
+          });
+        }
+      });
+    }
+    
+    if (invoiceForm.orgId) {
+      const orgQuotes = quotes.filter((q: any) => q.orgId === invoiceForm.orgId && q.status === 'accepted');
+      orgQuotes.forEach((q: any) => {
+        if (q.total && !options.find(o => o.value === q.total && o.source === 'quote')) {
+          options.push({
+            label: `Quote ${q.quoteCode}: $${parseFloat(q.total).toFixed(2)}`,
+            value: q.total,
+            source: 'quote'
+          });
+        }
+      });
+      
+      const orgOrders = orders.filter((o: any) => o.orgId === invoiceForm.orgId);
+      orgOrders.forEach((o: any) => {
+        if (o.totalAmount && !options.find(opt => opt.value === o.totalAmount && opt.source === 'order')) {
+          options.push({
+            label: `Order ${o.orderCode}: $${parseFloat(o.totalAmount).toFixed(2)}`,
+            value: o.totalAmount,
+            source: 'order'
+          });
+        }
+      });
+    }
+    
+    return options;
+  };
+
+  const getPaymentAutofillAmount = () => {
+    if (!paymentForm.invoiceId) return null;
+    const invoice = invoices.find(inv => inv.id === paymentForm.invoiceId);
+    if (!invoice) return null;
+    return invoice.amountDue || invoice.totalAmount;
+  };
+
+  const getPendingCommissions = () => {
+    if (!commissionForm.salespersonId) return [];
+    return commissions.filter((c: any) => 
+      c.salespersonId === commissionForm.salespersonId && 
+      c.status === 'pending'
+    );
+  };
 
   // Mutations for creating financial data
   const createInvoiceMutation = useMutation({
@@ -1210,6 +1297,39 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                 </Select>
               </div>
             </div>
+            {getAutoTotalOptions().length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-400" />
+                  Auto-fill from Order/Quote
+                </Label>
+                <Select 
+                  onValueChange={(value) => {
+                    const subtotal = value;
+                    const taxRate = parseFloat(invoiceForm.taxRate) || 0;
+                    const total = (parseFloat(subtotal) * (1 + taxRate / 100)).toFixed(2);
+                    setInvoiceForm({ ...invoiceForm, subtotal, totalAmount: total });
+                  }}
+                >
+                  <SelectTrigger data-testid="select-invoice-autofill">
+                    <SelectValue placeholder="Select amount to auto-fill" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getAutoTotalOptions().map((option, idx) => (
+                      <SelectItem key={`${option.source}-${idx}`} value={option.value}>
+                        <span className="flex items-center gap-2">
+                          <Calculator className="h-3 w-3" />
+                          {option.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Select to auto-populate amounts from related orders or accepted quotes
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Subtotal</Label>
@@ -1279,7 +1399,19 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
           <div className="grid gap-4 py-4">
             <div className="space-y-2">
               <Label>Invoice</Label>
-              <Select value={paymentForm.invoiceId?.toString() || ""} onValueChange={(v) => setPaymentForm({ ...paymentForm, invoiceId: v ? parseInt(v) : null })}>
+              <Select 
+                value={paymentForm.invoiceId?.toString() || ""} 
+                onValueChange={(v) => {
+                  const invoiceId = v ? parseInt(v) : null;
+                  const selectedInvoice = invoices.find(inv => inv.id === invoiceId);
+                  const autofillAmount = selectedInvoice?.amountDue || selectedInvoice?.totalAmount || "";
+                  setPaymentForm({ 
+                    ...paymentForm, 
+                    invoiceId,
+                    amount: autofillAmount ? autofillAmount.toString() : paymentForm.amount 
+                  });
+                }}
+              >
                 <SelectTrigger data-testid="select-payment-invoice">
                   <SelectValue placeholder="Select invoice" />
                 </SelectTrigger>
@@ -1292,6 +1424,25 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                 </SelectContent>
               </Select>
             </div>
+            {paymentForm.invoiceId && getPaymentAutofillAmount() && (
+              <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
+                <Sparkles className="h-4 w-4 text-green-400" />
+                <span className="text-sm text-green-400">
+                  Amount auto-filled with balance due: {formatCurrency(getPaymentAutofillAmount() || 0)}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto text-green-400 hover:text-green-300"
+                  onClick={() => setPaymentForm({ ...paymentForm, amount: getPaymentAutofillAmount()?.toString() || "" })}
+                  data-testid="button-autofill-payment"
+                >
+                  <Calculator className="h-4 w-4 mr-1" />
+                  Fill Full Balance
+                </Button>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Amount</Label>
@@ -1357,6 +1508,43 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                 </SelectContent>
               </Select>
             </div>
+            {commissionForm.salespersonId && getPendingCommissions().length > 0 && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-purple-400" />
+                  Pending Commissions to Pay
+                </Label>
+                <Select 
+                  onValueChange={(value) => {
+                    const commission = getPendingCommissions().find((c: any) => c.id.toString() === value);
+                    if (commission) {
+                      setCommissionForm({
+                        ...commissionForm,
+                        totalAmount: commission.totalAmount?.toString() || "",
+                        period: commission.period || commissionForm.period,
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger data-testid="select-commission-autofill">
+                    <SelectValue placeholder="Select pending commission to pay" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getPendingCommissions().map((c: any) => (
+                      <SelectItem key={c.id} value={c.id.toString()}>
+                        <span className="flex items-center gap-2">
+                          <Calculator className="h-3 w-3" />
+                          {c.period}: {formatCurrency(c.totalAmount)}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Select to auto-fill amount from pending commission records
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Amount</Label>
