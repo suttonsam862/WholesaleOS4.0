@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { Map, MapPinned, Loader2, AlertTriangle, Building2, Target, ShoppingCart, Palette } from "lucide-react";
+import { Map, MapPinned, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ClusteredMapCanvas } from "./map/ClusteredMapCanvas";
 import { TopHUD } from "./hud/TopHUD";
@@ -14,7 +14,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { FloatingDock } from "@/components/layout/floating-dock";
-import { motion, AnimatePresence } from "framer-motion";
 
 export default function SalesMapShell() {
   const { user } = useAuth();
@@ -234,6 +233,9 @@ export default function SalesMapShell() {
           }
         }}
         onAttentionItemClick={handleAttentionItemClick}
+        filters={filters}
+        onFiltersChange={setFilters}
+        entityCounts={entityCounts}
       />
 
       <AttentionDashboard
@@ -284,42 +286,6 @@ export default function SalesMapShell() {
         </Button>
       </div>
 
-      <div className="absolute bottom-24 right-4 z-20">
-        <div className="flex flex-wrap gap-2 p-3 bg-background/90 backdrop-blur-lg rounded-lg border border-white/10">
-          <FilterToggle
-            active={filters.showOrganizations}
-            onClick={() => setFilters(f => ({ ...f, showOrganizations: !f.showOrganizations }))}
-            icon={Building2}
-            label="Organizations"
-            color="#3b82f6"
-            count={entityCounts.organizations}
-          />
-          <FilterToggle
-            active={filters.showLeads}
-            onClick={() => setFilters(f => ({ ...f, showLeads: !f.showLeads }))}
-            icon={Target}
-            label="Leads"
-            color="#f59e0b"
-            count={entityCounts.leads}
-          />
-          <FilterToggle
-            active={filters.showOrders}
-            onClick={() => setFilters(f => ({ ...f, showOrders: !f.showOrders }))}
-            icon={ShoppingCart}
-            label="Orders"
-            color="#22c55e"
-            count={entityCounts.orders}
-          />
-          <FilterToggle
-            active={filters.showDesignJobs}
-            onClick={() => setFilters(f => ({ ...f, showDesignJobs: !f.showDesignJobs }))}
-            icon={Palette}
-            label="Design"
-            color="#a855f7"
-            count={entityCounts.designJobs}
-          />
-        </div>
-      </div>
 
       {isLoading && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
@@ -332,39 +298,5 @@ export default function SalesMapShell() {
 
       <FloatingDock onSearchClick={() => setIsCommandPaletteOpen(true)} user={user} />
     </div>
-  );
-}
-
-interface FilterToggleProps {
-  active: boolean;
-  onClick: () => void;
-  icon: typeof Building2;
-  label: string;
-  color: string;
-  count: number;
-}
-
-function FilterToggle({ active, onClick, icon: Icon, label, color, count }: FilterToggleProps) {
-  return (
-    <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={onClick}
-      className={cn(
-        "flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200",
-        active
-          ? "bg-white/10 border border-white/20"
-          : "bg-transparent border border-transparent opacity-50 hover:opacity-75"
-      )}
-      data-testid={`filter-toggle-${label.toLowerCase()}`}
-    >
-      <div
-        className="w-3 h-3 rounded-full"
-        style={{ background: active ? color : "#666" }}
-      />
-      <Icon className="h-4 w-4" style={{ color: active ? color : "#888" }} />
-      <span className="text-xs font-medium">{label}</span>
-      <span className="text-xs opacity-60">({count})</span>
-    </motion.button>
   );
 }

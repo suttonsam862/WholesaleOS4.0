@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, Package, MapPin, ExternalLink, AlertTriangle, Clock, Palette, Target, ShoppingCart } from "lucide-react";
+import { ChevronDown, ChevronUp, Package, MapPin, ExternalLink, AlertTriangle, Clock, Palette, Target, ShoppingCart, Building2, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAttentionData } from "../data/useMapFeed";
-import type { AttentionItem, EntityType } from "../types";
+import type { AttentionItem, EntityType, MapFilters } from "../types";
+import { motion } from "framer-motion";
 
 interface MapOrder {
   id: number;
@@ -18,9 +19,20 @@ interface MapOrder {
   lng: number | null;
 }
 
+interface EntityCounts {
+  organizations: number;
+  leads: number;
+  orders: number;
+  designJobs: number;
+  attention: number;
+}
+
 interface OrdersPanelProps {
   onOrderClick?: (order: MapOrder) => void;
   onAttentionItemClick?: (item: AttentionItem) => void;
+  filters?: MapFilters;
+  onFiltersChange?: (filters: MapFilters) => void;
+  entityCounts?: EntityCounts;
 }
 
 type TabType = "orders" | "attention";
@@ -46,9 +58,10 @@ const entityColors: Record<EntityType, string> = {
   organization: "text-blue-500",
 };
 
-export function OrdersPanel({ onOrderClick, onAttentionItemClick }: OrdersPanelProps) {
+export function OrdersPanel({ onOrderClick, onAttentionItemClick, filters, onFiltersChange, entityCounts }: OrdersPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>("orders");
+  const [showFilters, setShowFilters] = useState(false);
 
   const { data: ordersData, isLoading: ordersLoading } = useQuery<{ orders: MapOrder[] }>({
     queryKey: ["/api/sales-map/orders"],
@@ -111,38 +124,104 @@ export function OrdersPanel({ onOrderClick, onAttentionItemClick }: OrdersPanelP
     }
   };
 
+  const activeFilterCount = filters
+    ? (filters.showOrganizations ? 1 : 0) +
+      (filters.showLeads ? 1 : 0) +
+      (filters.showOrders ? 1 : 0) +
+      (filters.showDesignJobs ? 1 : 0)
+    : 0;
+
+  const toggleFilter = (key: keyof MapFilters) => {
+    if (onFiltersChange && filters) {
+      onFiltersChange({ ...filters, [key]: !filters[key] });
+    }
+  };
+
   return (
     <div
       className={cn(
-        "absolute bottom-4 right-4 z-20 w-80 bg-background/95 backdrop-blur-lg rounded-lg border border-white/10 shadow-xl transition-all duration-300",
-        isExpanded ? "max-h-[450px]" : "max-h-12"
+        "absolute bottom-4 right-4 z-30 w-80 max-w-[calc(100vw-2rem)] bg-background/95 backdrop-blur-lg rounded-lg border border-white/10 shadow-xl transition-all duration-300",
+        isExpanded ? "max-h-[500px]" : "max-h-12"
       )}
       data-testid="orders-panel"
     >
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors rounded-t-lg"
-        data-testid="orders-panel-toggle"
-      >
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          data-testid="orders-panel-toggle"
+        >
           <Package className="h-4 w-4 text-primary" />
-          <span className="font-medium text-sm">Orders & Attention</span>
+          <span className="font-medium text-sm">Map Controls</span>
           {attentionCount > 0 && (
             <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">
               <AlertTriangle className="h-3 w-3" />
               {attentionCount}
             </span>
           )}
-        </div>
-        {isExpanded ? (
-          <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        ) : (
-          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          {isExpanded ? (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          )}
+        </button>
+        
+        {filters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className={cn(
+              "h-7 px-2 gap-1",
+              showFilters && "bg-white/10"
+            )}
+            data-testid="toggle-filters"
+          >
+            <Filter className="h-3.5 w-3.5" />
+            <span className="text-xs">{activeFilterCount}</span>
+          </Button>
         )}
-      </button>
+      </div>
 
       {isExpanded && (
         <div className="flex flex-col">
+          {showFilters && filters && (
+            <div className="flex flex-wrap gap-1.5 p-2 border-b border-white/10 bg-white/5">
+              <FilterChip
+                active={filters.showOrganizations}
+                onClick={() => toggleFilter("showOrganizations")}
+                icon={Building2}
+                label="Orgs"
+                color="#3b82f6"
+                count={entityCounts?.organizations || 0}
+              />
+              <FilterChip
+                active={filters.showLeads}
+                onClick={() => toggleFilter("showLeads")}
+                icon={Target}
+                label="Leads"
+                color="#f59e0b"
+                count={entityCounts?.leads || 0}
+              />
+              <FilterChip
+                active={filters.showOrders}
+                onClick={() => toggleFilter("showOrders")}
+                icon={ShoppingCart}
+                label="Orders"
+                color="#22c55e"
+                count={entityCounts?.orders || 0}
+              />
+              <FilterChip
+                active={filters.showDesignJobs}
+                onClick={() => toggleFilter("showDesignJobs")}
+                icon={Palette}
+                label="Design"
+                color="#a855f7"
+                count={entityCounts?.designJobs || 0}
+              />
+            </div>
+          )}
+          
           <div className="flex border-b border-white/10 px-2">
             <button
               onClick={() => setActiveTab("orders")}
@@ -339,5 +418,39 @@ export function OrdersPanel({ onOrderClick, onAttentionItemClick }: OrdersPanelP
         </div>
       )}
     </div>
+  );
+}
+
+interface FilterChipProps {
+  active: boolean;
+  onClick: () => void;
+  icon: typeof Building2;
+  label: string;
+  color: string;
+  count: number;
+}
+
+function FilterChip({ active, onClick, icon: Icon, label, color, count }: FilterChipProps) {
+  return (
+    <motion.button
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 px-2 py-1 rounded-md transition-all duration-200 text-xs",
+        active
+          ? "bg-white/10 border border-white/20"
+          : "bg-transparent border border-transparent opacity-50 hover:opacity-75"
+      )}
+      data-testid={`filter-chip-${label.toLowerCase()}`}
+    >
+      <div
+        className="w-2.5 h-2.5 rounded-full"
+        style={{ background: active ? color : "#666" }}
+      />
+      <Icon className="h-3.5 w-3.5" style={{ color: active ? color : "#888" }} />
+      <span className="font-medium">{label}</span>
+      <span className="opacity-60">({count})</span>
+    </motion.button>
   );
 }

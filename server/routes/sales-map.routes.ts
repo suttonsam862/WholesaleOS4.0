@@ -67,12 +67,12 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
     if (wantOrgs) {
       const orgConditions: any[] = [
         eq(organizations.archived, false),
-        isNotNull(organizations.geoLat),
-        isNotNull(organizations.geoLng),
       ];
       
       if (hasBounds) {
         orgConditions.push(
+          isNotNull(organizations.geoLat),
+          isNotNull(organizations.geoLng),
           gte(sql`CAST(${organizations.geoLat} AS FLOAT)`, southVal),
           lte(sql`CAST(${organizations.geoLat} AS FLOAT)`, northVal),
           buildLngCondition(organizations.geoLng, westVal, eastVal)
@@ -167,28 +167,31 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
       });
     }
 
-    const mappedOrgs = orgResults.map((org) => ({
-      id: org.id,
-      type: "organization" as const,
-      name: org.name,
-      lat: org.geoLat ? parseFloat(String(org.geoLat)) : 0,
-      lng: org.geoLng ? parseFloat(String(org.geoLng)) : 0,
-      city: org.city || undefined,
-      state: org.state || undefined,
-      clientType: org.clientType || undefined,
-      orderCount: orderCounts[org.id] || 0,
-      leadCount: leadCounts[org.id] || 0,
-      logoUrl: org.logoUrl || undefined,
-    }));
+    const mappedOrgs = orgResults
+      .filter((org) => org.geoLat && org.geoLng)
+      .map((org) => ({
+        id: org.id,
+        type: "organization" as const,
+        name: org.name,
+        lat: parseFloat(String(org.geoLat)),
+        lng: parseFloat(String(org.geoLng)),
+        city: org.city || undefined,
+        state: org.state || undefined,
+        clientType: org.clientType || undefined,
+        orderCount: orderCounts[org.id] || 0,
+        leadCount: leadCounts[org.id] || 0,
+        logoUrl: org.logoUrl || undefined,
+      }));
 
     const orgNameMap: Record<number, string> = {};
-    const orgGeoMap: Record<number, { lat: number; lng: number }> = {};
+    const orgGeoMap: Record<number, { lat: number; lng: number; name: string }> = {};
     orgResults.forEach((o) => {
       orgNameMap[o.id] = o.name;
       if (o.geoLat && o.geoLng) {
         orgGeoMap[o.id] = {
           lat: parseFloat(String(o.geoLat)),
           lng: parseFloat(String(o.geoLng)),
+          name: o.name,
         };
       }
     });
@@ -224,6 +227,34 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
           sql`${orders.status} IN (${sql.join(activeStatuses.map(s => sql`${s}`), sql`, `)})`
         )
         .limit(500);
+
+      const orderOrgIds = orderResults
+        .map((o) => o.orgId)
+        .filter((id): id is number => id !== null && !(id in orgGeoMap));
+      
+      if (orderOrgIds.length > 0) {
+        const uniqueOrderOrgIds = Array.from(new Set(orderOrgIds));
+        const orderOrgs = await db
+          .select({
+            id: organizations.id,
+            name: organizations.name,
+            geoLat: organizations.geoLat,
+            geoLng: organizations.geoLng,
+          })
+          .from(organizations)
+          .where(sql`${organizations.id} IN (${sql.join(uniqueOrderOrgIds.map(id => sql`${id}`), sql`, `)})`);
+
+        orderOrgs.forEach((org) => {
+          orgNameMap[org.id] = org.name;
+          if (org.geoLat && org.geoLng) {
+            orgGeoMap[org.id] = {
+              lat: parseFloat(String(org.geoLat)),
+              lng: parseFloat(String(org.geoLng)),
+              name: org.name,
+            };
+          }
+        });
+      }
     }
 
     const mappedOrders = orderResults.map((order) => {
@@ -263,6 +294,34 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
           )
         )
         .limit(500);
+
+      const designJobOrgIds = designJobResults
+        .map((j) => j.orgId)
+        .filter((id): id is number => id !== null && !(id in orgGeoMap));
+      
+      if (designJobOrgIds.length > 0) {
+        const uniqueDesignJobOrgIds = Array.from(new Set(designJobOrgIds));
+        const designJobOrgs = await db
+          .select({
+            id: organizations.id,
+            name: organizations.name,
+            geoLat: organizations.geoLat,
+            geoLng: organizations.geoLng,
+          })
+          .from(organizations)
+          .where(sql`${organizations.id} IN (${sql.join(uniqueDesignJobOrgIds.map(id => sql`${id}`), sql`, `)})`);
+
+        designJobOrgs.forEach((org) => {
+          orgNameMap[org.id] = org.name;
+          if (org.geoLat && org.geoLng) {
+            orgGeoMap[org.id] = {
+              lat: parseFloat(String(org.geoLat)),
+              lng: parseFloat(String(org.geoLng)),
+              name: org.name,
+            };
+          }
+        });
+      }
     }
 
     const mappedDesignJobs = designJobResults.map((job) => {
