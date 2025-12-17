@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { MapCanvas } from "./map/MapCanvas";
 import { TopHUD } from "./hud/TopHUD";
 import { RightDrawer } from "./panels/RightDrawer";
-import { CollapsibleSidebar } from "./panels/CollapsibleSidebar";
 import { OrdersPanel } from "./panels/OrdersPanel";
 import { useMapFeed } from "./data/useMapFeed";
 import type { MapEntity, MapMode, MapFilters } from "./types";
@@ -14,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { FloatingDock } from "@/components/layout/floating-dock";
 
 export default function SalesMapShell() {
   const { user } = useAuth();
@@ -27,7 +27,7 @@ export default function SalesMapShell() {
   });
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEntity, setSelectedEntity] = useState<MapEntity | null>(null);
-  const [sidebarExpanded, setSidebarExpanded] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [bounds, setBounds] = useState<{
     north: number;
     south: number;
@@ -124,32 +124,8 @@ export default function SalesMapShell() {
   }, [feedData?.leads, filters.showLeads, filters.myItemsOnly, user?.id, searchQuery]);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-background" data-testid="sales-map-shell">
-      <CollapsibleSidebar
-        isExpanded={sidebarExpanded}
-        onToggle={() => setSidebarExpanded(!sidebarExpanded)}
-      />
-
-      <div
-        className={cn(
-          "absolute top-4 z-30 transition-all duration-300",
-          sidebarExpanded ? "left-60" : "left-20"
-        )}
-      >
-        <Link href="/sales/home">
-          <Button
-            variant="outline"
-            size="sm"
-            className="bg-background/90 backdrop-blur-lg border-white/10 gap-2"
-            data-testid="back-to-sales-home"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Sales Home
-          </Button>
-        </Link>
-      </div>
-
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
+    <div className="relative h-screen w-screen overflow-hidden bg-background flex flex-col" data-testid="sales-map-shell">
+      <div className="absolute top-4 left-4 z-30">
         <div className="flex items-center gap-2 px-4 py-2 bg-background/90 backdrop-blur-lg rounded-lg border border-white/10">
           <Map className="h-5 w-5 text-primary" />
           <span className="font-semibold">Sales Map</span>
@@ -159,12 +135,7 @@ export default function SalesMapShell() {
         </div>
       </div>
 
-      <div
-        className={cn(
-          "absolute top-16 right-4 z-10 transition-all duration-300",
-          sidebarExpanded ? "left-60" : "left-20"
-        )}
-      >
+      <div className="absolute top-4 right-4 z-30">
         <TopHUD
           mode={mode}
           onModeChange={setMode}
@@ -177,12 +148,7 @@ export default function SalesMapShell() {
         />
       </div>
 
-      <div
-        className={cn(
-          "absolute top-0 bottom-0 right-0 transition-all duration-300",
-          sidebarExpanded ? "left-56" : "left-14"
-        )}
-      >
+      <div className="absolute top-0 bottom-0 left-0 right-0 z-10">
         <MapCanvas
           organizations={displayedOrganizations}
           leads={displayedLeads}
@@ -212,12 +178,7 @@ export default function SalesMapShell() {
         }}
       />
 
-      <div
-        className={cn(
-          "absolute bottom-4 z-20 transition-all duration-300",
-          sidebarExpanded ? "left-60" : "left-20"
-        )}
-      >
+      <div className="absolute bottom-4 left-4 z-20">
         <Button
           variant="outline"
           size="sm"
@@ -236,18 +197,15 @@ export default function SalesMapShell() {
       </div>
 
       {isLoading && (
-        <div
-          className={cn(
-            "absolute bottom-4 z-10 transition-all duration-300",
-            sidebarExpanded ? "left-60" : "left-20"
-          )}
-        >
+        <div className="absolute bottom-4 left-4 z-10">
           <div className="flex items-center gap-2 px-3 py-2 bg-background/90 backdrop-blur-lg rounded-lg border border-white/10">
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent" />
             <span className="text-sm">Loading map data...</span>
           </div>
         </div>
       )}
+
+      <FloatingDock onSearchClick={() => setIsCommandPaletteOpen(true)} user={user} />
     </div>
   );
 }

@@ -79,8 +79,8 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
 
   const featureFlags = getAllFlags();
   const homePath = user?.role ? getDefaultLandingForRole(user.role as UserRole, featureFlags) : "/";
-  const isHomeActive = location === homePath || location === "/" || 
-    (user?.role && location === `/${user.role}/home`);
+  const isHomeActive = location === homePath || location === "/";
+  const homeLabel = user?.role === "sales" ? "Map" : "Home";
 
   return (
     <div 
@@ -93,7 +93,7 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
         mouseX={mouseX}
         href={homePath}
         icon={Home}
-        label="Home"
+        label={homeLabel}
         isActive={isHomeActive}
         testId="dock-home"
       />

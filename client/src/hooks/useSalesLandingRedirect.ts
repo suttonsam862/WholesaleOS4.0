@@ -1,7 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { getRoleHomePath, isFeatureEnabled } from "@/lib/featureFlags";
+import { isFeatureEnabled, getFeatureFlags } from "@/lib/featureFlags";
+import { getDefaultLandingForRole } from "@/lib/navigationRegistry";
+import type { UserRole } from "@/lib/permissions";
 
 export function useSalesLandingRedirect() {
   const { user, isAuthenticated } = useAuth();
@@ -22,10 +24,11 @@ export function useSalesLandingRedirect() {
     // Mark as redirected to prevent loops
     hasRedirected.current = true;
 
-    // Get the role-specific home page
-    const homeRoute = getRoleHomePath(user.role);
-    if (homeRoute && homeRoute !== "/") {
-      setLocation(homeRoute);
+    // Get the role-specific default landing (for sales, this is the map)
+    const featureFlags = getFeatureFlags() as unknown as Record<string, boolean>;
+    const defaultRoute = getDefaultLandingForRole(user.role as UserRole, featureFlags);
+    if (defaultRoute && defaultRoute !== "/") {
+      setLocation(defaultRoute);
     }
   }, [isAuthenticated, user, location, setLocation]);
 
