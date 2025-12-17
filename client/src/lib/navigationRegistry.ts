@@ -1044,10 +1044,8 @@ export function isPageVisibleForRole(
   role: UserRole,
   featureFlags: Record<string, boolean>
 ): boolean {
-  // Admin and ops users can always see pages they have access to, regardless of feature flags
-  const isAdminOrOps = role === "admin" || role === "ops";
-  
-  if (page.featureFlag && !featureFlags[page.featureFlag] && !isAdminOrOps) {
+  // Check feature flag first - all roles must respect feature flags
+  if (page.featureFlag && !featureFlags[page.featureFlag]) {
     return false;
   }
 
@@ -1136,20 +1134,33 @@ export function getDefaultLandingForRole(role: UserRole, featureFlags: Record<st
     return getSalesDefaultLanding(featureFlags);
   }
   
-  if (role === "ops" && featureFlags.salesMapEnabled) {
-    return "/sales-map";
+  // Only use role-specific home pages if enableRoleHome feature flag is enabled
+  if (featureFlags.enableRoleHome) {
+    const roleDefaults: Record<UserRole, string> = {
+      admin: "/admin/home",
+      sales: "/sales-map",
+      designer: "/designer/home",
+      ops: "/ops/home",
+      manufacturer: "/manufacturer/home",
+      finance: "/finance"
+    };
+    
+    if (roleDefaults[role]) {
+      return roleDefaults[role];
+    }
   }
   
-  const roleDefaults: Record<UserRole, string> = {
-    admin: "/",
-    sales: "/sales-map",
+  // Fallback to safe defaults when role home is disabled
+  const fallbackDefaults: Record<UserRole, string> = {
+    admin: "/orders",
+    sales: "/leads",
     designer: "/design-jobs",
     ops: "/manufacturing",
     manufacturer: "/manufacturing",
     finance: "/finance"
   };
   
-  return roleDefaults[role] || "/";
+  return fallbackDefaults[role] || "/";
 }
 
 export function getGroupLandingForRole(
@@ -1157,6 +1168,15 @@ export function getGroupLandingForRole(
   role: UserRole,
   featureFlags?: Record<string, boolean>
 ): string {
+  // For sales-crm group, use sales-map if feature flag is enabled
+  if (group.id === "sales-crm") {
+    const canAccessSalesMap = featureFlags && featureFlags.salesMapEnabled;
+    if (canAccessSalesMap && (role === "admin" || role === "ops" || role === "sales")) {
+      return "/sales-map";
+    }
+    return group.landingPathDefault;
+  }
+  
   if (role === "sales" && group.landingPathSales) {
     if (group.landingPathSales === "/sales-map") {
       if (featureFlags && !featureFlags.salesMapEnabled) {

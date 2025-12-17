@@ -79,8 +79,12 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
 
   const featureFlags = getAllFlags();
   const homePath = user?.role ? getDefaultLandingForRole(user.role as UserRole, featureFlags) : "/";
-  const isHomeActive = location === homePath || location === "/";
-  const homeLabel = user?.role === "sales" ? "Map" : "Home";
+  
+  // For sales users, show Map icon as home; for others show Home icon
+  const isSalesUser = user?.role === "sales";
+  const homeIcon = isSalesUser ? Target : Home;
+  const homeLabel = isSalesUser ? "Map" : "Home";
+  const isHomeActive = location === homePath || (homePath !== "/" && location.startsWith(homePath));
 
   return (
     <div 
@@ -92,7 +96,7 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
       <DockGroupItem
         mouseX={mouseX}
         href={homePath}
-        icon={Home}
+        icon={homeIcon}
         label={homeLabel}
         isActive={isHomeActive}
         testId="dock-home"
@@ -173,8 +177,8 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
                     )}
                     data-testid="more-home"
                   >
-                    <Home className="w-5 h-5" />
-                    <span className="text-xs font-medium">Home</span>
+                    {isSalesUser ? <Target className="w-5 h-5" /> : <Home className="w-5 h-5" />}
+                    <span className="text-xs font-medium">{homeLabel}</span>
                   </div>
                 </Link>
 
