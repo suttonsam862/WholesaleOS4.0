@@ -1442,6 +1442,28 @@ export function registerOrdersRoutes(app: Express): void {
           xxxxl: item.xxxxl || 0,
         }));
         await storage.bulkCreateOrderFormLineItemSizes(sizeItems);
+
+        // Also update the actual order line items with the new sizes
+        // Note: qtyTotal is a generated column, so we only update the individual size fields
+        // Coerce all values to numbers to handle string inputs from frontend
+        for (const item of lineItemSizes) {
+          if (item.lineItemId) {
+            await storage.updateOrderLineItem(item.lineItemId, {
+              yxs: Number(item.yxs) || 0,
+              ys: Number(item.ys) || 0,
+              ym: Number(item.ym) || 0,
+              yl: Number(item.yl) || 0,
+              xs: Number(item.xs) || 0,
+              s: Number(item.s) || 0,
+              m: Number(item.m) || 0,
+              l: Number(item.l) || 0,
+              xl: Number(item.xl) || 0,
+              xxl: Number(item.xxl) || 0,
+              xxxl: Number(item.xxxl) || 0,
+              xxxxl: Number(item.xxxxl) || 0,
+            });
+          }
+        }
       }
 
       res.status(201).json({ 

@@ -171,6 +171,64 @@ export default function CustomerOrderForm() {
     enabled: !!orderId,
   });
 
+  // Helper to parse shipping address string into structured fields
+  const parseShippingAddress = (addressStr: string | null) => {
+    if (!addressStr) return null;
+    const lines = addressStr.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) return null;
+    
+    // Expected formats:
+    // 4 lines: Recipient name, Street address, City/State/ZIP, Country
+    // 3 lines: Street address, City/State/ZIP, Country (no name)
+    // 2 lines: Street address, City/State/ZIP (no name, no country)
+    // 1 line: Just the street address
+    let name = '', address = '', city = '', state = '', zip = '', country = 'USA';
+    
+    // Helper to parse "City, State ZIP" format
+    const parseCityStateZip = (str: string) => {
+      const match = str.match(/^(.+?),?\s*([A-Z]{2})?\s*(\d{5}(?:-\d{4})?)?$/i);
+      if (match) {
+        return {
+          city: match[1]?.trim() || '',
+          state: match[2] || '',
+          zip: match[3] || ''
+        };
+      }
+      return { city: str, state: '', zip: '' };
+    };
+    
+    if (lines.length >= 4) {
+      // Full format with name: Name, Address, City/State/ZIP, Country
+      name = lines[0];
+      address = lines[1];
+      const parsed = parseCityStateZip(lines[2]);
+      city = parsed.city;
+      state = parsed.state;
+      zip = parsed.zip;
+      country = lines[3] || 'USA';
+    } else if (lines.length === 3) {
+      // No name: Address, City/State/ZIP, Country
+      address = lines[0];
+      const parsed = parseCityStateZip(lines[1]);
+      city = parsed.city;
+      state = parsed.state;
+      zip = parsed.zip;
+      country = lines[2] || 'USA';
+    } else if (lines.length === 2) {
+      // Just address and city/state
+      address = lines[0];
+      const parsed = parseCityStateZip(lines[1]);
+      city = parsed.city;
+      state = parsed.state;
+      zip = parsed.zip;
+    } else {
+      // Single line - just use as address
+      address = lines[0];
+    }
+    
+    return { name, address, city, state, zip, country };
+  };
+
   // Initialize line item sizes from fetched data
   useEffect(() => {
     if (orderData?.lineItems) {
@@ -194,8 +252,11 @@ export default function CustomerOrderForm() {
       });
       setFormData(prev => ({ ...prev, lineItemSizes: initialSizes }));
 
-      // Pre-fill contact info if available
+      // Pre-fill contact info and shipping address if available
       if (orderData.order) {
+        const parsedShipping = parseShippingAddress(orderData.order.shippingAddress);
+        const parsedBilling = parseShippingAddress(orderData.order.billToAddress);
+        
         setFormData(prev => ({
           ...prev,
           contactInfo: {
@@ -203,6 +264,10 @@ export default function CustomerOrderForm() {
             email: orderData.order.contactEmail || '',
             phone: orderData.order.contactPhone || '',
           },
+          shippingAddress: parsedShipping || prev.shippingAddress,
+          billingAddress: parsedBilling 
+            ? { ...parsedBilling, sameAsShipping: false }
+            : prev.billingAddress,
         }));
       }
     }
