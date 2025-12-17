@@ -1044,7 +1044,10 @@ export function isPageVisibleForRole(
   role: UserRole,
   featureFlags: Record<string, boolean>
 ): boolean {
-  if (page.featureFlag && !featureFlags[page.featureFlag]) {
+  // Admin and ops users can always see pages they have access to, regardless of feature flags
+  const isAdminOrOps = role === "admin" || role === "ops";
+  
+  if (page.featureFlag && !featureFlags[page.featureFlag] && !isAdminOrOps) {
     return false;
   }
 
