@@ -108,7 +108,7 @@ function createMarkerElement(
   isHighlighted: boolean,
   zoom: number,
   onClick: (e: MouseEvent) => void
-): HTMLDivElement {
+): { element: HTMLDivElement; iconSize: number } {
   const el = document.createElement('div');
   el.className = 'map-marker';
   el.setAttribute('data-testid', `marker-${entity.type}-${entity.id}`);
@@ -213,7 +213,7 @@ function createMarkerElement(
   });
   el.addEventListener('click', onClick);
   
-  return el;
+  return { element: el, iconSize: size };
 }
 
 function createLabelElement(entity: MapEntity): HTMLDivElement {
@@ -243,7 +243,7 @@ function createClusterElement(
   cluster: ClusterData,
   zoom: number,
   onClick: (e: MouseEvent) => void
-): HTMLDivElement {
+): { element: HTMLDivElement; iconSize: number } {
   const el = document.createElement('div');
   el.className = 'map-cluster';
   el.setAttribute('data-testid', `cluster-${cluster.entities.length}`);
@@ -390,7 +390,7 @@ function createClusterElement(
   });
   el.addEventListener('click', onClick);
   
-  return el;
+  return { element: el, iconSize: size };
 }
 
 function calculateClusters(
@@ -609,15 +609,23 @@ export function ClusteredMapCanvas({
         onEntityClickRef.current?.(entity);
       };
       
-      const el = createMarkerElement(entity, isSelected, isHighlighted, currentZoom, handleClick);
+      const { element: el, iconSize } = createMarkerElement(entity, isSelected, isHighlighted, currentZoom, handleClick);
       
+      // Add label at higher zoom levels
       if (currentZoom > 9) {
         const label = createLabelElement(entity);
         el.appendChild(label);
         labelsRef.current.set(key, label);
       }
       
-      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+      // Use anchor 'bottom' and offset to ensure coordinate is at icon center
+      // This avoids getBoundingClientRect issues with absolute positioned children
+      // In MapLibre, negative y offset moves marker UP
+      const marker = new maplibregl.Marker({ 
+        element: el, 
+        anchor: 'bottom',
+        offset: [0, -(iconSize / 2)] // Negative to shift UP by half icon size
+      })
         .setLngLat([entity.lng, entity.lat])
         .addTo(map.current!);
       
@@ -654,9 +662,16 @@ export function ClusteredMapCanvas({
         }
       };
       
-      const el = createClusterElement(cluster, currentZoom, handleClick);
+      const { element: el, iconSize } = createClusterElement(cluster, currentZoom, handleClick);
       
-      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+      // Use anchor 'bottom' and offset to ensure coordinate is at icon center
+      // Cluster always has legend below, so we use the icon size for offset
+      // In MapLibre, negative y offset moves marker UP
+      const marker = new maplibregl.Marker({ 
+        element: el, 
+        anchor: 'bottom',
+        offset: [0, -(iconSize / 2)] // Negative to shift UP by half icon size
+      })
         .setLngLat([cluster.centerLng, cluster.centerLat])
         .addTo(map.current!);
       
