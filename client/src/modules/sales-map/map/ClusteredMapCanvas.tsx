@@ -288,7 +288,7 @@ function createClusterElement(
     align-items: center;
     justify-content: center;
     position: relative;
-    transition: transform 0.15s ease;
+    transition: box-shadow 0.15s ease;
     z-index: 50;
   `;
   
@@ -381,10 +381,12 @@ function createClusterElement(
   el.appendChild(legend);
   
   el.addEventListener('mouseenter', () => {
-    el.style.transform = 'scale(1.1)';
+    el.style.boxShadow = `0 0 30px ${dominantColor}80, 0 0 60px ${dominantColor}40, 0 4px 12px rgba(0,0,0,0.4)`;
+    el.style.zIndex = '1050';
   });
   el.addEventListener('mouseleave', () => {
-    el.style.transform = 'scale(1)';
+    el.style.boxShadow = `0 0 20px ${dominantColor}40, 0 0 40px ${dominantColor}20`;
+    el.style.zIndex = '50';
   });
   el.addEventListener('click', onClick);
   
