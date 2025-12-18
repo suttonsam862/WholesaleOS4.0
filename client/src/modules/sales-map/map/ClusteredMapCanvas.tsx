@@ -573,6 +573,36 @@ export function ClusteredMapCanvas({
     onEntityClickRef.current = onEntityClick;
   }, [onEntityClick]);
 
+  // Debug: Add a test marker at a known location (New York City)
+  useEffect(() => {
+    if (!map.current || !isMapReady) return;
+    
+    // Test marker at NYC: lat 40.7128, lng -74.0060
+    const testEl = document.createElement('div');
+    testEl.style.cssText = `
+      width: 40px;
+      height: 40px;
+      background: red;
+      border: 4px solid yellow;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 10px;
+    `;
+    testEl.textContent = 'NYC';
+    
+    const testMarker = new maplibregl.Marker({ element: testEl })
+      .setLngLat([-74.0060, 40.7128]) // NYC coordinates
+      .addTo(map.current);
+      
+    console.log('[MapDebug] Added test marker at NYC [-74.0060, 40.7128]');
+    
+    return () => { testMarker.remove(); };
+  }, [isMapReady]);
+
   useEffect(() => {
     if (!map.current || !isMapReady) return;
     
