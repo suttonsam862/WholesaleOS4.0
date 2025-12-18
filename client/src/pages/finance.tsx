@@ -50,6 +50,12 @@ import {
   Calculator
 } from "lucide-react";
 import { FinancialMatchingModal } from "@/components/modals/financial-matching-modal";
+import { 
+  AmountSuggestionPanel, 
+  CommissionBreakdown, 
+  PaymentSuggestionPanel,
+  type AmountSuggestion 
+} from "@/components/shared/AmountSuggestionPanel";
 import { format } from "date-fns";
 import type { Invoice, InvoicePayment, CommissionPayment, InsertFinancialTransaction } from "@shared/schema";
 import { cn } from "@/lib/utils";
@@ -172,6 +178,7 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
   });
 
   const [expenseForm, setExpenseForm] = useState({
+    orderId: null as number | null,
     type: "expense" as "expense" | "refund" | "fee",
     amount: "",
     description: "",
@@ -309,8 +316,98 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
     retry: false,
   });
 
-  const getAutoTotalOptions = () => {
-    const options: { label: string; value: string; source: string }[] = [];
+  // Suggestion API queries for enhanced autofill
+  const { data: invoiceSuggestions, isLoading: invoiceSuggestionsLoading } = useQuery<{
+    suggestions: AmountSuggestion[];
+    orderDetails?: { orderCode: string; orderName: string; totalAmount: string };
+    orgDetails?: { name: string };
+  }>({
+    queryKey: ["/api/finance/suggestions/invoice", invoiceForm.orgId, invoiceForm.orderId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (invoiceForm.orgId) params.append('orgId', invoiceForm.orgId.toString());
+      if (invoiceForm.orderId) params.append('orderId', invoiceForm.orderId.toString());
+      const response = await fetch(`/api/finance/suggestions/invoice?${params.toString()}`, { credentials: 'include' });
+      return response.ok ? response.json() : { suggestions: [] };
+    },
+    enabled: !!(invoiceForm.orgId || invoiceForm.orderId),
+    retry: false,
+  });
+
+  const { data: commissionSuggestions, isLoading: commissionSuggestionsLoading } = useQuery<{
+    summary: {
+      totalSales: number;
+      commissionRate: number;
+      grossCommission: number;
+      alreadyPaid: number;
+      pendingApproval: number;
+      suggestedPayment: number;
+    };
+    orderBreakdown: Array<{
+      orderId: number;
+      orderCode: string;
+      orderName: string;
+      amount: number;
+      commission: number;
+      createdAt: string | null;
+    }>;
+  }>({
+    queryKey: ["/api/finance/suggestions/commission", commissionForm.salespersonId],
+    queryFn: async () => {
+      const response = await fetch(`/api/finance/suggestions/commission/${commissionForm.salespersonId}`, { credentials: 'include' });
+      return response.ok ? response.json() : null;
+    },
+    enabled: !!commissionForm.salespersonId,
+    retry: false,
+  });
+
+  const { data: paymentSuggestions, isLoading: paymentSuggestionsLoading } = useQuery<{
+    invoice: {
+      id: number;
+      invoiceNumber: string;
+      total: number;
+      paid: number;
+      outstanding: number;
+      status: string;
+    };
+    suggestions: AmountSuggestion[];
+    paymentHistory?: {
+      paymentCount: number;
+      totalPaid: number;
+      preferredMethod: string;
+      lastPaymentDate: string | null;
+    };
+  }>({
+    queryKey: ["/api/finance/suggestions/payment", paymentForm.invoiceId],
+    queryFn: async () => {
+      const response = await fetch(`/api/finance/suggestions/payment/${paymentForm.invoiceId}`, { credentials: 'include' });
+      return response.ok ? response.json() : null;
+    },
+    enabled: !!paymentForm.invoiceId,
+    retry: false,
+  });
+
+  const { data: expenseSuggestions, isLoading: expenseSuggestionsLoading } = useQuery<{
+    suggestions: AmountSuggestion[];
+    orderDetails?: { orderCode: string; orderName: string; totalAmount: string };
+  }>({
+    queryKey: ["/api/finance/suggestions/expense", expenseForm.orderId],
+    queryFn: async () => {
+      const response = await fetch(`/api/finance/suggestions/expense/${expenseForm.orderId}`, { credentials: 'include' });
+      return response.ok ? response.json() : { suggestions: [] };
+    },
+    enabled: !!expenseForm.orderId,
+    retry: false,
+  });
+
+  const getAutoTotalOptions = (): AmountSuggestion[] => {
+    // Use API suggestions if available
+    if (invoiceSuggestions?.suggestions && invoiceSuggestions.suggestions.length > 0) {
+      return invoiceSuggestions.suggestions;
+    }
+    
+    // Fallback to existing local logic
+    const options: AmountSuggestion[] = [];
     
     if (invoiceForm.orderId) {
       const order = orders.find((o: any) => o.id === invoiceForm.orderId);
@@ -318,7 +415,8 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
         options.push({
           label: `Order Total: $${parseFloat(order.totalAmount).toFixed(2)}`,
           value: order.totalAmount,
-          source: 'order'
+          source: 'order',
+          confidence: 'high'
         });
       }
       
@@ -328,7 +426,8 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
           options.push({
             label: `Quote ${q.quoteCode}: $${parseFloat(q.total).toFixed(2)}`,
             value: q.total,
-            source: 'quote'
+            source: 'quote',
+            confidence: 'medium'
           });
         }
       });
@@ -341,7 +440,8 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
           options.push({
             label: `Quote ${q.quoteCode}: $${parseFloat(q.total).toFixed(2)}`,
             value: q.total,
-            source: 'quote'
+            source: 'quote',
+            confidence: 'medium'
           });
         }
       });
@@ -352,7 +452,8 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
           options.push({
             label: `Order ${o.orderCode}: $${parseFloat(o.totalAmount).toFixed(2)}`,
             value: o.totalAmount,
-            source: 'order'
+            source: 'order',
+            confidence: 'medium'
           });
         }
       });
@@ -362,6 +463,12 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
   };
 
   const getPaymentAutofillAmount = () => {
+    // Use API suggestions if available
+    if (paymentSuggestions?.invoice) {
+      return paymentSuggestions.invoice.outstanding;
+    }
+    
+    // Fallback to existing local logic
     if (!paymentForm.invoiceId) return null;
     const invoice = invoices.find(inv => inv.id === paymentForm.invoiceId);
     if (!invoice) return null;
@@ -369,11 +476,59 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
   };
 
   const getPendingCommissions = () => {
+    // Use API suggestions if available
+    if (commissionSuggestions?.summary) {
+      return [{
+        id: 'suggested',
+        totalAmount: commissionSuggestions.summary.suggestedPayment.toFixed(2),
+        period: commissionForm.period,
+        status: 'pending'
+      }];
+    }
+    
+    // Fallback to existing local logic
     if (!commissionForm.salespersonId) return [];
     return commissions.filter((c: any) => 
       c.salespersonId === commissionForm.salespersonId && 
       c.status === 'pending'
     );
+  };
+  
+  const handleInvoiceSuggestionSelect = (value: string, details?: Record<string, any>) => {
+    const subtotal = value;
+    const taxRate = parseFloat(invoiceForm.taxRate) || 0;
+    const total = (parseFloat(subtotal) * (1 + taxRate / 100)).toFixed(2);
+    setInvoiceForm({ ...invoiceForm, subtotal, totalAmount: total });
+  };
+
+  const handlePaymentSuggestionSelect = (value: string) => {
+    setPaymentForm({ ...paymentForm, amount: value });
+  };
+
+  const handlePaymentMethodSelect = (method: string) => {
+    setPaymentForm({ ...paymentForm, paymentMethod: method as any });
+  };
+
+  const handleCommissionAmountSelect = (value: string) => {
+    setCommissionForm({ ...commissionForm, totalAmount: value });
+  };
+
+  const handleExpenseSuggestionSelect = (value: string, details?: Record<string, any>) => {
+    const categoryMap: Record<string, string> = {
+      'cogs': 'Operations',
+      'shipping': 'Travel',
+      'commission': 'Payroll'
+    };
+    
+    const category = details?.type ? (categoryMap[details.type] || expenseForm.category) : expenseForm.category;
+    const description = details?.label || expenseForm.description;
+    
+    setExpenseForm({
+      ...expenseForm,
+      amount: value,
+      category,
+      description
+    });
   };
 
   // Mutations for creating financial data
@@ -502,7 +657,7 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
 
   const resetExpenseForm = () => {
     setExpenseForm({
-      type: "expense", amount: "", description: "", category: "Operations",
+      orderId: null, type: "expense", amount: "", description: "", category: "Operations",
       paymentMethod: "check", dueDate: "", notes: "",
     });
   };
@@ -655,6 +810,39 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
   const totalPaid = invoicePayments.reduce((sum, p) => sum + Number(p.amount), 0);
   const totalCommissionsPaid = commissionPayments.reduce((sum, c) => sum + Number(c.totalAmount), 0);
 
+  // Anomaly Detection Calculations
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const sixtyDaysAgo = new Date();
+  sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+  const today = new Date();
+
+  // Unmatched Orders: Orders without invoices that are >30 days old
+  const unmatchedOrders = matchingOrders.filter(order => {
+    const isUnmatched = order.financialSummary.matchStatus === 'unmatched' || order.financialSummary.invoiceCount === 0;
+    const orderDate = order.createdAt ? new Date(order.createdAt) : null;
+    const isOldEnough = orderDate && orderDate < thirtyDaysAgo;
+    return isUnmatched && isOldEnough;
+  });
+
+  // Overdue Invoices: Invoices past due date with outstanding balance
+  const overdueInvoices = invoices.filter(inv => {
+    const isOverdue = inv.status === 'overdue';
+    const hasDueDate = inv.dueDate ? new Date(inv.dueDate) < today : false;
+    const hasOutstanding = Number(inv.amountDue || 0) > 0;
+    return isOverdue || (hasDueDate && hasOutstanding);
+  });
+
+  // Pending Commissions: Commissions unpaid for >60 days
+  const pendingCommissionsOld = commissions.filter((comm: any) => {
+    const isPending = comm.status === 'pending';
+    const commDate = comm.createdAt ? new Date(comm.createdAt) : null;
+    const isOldEnough = commDate && commDate < sixtyDaysAgo;
+    return isPending && isOldEnough;
+  });
+
+  const totalAnomalies = unmatchedOrders.length + overdueInvoices.length + pendingCommissionsOld.length;
+
   const formatCurrency = (amount: number | string) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -773,7 +961,17 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="bg-black/20 border-white/10">
-          <TabsTrigger value="overview" data-testid="tab-overview">All Records</TabsTrigger>
+          <TabsTrigger value="overview" data-testid="tab-overview" className="relative">
+            All Records
+            {totalAnomalies > 0 && (
+              <Badge 
+                className="ml-2 h-5 min-w-5 px-1.5 bg-red-500 text-white text-xs rounded-full" 
+                data-testid="badge-anomaly-count"
+              >
+                {totalAnomalies}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="matching" data-testid="tab-matching">
             <Link2 className="h-4 w-4 mr-2" />
             Financial Matching ({matchingOrders.length})
@@ -826,6 +1024,113 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                     <SelectItem value="overdue">Overdue</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Anomaly Detection Section */}
+          {totalAnomalies > 0 && (
+            <Card className="glass-card border-orange-500/30 bg-orange-500/5" data-testid="panel-anomaly-detection">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-orange-400">
+                  <AlertCircle className="h-5 w-5" />
+                  Attention Required
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {unmatchedOrders.length > 0 && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/20" data-testid="anomaly-unmatched-orders">
+                    <div className="h-8 w-8 rounded-full bg-orange-500/20 flex items-center justify-center">
+                      <AlertCircle className="h-4 w-4 text-orange-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-orange-300">Unmatched Orders</p>
+                      <p className="text-sm text-orange-400/80">{unmatchedOrders.length} order{unmatchedOrders.length !== 1 ? 's' : ''} without invoices (older than 30 days)</p>
+                    </div>
+                    <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30">{unmatchedOrders.length}</Badge>
+                  </div>
+                )}
+                {overdueInvoices.length > 0 && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20" data-testid="anomaly-overdue-invoices">
+                    <div className="h-8 w-8 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                      <AlertCircle className="h-4 w-4 text-yellow-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-yellow-300">Overdue Invoices</p>
+                      <p className="text-sm text-yellow-400/80">{overdueInvoices.length} invoice{overdueInvoices.length !== 1 ? 's' : ''} past due date with outstanding balance</p>
+                    </div>
+                    <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">{overdueInvoices.length}</Badge>
+                  </div>
+                )}
+                {pendingCommissionsOld.length > 0 && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20" data-testid="anomaly-pending-commissions">
+                    <div className="h-8 w-8 rounded-full bg-amber-500/20 flex items-center justify-center">
+                      <AlertCircle className="h-4 w-4 text-amber-400" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-amber-300">Pending Commissions</p>
+                      <p className="text-sm text-amber-400/80">{pendingCommissionsOld.length} commission{pendingCommissionsOld.length !== 1 ? 's' : ''} unpaid for more than 60 days</p>
+                    </div>
+                    <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">{pendingCommissionsOld.length}</Badge>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Quick Actions Section */}
+          <Card className="glass-card border-white/10">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Sparkles className="h-4 w-4" />
+                Quick Actions
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-3">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-white/20 hover:bg-white/10"
+                  onClick={() => {
+                    setActiveTab("matching");
+                    setMatchingStatusFilter("unmatched");
+                  }}
+                  data-testid="button-quick-action-view-unmatched"
+                >
+                  <Link2 className="h-4 w-4 mr-2" />
+                  View Unmatched
+                  {unmatchedOrders.length > 0 && (
+                    <Badge className="ml-2 h-5 min-w-5 px-1.5 bg-orange-500/20 text-orange-400 text-xs">{unmatchedOrders.length}</Badge>
+                  )}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-white/20 hover:bg-white/10 opacity-50 cursor-not-allowed"
+                  disabled
+                  title="Coming soon: Send payment reminders to clients with overdue invoices"
+                  data-testid="button-quick-action-send-reminders"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Send Reminders
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="border-white/20 hover:bg-white/10"
+                  onClick={() => {
+                    setActiveTab("commissions");
+                    setStatusFilter("pending");
+                  }}
+                  data-testid="button-quick-action-process-commissions"
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Process Commissions
+                  {pendingCommissionsOld.length > 0 && (
+                    <Badge className="ml-2 h-5 min-w-5 px-1.5 bg-amber-500/20 text-amber-400 text-xs">{pendingCommissionsOld.length}</Badge>
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -1297,38 +1602,16 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                 </Select>
               </div>
             </div>
-            {getAutoTotalOptions().length > 0 && (
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-amber-400" />
-                  Auto-fill from Order/Quote
-                </Label>
-                <Select 
-                  onValueChange={(value) => {
-                    const subtotal = value;
-                    const taxRate = parseFloat(invoiceForm.taxRate) || 0;
-                    const total = (parseFloat(subtotal) * (1 + taxRate / 100)).toFixed(2);
-                    setInvoiceForm({ ...invoiceForm, subtotal, totalAmount: total });
-                  }}
-                >
-                  <SelectTrigger data-testid="select-invoice-autofill">
-                    <SelectValue placeholder="Select amount to auto-fill" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getAutoTotalOptions().map((option, idx) => (
-                      <SelectItem key={`${option.source}-${idx}`} value={option.value}>
-                        <span className="flex items-center gap-2">
-                          <Calculator className="h-3 w-3" />
-                          {option.label}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Select to auto-populate amounts from related orders or accepted quotes
-                </p>
-              </div>
+            {(invoiceForm.orgId || invoiceForm.orderId) && (
+              <AmountSuggestionPanel
+                suggestions={getAutoTotalOptions()}
+                onSelect={handleInvoiceSuggestionSelect}
+                isLoading={invoiceSuggestionsLoading}
+                title="Auto-fill from Order/Quote"
+                maxVisible={3}
+                showConfidence={true}
+                className="mt-2"
+              />
             )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -1424,24 +1707,28 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                 </SelectContent>
               </Select>
             </div>
-            {paymentForm.invoiceId && getPaymentAutofillAmount() && (
-              <div className="flex items-center gap-2 p-3 bg-green-500/10 rounded-lg border border-green-500/20">
-                <Sparkles className="h-4 w-4 text-green-400" />
-                <span className="text-sm text-green-400">
-                  Amount auto-filled with balance due: {formatCurrency(getPaymentAutofillAmount() || 0)}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="ml-auto text-green-400 hover:text-green-300"
-                  onClick={() => setPaymentForm({ ...paymentForm, amount: getPaymentAutofillAmount()?.toString() || "" })}
-                  data-testid="button-autofill-payment"
-                >
-                  <Calculator className="h-4 w-4 mr-1" />
-                  Fill Full Balance
-                </Button>
-              </div>
+            {paymentForm.invoiceId && (paymentSuggestions?.invoice || getPaymentAutofillAmount()) && (
+              <PaymentSuggestionPanel
+                invoice={paymentSuggestions?.invoice || {
+                  id: paymentForm.invoiceId,
+                  invoiceNumber: invoices.find(inv => inv.id === paymentForm.invoiceId)?.invoiceNumber || '',
+                  total: Number(invoices.find(inv => inv.id === paymentForm.invoiceId)?.totalAmount || 0),
+                  paid: Number(invoices.find(inv => inv.id === paymentForm.invoiceId)?.amountPaid || 0),
+                  outstanding: Number(getPaymentAutofillAmount() || 0),
+                  status: invoices.find(inv => inv.id === paymentForm.invoiceId)?.status || 'draft'
+                }}
+                suggestions={paymentSuggestions?.suggestions || [
+                  {
+                    label: `Full Balance: ${formatCurrency(getPaymentAutofillAmount() || 0)}`,
+                    value: (getPaymentAutofillAmount() || 0).toString(),
+                    source: 'outstanding' as const,
+                    confidence: 'high' as const
+                  }
+                ]}
+                paymentHistory={paymentSuggestions?.paymentHistory}
+                onSelectAmount={handlePaymentSuggestionSelect}
+                onSelectMethod={handlePaymentMethodSelect}
+              />
             )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -1508,42 +1795,50 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                 </SelectContent>
               </Select>
             </div>
-            {commissionForm.salespersonId && getPendingCommissions().length > 0 && (
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-purple-400" />
-                  Pending Commissions to Pay
-                </Label>
-                <Select 
-                  onValueChange={(value) => {
-                    const commission = getPendingCommissions().find((c: any) => c.id.toString() === value);
-                    if (commission) {
-                      setCommissionForm({
-                        ...commissionForm,
-                        totalAmount: commission.totalAmount?.toString() || "",
-                        period: commission.period || commissionForm.period,
-                      });
-                    }
-                  }}
-                >
-                  <SelectTrigger data-testid="select-commission-autofill">
-                    <SelectValue placeholder="Select pending commission to pay" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getPendingCommissions().map((c: any) => (
-                      <SelectItem key={c.id} value={c.id.toString()}>
-                        <span className="flex items-center gap-2">
-                          <Calculator className="h-3 w-3" />
-                          {c.period}: {formatCurrency(c.totalAmount)}
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Select to auto-fill amount from pending commission records
-                </p>
-              </div>
+            {commissionForm.salespersonId && (commissionSuggestions?.summary || getPendingCommissions().length > 0) && (
+              commissionSuggestions?.summary ? (
+                <CommissionBreakdown
+                  summary={commissionSuggestions.summary}
+                  orderBreakdown={commissionSuggestions.orderBreakdown}
+                  onSelectAmount={handleCommissionAmountSelect}
+                />
+              ) : (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-purple-400" />
+                    Pending Commissions to Pay
+                  </Label>
+                  <Select 
+                    onValueChange={(value) => {
+                      const commission = getPendingCommissions().find((c: any) => c.id.toString() === value);
+                      if (commission) {
+                        setCommissionForm({
+                          ...commissionForm,
+                          totalAmount: commission.totalAmount?.toString() || "",
+                          period: commission.period || commissionForm.period,
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-commission-autofill">
+                      <SelectValue placeholder="Select pending commission to pay" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getPendingCommissions().map((c: any) => (
+                        <SelectItem key={c.id} value={c.id.toString()}>
+                          <span className="flex items-center gap-2">
+                            <Calculator className="h-3 w-3" />
+                            {c.period}: {formatCurrency(c.totalAmount)}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Select to auto-fill amount from pending commission records
+                  </p>
+                </div>
+              )
             )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -1597,6 +1892,33 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
             <DialogDescription>Record an expense, refund, or fee transaction.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label>Link to Order (Optional)</Label>
+              <Select 
+                value={expenseForm.orderId?.toString() || ""} 
+                onValueChange={(v) => setExpenseForm({ ...expenseForm, orderId: v ? parseInt(v) : null })}
+              >
+                <SelectTrigger data-testid="select-expense-order">
+                  <SelectValue placeholder="Select order to link expense" />
+                </SelectTrigger>
+                <SelectContent>
+                  {orders.map((order: any) => (
+                    <SelectItem key={order.id} value={order.id.toString()}>
+                      {order.orderCode} - {order.orderName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {expenseForm.orderId && (
+              <AmountSuggestionPanel
+                suggestions={expenseSuggestions?.suggestions || []}
+                onSelect={handleExpenseSuggestionSelect}
+                isLoading={expenseSuggestionsLoading}
+                title="Expense Suggestions"
+                data-testid="panel-expense-suggestions"
+              />
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Type</Label>

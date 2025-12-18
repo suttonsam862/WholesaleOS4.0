@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, DollarSign, TrendingUp, TrendingDown, ArrowRight, X, Sparkles, Link2, Link2Off, Calculator, Zap } from "lucide-react";
+import { Plus, DollarSign, TrendingUp, TrendingDown, ArrowRight, X, Sparkles, Link2, Link2Off, Calculator, Zap, Lightbulb, CheckCircle2, Target } from "lucide-react";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,91 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+type ConfidenceLevel = 'high' | 'medium' | 'low';
+
+interface InflowItem {
+  type: 'invoice' | 'payment' | 'custom';
+  id: number;
+  label: string;
+  amount: number;
+  date?: string;
+}
+
+interface OutflowItem {
+  type: 'commission' | 'custom';
+  id: number;
+  label: string;
+  amount: number;
+  date?: string;
+}
+
+interface SmartSuggestion {
+  inflow: InflowItem;
+  outflow: OutflowItem;
+  confidence: ConfidenceLevel;
+  amountDifferencePercent: number;
+  dateDifferenceInDays: number | null;
+  matchReason: string;
+}
+
+function calculateMatchConfidence(
+  inflowAmount: number,
+  outflowAmount: number,
+  inflowDate?: string,
+  outflowDate?: string
+): { confidence: ConfidenceLevel; amountDiff: number; dateDiff: number | null; reason: string } {
+  const amountDiff = Math.abs(inflowAmount - outflowAmount) / Math.max(inflowAmount, outflowAmount) * 100;
+  
+  let dateDiff: number | null = null;
+  if (inflowDate && outflowDate) {
+    const date1 = new Date(inflowDate);
+    const date2 = new Date(outflowDate);
+    dateDiff = Math.abs(date1.getTime() - date2.getTime()) / (1000 * 60 * 60 * 24);
+  }
+
+  if (amountDiff <= 1) {
+    return { confidence: 'high', amountDiff, dateDiff, reason: 'Amount matches within 1%' };
+  }
+  
+  if (amountDiff <= 5 || (dateDiff !== null && dateDiff <= 7)) {
+    const reason = amountDiff <= 5 
+      ? 'Amount matches within 5%' 
+      : 'Dates within 7 days';
+    return { confidence: 'medium', amountDiff, dateDiff, reason };
+  }
+  
+  if (amountDiff <= 10 || (dateDiff !== null && dateDiff <= 30)) {
+    const reason = amountDiff <= 10 
+      ? 'Amount matches within 10%' 
+      : 'Dates within 30 days';
+    return { confidence: 'low', amountDiff, dateDiff, reason };
+  }
+  
+  return { confidence: 'low', amountDiff, dateDiff, reason: 'Approximate match' };
+}
+
+function getConfidenceBadgeColor(confidence: ConfidenceLevel): string {
+  switch (confidence) {
+    case 'high':
+      return 'bg-green-500 text-white hover:bg-green-600';
+    case 'medium':
+      return 'bg-yellow-500 text-white hover:bg-yellow-600';
+    case 'low':
+      return 'bg-gray-400 text-white hover:bg-gray-500';
+  }
+}
+
+function getConfidenceBorderColor(confidence: ConfidenceLevel): string {
+  switch (confidence) {
+    case 'high':
+      return 'border-green-500/50 bg-green-50/30 dark:bg-green-950/30';
+    case 'medium':
+      return 'border-yellow-500/50 bg-yellow-50/30 dark:bg-yellow-950/30';
+    case 'low':
+      return 'border-gray-400/50 bg-gray-50/30 dark:bg-gray-950/30';
+  }
+}
 
 interface FinancialMatchingModalProps {
   isOpen: boolean;
@@ -304,46 +389,216 @@ export function FinancialMatchingModal({
     },
   });
 
+  // Apply a single smart suggestion
+  const applySuggestionMutation = useMutation({
+    mutationFn: async (suggestion: SmartSuggestion) => {
+      const matchedAmount = Math.min(suggestion.inflow.amount, suggestion.outflow.amount);
+      const payload = {
+        orderId,
+        inflowType: suggestion.inflow.type,
+        inflowId: suggestion.inflow.id,
+        outflowType: suggestion.outflow.type,
+        outflowId: suggestion.outflow.id,
+        matchedAmount,
+        notes: `Smart suggestion: ${suggestion.matchReason}`
+      };
+      
+      return await apiRequest('/api/financial-matching/manual-match', {
+        method: 'POST',
+        body: payload,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/order', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/orders'] });
+      toast({
+        title: "Match Applied",
+        description: "Suggestion applied successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to apply suggestion",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Match all high confidence suggestions
+  const [matchingAllHighConfidence, setMatchingAllHighConfidence] = useState(false);
+  
+  const matchAllHighConfidence = async () => {
+    if (highConfidenceSuggestions.length === 0) {
+      toast({
+        title: "No Matches Available",
+        description: "No high-confidence matches found to apply",
+      });
+      return;
+    }
+
+    setMatchingAllHighConfidence(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const suggestion of highConfidenceSuggestions) {
+      try {
+        const matchedAmount = Math.min(suggestion.inflow.amount, suggestion.outflow.amount);
+        await apiRequest('/api/financial-matching/manual-match', {
+          method: 'POST',
+          body: {
+            orderId,
+            inflowType: suggestion.inflow.type,
+            inflowId: suggestion.inflow.id,
+            outflowType: suggestion.outflow.type,
+            outflowId: suggestion.outflow.id,
+            matchedAmount,
+            notes: `Auto-matched (high confidence): ${suggestion.matchReason}`
+          },
+        });
+        successCount++;
+      } catch {
+        errorCount++;
+      }
+    }
+
+    queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/order', orderId] });
+    queryClient.invalidateQueries({ queryKey: ['/api/financial-matching/orders'] });
+    
+    setMatchingAllHighConfidence(false);
+
+    if (successCount > 0) {
+      toast({
+        title: "High Confidence Matches Applied",
+        description: `Successfully applied ${successCount} match${successCount > 1 ? 'es' : ''}${errorCount > 0 ? `, ${errorCount} failed` : ''}`,
+      });
+    } else if (errorCount > 0) {
+      toast({
+        title: "Error",
+        description: "Failed to apply matches",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Helper to get all available inflows for matching
-  const getAvailableInflows = () => {
+  const getAvailableInflows = (): InflowItem[] => {
     if (!financialData) return [];
-    const allInflows: any[] = [];
+    const allInflows: InflowItem[] = [];
     
     if (financialData.inflows?.invoices) {
       financialData.inflows.invoices.forEach((inv: any) => {
-        allInflows.push({ type: 'invoice', id: inv.id, label: inv.invoiceNumber, amount: inv.totalAmount });
+        allInflows.push({ 
+          type: 'invoice', 
+          id: inv.id, 
+          label: inv.invoiceNumber, 
+          amount: parseFloat(inv.totalAmount) || 0,
+          date: inv.issueDate
+        });
       });
     }
     if (financialData.inflows?.payments) {
       financialData.inflows.payments.forEach((p: any) => {
-        allInflows.push({ type: 'payment', id: p.id, label: p.paymentNumber, amount: p.amount });
+        allInflows.push({ 
+          type: 'payment', 
+          id: p.id, 
+          label: p.paymentNumber, 
+          amount: parseFloat(p.amount) || 0,
+          date: p.paymentDate
+        });
       });
     }
     if (financialData.inflows?.customEntries) {
       financialData.inflows.customEntries.forEach((e: any) => {
-        allInflows.push({ type: 'custom', id: e.id, label: e.description, amount: e.amount });
+        allInflows.push({ 
+          type: 'custom', 
+          id: e.id, 
+          label: e.description, 
+          amount: parseFloat(e.amount) || 0,
+          date: e.date
+        });
       });
     }
     return allInflows;
   };
 
   // Helper to get all available outflows for matching  
-  const getAvailableOutflows = () => {
+  const getAvailableOutflows = (): OutflowItem[] => {
     if (!financialData) return [];
-    const allOutflows: any[] = [];
+    const allOutflows: OutflowItem[] = [];
     
     if (financialData.outflows?.commissions) {
       financialData.outflows.commissions.forEach((c: any) => {
-        allOutflows.push({ type: 'commission', id: c.id, label: `${c.commissionType} Commission`, amount: c.commissionAmount });
+        allOutflows.push({ 
+          type: 'commission', 
+          id: c.id, 
+          label: `${c.commissionType} Commission`, 
+          amount: parseFloat(c.commissionAmount) || 0,
+          date: c.createdAt
+        });
       });
     }
     if (financialData.outflows?.customEntries) {
       financialData.outflows.customEntries.forEach((e: any) => {
-        allOutflows.push({ type: 'custom', id: e.id, label: e.description, amount: e.amount });
+        allOutflows.push({ 
+          type: 'custom', 
+          id: e.id, 
+          label: e.description, 
+          amount: parseFloat(e.amount) || 0,
+          date: e.date
+        });
       });
     }
     return allOutflows;
   };
+
+  // Generate smart suggestions by analyzing inflows and outflows
+  const smartSuggestions = useMemo((): SmartSuggestion[] => {
+    const inflows = getAvailableInflows();
+    const outflows = getAvailableOutflows();
+    const suggestions: SmartSuggestion[] = [];
+    
+    for (const inflow of inflows) {
+      for (const outflow of outflows) {
+        if (inflow.amount <= 0 || outflow.amount <= 0) continue;
+        
+        const { confidence, amountDiff, dateDiff, reason } = calculateMatchConfidence(
+          inflow.amount, 
+          outflow.amount, 
+          inflow.date, 
+          outflow.date
+        );
+        
+        // Only suggest if amount within 10% or dates within 30 days
+        const isAmountProximity = amountDiff <= 10;
+        const isDateProximity = dateDiff !== null && dateDiff <= 30;
+        
+        if (isAmountProximity || isDateProximity) {
+          suggestions.push({
+            inflow,
+            outflow,
+            confidence,
+            amountDifferencePercent: amountDiff,
+            dateDifferenceInDays: dateDiff,
+            matchReason: reason
+          });
+        }
+      }
+    }
+    
+    // Sort by confidence (high first) then by amount difference
+    return suggestions.sort((a, b) => {
+      const confidenceOrder = { high: 0, medium: 1, low: 2 };
+      if (confidenceOrder[a.confidence] !== confidenceOrder[b.confidence]) {
+        return confidenceOrder[a.confidence] - confidenceOrder[b.confidence];
+      }
+      return a.amountDifferencePercent - b.amountDifferencePercent;
+    });
+  }, [financialData]);
+
+  const highConfidenceSuggestions = useMemo(() => {
+    return smartSuggestions.filter(s => s.confidence === 'high');
+  }, [smartSuggestions]);
 
   const formatCurrency = (amount: number | string) => {
     const num = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -514,6 +769,96 @@ export function FinancialMatchingModal({
             )}
           </CardContent>
         </Card>
+
+        {/* Smart Suggestions Section */}
+        {smartSuggestions.length > 0 && (
+          <Card className="mb-4 border-purple-500/30 bg-purple-50/50 dark:bg-purple-950/30" data-testid="card-smart-suggestions">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="h-5 w-5 text-purple-500" />
+                  <CardTitle className="text-lg text-purple-700 dark:text-purple-300">Smart Suggestions</CardTitle>
+                  <Badge variant="secondary" className="ml-2" data-testid="badge-suggestion-count">
+                    {smartSuggestions.length} potential match{smartSuggestions.length > 1 ? 'es' : ''}
+                  </Badge>
+                </div>
+                {highConfidenceSuggestions.length > 0 && (
+                  <Badge className={getConfidenceBadgeColor('high')} data-testid="badge-high-confidence-count">
+                    {highConfidenceSuggestions.length} high confidence
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <ScrollArea className="max-h-[200px]">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {smartSuggestions.slice(0, 6).map((suggestion, index) => (
+                    <Card 
+                      key={`${suggestion.inflow.type}-${suggestion.inflow.id}-${suggestion.outflow.type}-${suggestion.outflow.id}`} 
+                      className={`border-2 ${getConfidenceBorderColor(suggestion.confidence)}`}
+                      data-testid={`card-suggestion-${index}`}
+                    >
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-medium text-purple-600 dark:text-purple-400">Suggested Match</span>
+                          <Badge 
+                            className={`text-xs ${getConfidenceBadgeColor(suggestion.confidence)}`}
+                            data-testid={`badge-confidence-${index}`}
+                          >
+                            {suggestion.confidence}
+                          </Badge>
+                        </div>
+                        
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1">
+                              <TrendingUp className="h-3 w-3 text-green-500 flex-shrink-0" />
+                              <span className="text-xs truncate font-medium" data-testid={`text-suggestion-inflow-${index}`}>
+                                {suggestion.inflow.label}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{formatCurrency(suggestion.inflow.amount)}</p>
+                          </div>
+                          <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1">
+                              <TrendingDown className="h-3 w-3 text-red-500 flex-shrink-0" />
+                              <span className="text-xs truncate font-medium" data-testid={`text-suggestion-outflow-${index}`}>
+                                {suggestion.outflow.label}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{formatCurrency(suggestion.outflow.amount)}</p>
+                          </div>
+                        </div>
+                        
+                        <p className="text-xs text-muted-foreground mb-2" data-testid={`text-suggestion-reason-${index}`}>
+                          {suggestion.matchReason}
+                        </p>
+                        
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="w-full h-7 text-xs border-purple-500 text-purple-700 hover:bg-purple-100 dark:text-purple-300 dark:hover:bg-purple-900"
+                          onClick={() => applySuggestionMutation.mutate(suggestion)}
+                          disabled={applySuggestionMutation.isPending}
+                          data-testid={`button-apply-suggestion-${index}`}
+                        >
+                          <CheckCircle2 className="h-3 w-3 mr-1" />
+                          Apply Match
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                {smartSuggestions.length > 6 && (
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    +{smartSuggestions.length - 6} more suggestions available
+                  </p>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid grid-cols-2 gap-6">
           {/* INFLOWS COLUMN */}
@@ -758,6 +1103,38 @@ export function FinancialMatchingModal({
             </ScrollArea>
           </div>
         </div>
+
+        {/* Quick Actions Bar */}
+        <Card className="mt-4 border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/30" data-testid="card-quick-actions">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <Target className="h-5 w-5 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-amber-700 dark:text-amber-300">Quick Actions</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {highConfidenceSuggestions.length > 0 
+                      ? `${highConfidenceSuggestions.length} high-confidence match${highConfidenceSuggestions.length > 1 ? 'es' : ''} available`
+                      : 'No high-confidence matches available'}
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={matchAllHighConfidence}
+                disabled={highConfidenceSuggestions.length === 0 || matchingAllHighConfidence}
+                className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+                data-testid="button-match-all-high-confidence"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                {matchingAllHighConfidence 
+                  ? 'Matching...' 
+                  : `Match All High Confidence${highConfidenceSuggestions.length > 0 ? ` (${highConfidenceSuggestions.length})` : ''}`}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Assignment Dialogs */}
         {showAssignInvoice && (
