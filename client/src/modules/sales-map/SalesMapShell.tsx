@@ -208,6 +208,8 @@ export default function SalesMapShell() {
           onSearchChange={setSearchQuery}
           orgCount={entityCounts.organizations}
           leadCount={entityCounts.leads}
+          orderCount={entityCounts.orders}
+          designJobCount={entityCounts.designJobs}
         />
       </div>
 

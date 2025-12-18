@@ -135,7 +135,7 @@ function createMarkerElement(
     align-items: center;
     justify-content: center;
     position: relative;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: box-shadow 0.15s ease;
     z-index: ${isSelected ? 1000 : isHighlighted ? 500 : entity.needsAttention ? 100 : 10};
   `;
   
@@ -198,11 +198,18 @@ function createMarkerElement(
     el.appendChild(countBadge);
   }
   
+  const baseZIndex = isSelected ? 1000 : isHighlighted ? 500 : entity.needsAttention ? 100 : 10;
+  const baseShadow = isSelected 
+    ? `0 0 20px ${color}80, 0 4px 12px rgba(0,0,0,0.3)` 
+    : `0 2px 8px ${color}40`;
+  
   el.addEventListener('mouseenter', () => {
-    el.style.transform = 'scale(1.15)';
+    el.style.boxShadow = `0 0 20px ${color}80, 0 4px 12px rgba(0,0,0,0.4)`;
+    el.style.zIndex = String(baseZIndex + 1000);
   });
   el.addEventListener('mouseleave', () => {
-    el.style.transform = 'scale(1)';
+    el.style.boxShadow = baseShadow;
+    el.style.zIndex = String(baseZIndex);
   });
   el.addEventListener('click', onClick);
   

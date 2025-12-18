@@ -23,6 +23,8 @@ interface TopHUDProps {
   onSearchChange: (query: string) => void;
   orgCount: number;
   leadCount: number;
+  orderCount: number;
+  designJobCount: number;
 }
 
 const modeConfig = {
@@ -41,6 +43,8 @@ export function TopHUD({
   onSearchChange,
   orgCount,
   leadCount,
+  orderCount,
+  designJobCount,
 }: TopHUDProps) {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
@@ -86,29 +90,63 @@ export function TopHUD({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel>Display</DropdownMenuLabel>
+          <DropdownMenuLabel>Entity Types</DropdownMenuLabel>
           <DropdownMenuCheckboxItem
             checked={filters.showOrganizations}
             onCheckedChange={(checked) =>
               onFiltersChange({ ...filters, showOrganizations: checked })
             }
+            data-testid="filter-organizations"
           >
-            Organizations ({orgCount})
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              Organizations ({orgCount})
+            </span>
           </DropdownMenuCheckboxItem>
           <DropdownMenuCheckboxItem
             checked={filters.showLeads}
             onCheckedChange={(checked) =>
               onFiltersChange({ ...filters, showLeads: checked })
             }
+            data-testid="filter-leads"
           >
-            Leads ({leadCount})
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              Leads ({leadCount})
+            </span>
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={filters.showOrders}
+            onCheckedChange={(checked) =>
+              onFiltersChange({ ...filters, showOrders: checked })
+            }
+            data-testid="filter-orders"
+          >
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              Orders ({orderCount})
+            </span>
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={filters.showDesignJobs}
+            onCheckedChange={(checked) =>
+              onFiltersChange({ ...filters, showDesignJobs: checked })
+            }
+            data-testid="filter-design-jobs"
+          >
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-purple-500" />
+              Design Jobs ({designJobCount})
+            </span>
           </DropdownMenuCheckboxItem>
           <DropdownMenuSeparator />
+          <DropdownMenuLabel>Filters</DropdownMenuLabel>
           <DropdownMenuCheckboxItem
             checked={filters.myItemsOnly}
             onCheckedChange={(checked) =>
               onFiltersChange({ ...filters, myItemsOnly: checked })
             }
+            data-testid="filter-my-items"
           >
             My Items Only
           </DropdownMenuCheckboxItem>
@@ -117,6 +155,7 @@ export function TopHUD({
             onCheckedChange={(checked) =>
               onFiltersChange({ ...filters, showAttentionOnly: checked })
             }
+            data-testid="filter-attention"
           >
             Attention Items Only
           </DropdownMenuCheckboxItem>
@@ -148,15 +187,25 @@ export function TopHUD({
         )}
       </div>
 
-      <div className="flex items-center gap-2 px-3 py-2 bg-background/90 backdrop-blur-lg rounded-lg border border-white/10">
-        <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2 px-3 py-2 bg-background/90 backdrop-blur-lg rounded-lg border border-white/10" data-testid="entity-counts">
+        <div className="flex items-center gap-1.5" title="Organizations">
           <div className="w-3 h-3 rounded-full bg-blue-500" />
           <span className="text-sm font-medium">{orgCount}</span>
         </div>
         <div className="w-px h-4 bg-border" />
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5" title="Leads">
           <div className="w-3 h-3 rounded-full bg-amber-500" />
           <span className="text-sm font-medium">{leadCount}</span>
+        </div>
+        <div className="w-px h-4 bg-border" />
+        <div className="flex items-center gap-1.5" title="Orders">
+          <div className="w-3 h-3 rounded-full bg-green-500" />
+          <span className="text-sm font-medium">{orderCount}</span>
+        </div>
+        <div className="w-px h-4 bg-border" />
+        <div className="flex items-center gap-1.5" title="Design Jobs">
+          <div className="w-3 h-3 rounded-full bg-purple-500" />
+          <span className="text-sm font-medium">{designJobCount}</span>
         </div>
       </div>
     </div>
