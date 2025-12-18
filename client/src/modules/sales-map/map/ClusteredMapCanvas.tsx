@@ -121,6 +121,8 @@ function createMarkerElement(
   const scale = isSelected ? 1.3 : isHighlighted ? 1.2 : 1;
   const size = baseSize * scale;
   
+  // CRITICAL: Do NOT use position:relative, z-index, or transforms here
+  // These properties conflict with MapLibre's translate3d positioning and cause markers to drift
   el.style.cssText = `
     width: ${size}px;
     height: ${size}px;
@@ -134,9 +136,7 @@ function createMarkerElement(
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    transition: box-shadow 0.15s ease;
-    z-index: ${isSelected ? 1000 : isHighlighted ? 500 : entity.needsAttention ? 100 : 10};
+    overflow: visible;
   `;
   
   if (entity.type === 'organization' && entity.logoUrl) {
@@ -198,18 +198,16 @@ function createMarkerElement(
     el.appendChild(countBadge);
   }
   
-  const baseZIndex = isSelected ? 1000 : isHighlighted ? 500 : entity.needsAttention ? 100 : 10;
   const baseShadow = isSelected 
     ? `0 0 20px ${color}80, 0 4px 12px rgba(0,0,0,0.3)` 
     : `0 2px 8px ${color}40`;
   
+  // No z-index manipulation - it conflicts with MapLibre's translate3d positioning
   el.addEventListener('mouseenter', () => {
     el.style.boxShadow = `0 0 20px ${color}80, 0 4px 12px rgba(0,0,0,0.4)`;
-    el.style.zIndex = String(baseZIndex + 1000);
   });
   el.addEventListener('mouseleave', () => {
     el.style.boxShadow = baseShadow;
-    el.style.zIndex = String(baseZIndex);
   });
   el.addEventListener('click', onClick);
   
@@ -219,23 +217,32 @@ function createMarkerElement(
 function createLabelElement(entity: MapEntity): HTMLDivElement {
   const label = document.createElement('div');
   label.className = 'map-marker-label';
+  // Use flexbox centering instead of transform to avoid MapLibre conflicts
   label.style.cssText = `
     position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
     top: 100%;
     margin-top: 4px;
+    display: flex;
+    justify-content: center;
     white-space: nowrap;
     font-size: 12px;
     font-weight: 500;
     color: rgba(255,255,255,0.9);
+    pointer-events: none;
+  `;
+  
+  const labelText = document.createElement('span');
+  labelText.style.cssText = `
     background: rgba(0,0,0,0.6);
     padding: 2px 8px;
     border-radius: 4px;
     backdrop-filter: blur(4px);
-    pointer-events: none;
   `;
-  label.textContent = entity.name.length > 20 ? entity.name.slice(0, 18) + '...' : entity.name;
+  labelText.textContent = entity.name.length > 20 ? entity.name.slice(0, 18) + '...' : entity.name;
+  label.appendChild(labelText);
+  
   return label;
 }
 
@@ -276,6 +283,8 @@ function createClusterElement(
     gradient = `conic-gradient(${parts.join(', ')})`;
   }
   
+  // CRITICAL: Do NOT use position:relative, z-index, or transforms here
+  // These properties conflict with MapLibre's translate3d positioning and cause markers to drift
   el.style.cssText = `
     width: ${size}px;
     height: ${size}px;
@@ -287,9 +296,7 @@ function createClusterElement(
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    transition: box-shadow 0.15s ease;
-    z-index: 50;
+    overflow: visible;
   `;
   
   const inner = document.createElement('div');
@@ -339,13 +346,15 @@ function createClusterElement(
   
   const legend = document.createElement('div');
   legend.className = 'cluster-legend';
+  // Use margin-based centering instead of transform to avoid MapLibre conflicts
   legend.style.cssText = `
     position: absolute;
     top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
     margin-top: 6px;
     display: flex;
+    justify-content: center;
     gap: 6px;
     background: rgba(0,0,0,0.5);
     padding: 4px 8px;
@@ -380,13 +389,12 @@ function createClusterElement(
   
   el.appendChild(legend);
   
+  // No z-index manipulation - it conflicts with MapLibre's translate3d positioning
   el.addEventListener('mouseenter', () => {
     el.style.boxShadow = `0 0 30px ${dominantColor}80, 0 0 60px ${dominantColor}40, 0 4px 12px rgba(0,0,0,0.4)`;
-    el.style.zIndex = '1050';
   });
   el.addEventListener('mouseleave', () => {
     el.style.boxShadow = `0 0 20px ${dominantColor}40, 0 0 40px ${dominantColor}20`;
-    el.style.zIndex = '50';
   });
   el.addEventListener('click', onClick);
   
@@ -572,36 +580,6 @@ export function ClusteredMapCanvas({
   useEffect(() => {
     onEntityClickRef.current = onEntityClick;
   }, [onEntityClick]);
-
-  // Debug: Add a test marker at a known location (New York City)
-  useEffect(() => {
-    if (!map.current || !isMapReady) return;
-    
-    // Test marker at NYC: lat 40.7128, lng -74.0060
-    const testEl = document.createElement('div');
-    testEl.style.cssText = `
-      width: 40px;
-      height: 40px;
-      background: red;
-      border: 4px solid yellow;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-weight: bold;
-      font-size: 10px;
-    `;
-    testEl.textContent = 'NYC';
-    
-    const testMarker = new maplibregl.Marker({ element: testEl })
-      .setLngLat([-74.0060, 40.7128]) // NYC coordinates
-      .addTo(map.current);
-      
-    console.log('[MapDebug] Added test marker at NYC [-74.0060, 40.7128]');
-    
-    return () => { testMarker.remove(); };
-  }, [isMapReady]);
 
   useEffect(() => {
     if (!map.current || !isMapReady) return;
