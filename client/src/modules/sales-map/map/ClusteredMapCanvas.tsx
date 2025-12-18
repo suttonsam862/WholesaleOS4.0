@@ -61,11 +61,53 @@ interface ClusterData {
   hasAttention: boolean;
 }
 
+function getZoomBucket(zoom: number): string {
+  const showLabels = zoom > 9;
+  const sizeTier = zoom > 10 ? 'large' : zoom > 7 ? 'medium' : 'small';
+  return `${showLabels}-${sizeTier}`;
+}
+
+function getEntityHash(entity: MapEntity, isSelected: boolean, isHighlighted: boolean, zoom: number): string {
+  return JSON.stringify({
+    type: entity.type,
+    id: entity.id,
+    name: entity.name,
+    lat: entity.lat,
+    lng: entity.lng,
+    needsAttention: entity.needsAttention,
+    attentionReason: entity.attentionReason,
+    orderCount: entity.orderCount || 0,
+    leadCount: entity.leadCount || 0,
+    logoUrl: entity.logoUrl || '',
+    stage: entity.stage || '',
+    status: entity.status || '',
+    city: entity.city || '',
+    state: entity.state || '',
+    clientType: entity.clientType || '',
+    isSelected,
+    isHighlighted,
+    zoomBucket: getZoomBucket(zoom),
+  });
+}
+
+function getClusterHash(cluster: ClusterData, zoom: number): string {
+  return JSON.stringify({
+    key: cluster.key,
+    count: cluster.entities.length,
+    hasAttention: cluster.hasAttention,
+    breakdown: cluster.breakdown,
+    centerLat: cluster.centerLat,
+    centerLng: cluster.centerLng,
+    zoomBucket: getZoomBucket(zoom),
+  });
+}
+
 function createMarkerElement(
   entity: MapEntity,
   isSelected: boolean,
   isHighlighted: boolean,
-  zoom: number
+  zoom: number,
+  onClick: (e: MouseEvent) => void
 ): HTMLDivElement {
   const el = document.createElement('div');
   el.className = 'map-marker';
@@ -114,6 +156,7 @@ function createMarkerElement(
   
   if (entity.needsAttention) {
     const badge = document.createElement('div');
+    badge.className = 'attention-badge';
     badge.style.cssText = `
       position: absolute;
       top: -4px;
@@ -133,6 +176,7 @@ function createMarkerElement(
   
   if (entity.type === 'organization' && (entity.orderCount || 0) > 0) {
     const countBadge = document.createElement('div');
+    countBadge.className = 'count-badge';
     countBadge.style.cssText = `
       position: absolute;
       bottom: -4px;
@@ -160,6 +204,7 @@ function createMarkerElement(
   el.addEventListener('mouseleave', () => {
     el.style.transform = 'scale(1)';
   });
+  el.addEventListener('click', onClick);
   
   return el;
 }
@@ -189,7 +234,8 @@ function createLabelElement(entity: MapEntity): HTMLDivElement {
 
 function createClusterElement(
   cluster: ClusterData,
-  zoom: number
+  zoom: number,
+  onClick: (e: MouseEvent) => void
 ): HTMLDivElement {
   const el = document.createElement('div');
   el.className = 'map-cluster';
@@ -215,7 +261,7 @@ function createClusterElement(
   let gradient = dominantColor;
   if (pieSegments.length > 1) {
     let cumulative = 0;
-    const parts = pieSegments.map((seg, i) => {
+    const parts = pieSegments.map((seg) => {
       const start = cumulative;
       cumulative += seg.percent;
       return `${seg.color} ${start}% ${cumulative}%`;
@@ -240,6 +286,7 @@ function createClusterElement(
   `;
   
   const inner = document.createElement('div');
+  inner.className = 'cluster-inner';
   inner.style.cssText = `
     width: ${size * 0.7}px;
     height: ${size * 0.7}px;
@@ -251,6 +298,7 @@ function createClusterElement(
   `;
   
   const countText = document.createElement('span');
+  countText.className = 'cluster-count';
   countText.style.cssText = `
     color: white;
     font-weight: bold;
@@ -263,6 +311,7 @@ function createClusterElement(
   
   if (cluster.hasAttention) {
     const badge = document.createElement('div');
+    badge.className = 'attention-badge';
     badge.style.cssText = `
       position: absolute;
       top: -4px;
@@ -282,6 +331,7 @@ function createClusterElement(
   }
   
   const legend = document.createElement('div');
+  legend.className = 'cluster-legend';
   legend.style.cssText = `
     position: absolute;
     top: 100%;
@@ -329,6 +379,7 @@ function createClusterElement(
   el.addEventListener('mouseleave', () => {
     el.style.transform = 'scale(1)';
   });
+  el.addEventListener('click', onClick);
   
   return el;
 }
@@ -417,7 +468,9 @@ export function ClusteredMapCanvas({
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
+  const markerHashRef = useRef<Map<string, string>>(new Map());
   const clusterMarkersRef = useRef<Map<string, maplibregl.Marker>>(new Map());
+  const clusterHashRef = useRef<Map<string, string>>(new Map());
   const labelsRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const [isMapReady, setIsMapReady] = useState(false);
   const [currentZoom, setCurrentZoom] = useState(DEFAULT_ZOOM);
@@ -506,6 +559,11 @@ export function ClusteredMapCanvas({
     return calculateClusters(entities, clusterRadius);
   }, [entities, clusterRadius]);
 
+  const onEntityClickRef = useRef(onEntityClick);
+  useEffect(() => {
+    onEntityClickRef.current = onEntityClick;
+  }, [onEntityClick]);
+
   useEffect(() => {
     if (!map.current || !isMapReady) return;
     
@@ -521,103 +579,87 @@ export function ClusteredMapCanvas({
       const isSelected = selectedEntity?.id === entity.id && selectedEntity?.type === entity.type;
       const isHighlighted = highlightedEntityId?.id === entity.id && highlightedEntityId?.type === entity.type;
       
+      const newHash = getEntityHash(entity, isSelected, isHighlighted, currentZoom);
+      const existingHash = markerHashRef.current.get(key);
       const existingMarker = markersRef.current.get(key);
       
-      if (existingMarker) {
+      if (existingMarker && existingHash === newHash) {
         existingMarker.setLngLat([entity.lng, entity.lat]);
-        
-        const el = existingMarker.getElement();
-        const newEl = createMarkerElement(entity, isSelected, isHighlighted, currentZoom);
-        el.replaceWith(newEl);
-        existingMarker.getElement = () => newEl;
-        
-        newEl.onclick = (e) => {
-          e.stopPropagation();
-          onEntityClick?.(entity);
-        };
-        
-        let label = labelsRef.current.get(key);
-        if (currentZoom > 9) {
-          if (!label) {
-            label = createLabelElement(entity);
-            labelsRef.current.set(key, label);
-          }
-          newEl.appendChild(label);
-        } else if (label) {
-          label.remove();
-          labelsRef.current.delete(key);
-        }
-      } else {
-        const el = createMarkerElement(entity, isSelected, isHighlighted, currentZoom);
-        
-        el.onclick = (e) => {
-          e.stopPropagation();
-          onEntityClick?.(entity);
-        };
-        
-        if (currentZoom > 9) {
-          const label = createLabelElement(entity);
-          el.appendChild(label);
-          labelsRef.current.set(key, label);
-        }
-        
-        const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-          .setLngLat([entity.lng, entity.lat])
-          .addTo(map.current!);
-        
-        markersRef.current.set(key, marker);
+        return;
       }
+      
+      if (existingMarker) {
+        existingMarker.remove();
+        markersRef.current.delete(key);
+        markerHashRef.current.delete(key);
+        labelsRef.current.delete(key);
+      }
+      
+      const handleClick = (e: MouseEvent) => {
+        e.stopPropagation();
+        onEntityClickRef.current?.(entity);
+      };
+      
+      const el = createMarkerElement(entity, isSelected, isHighlighted, currentZoom, handleClick);
+      
+      if (currentZoom > 9) {
+        const label = createLabelElement(entity);
+        el.appendChild(label);
+        labelsRef.current.set(key, label);
+      }
+      
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([entity.lng, entity.lat])
+        .addTo(map.current!);
+      
+      markersRef.current.set(key, marker);
+      markerHashRef.current.set(key, newHash);
     });
     
     clusters.forEach(cluster => {
       currentClusterKeys.add(cluster.key);
       
+      const newHash = getClusterHash(cluster, currentZoom);
+      const existingHash = clusterHashRef.current.get(cluster.key);
       const existingMarker = clusterMarkersRef.current.get(cluster.key);
       
-      if (existingMarker) {
+      if (existingMarker && existingHash === newHash) {
         existingMarker.setLngLat([cluster.centerLng, cluster.centerLat]);
-        
-        const el = existingMarker.getElement();
-        const newEl = createClusterElement(cluster, currentZoom);
-        el.replaceWith(newEl);
-        existingMarker.getElement = () => newEl;
-        
-        newEl.onclick = (e) => {
-          e.stopPropagation();
-          if (map.current) {
-            map.current.flyTo({
-              center: [cluster.centerLng, cluster.centerLat],
-              zoom: Math.min(map.current.getZoom() + 3, 15),
-              duration: 800,
-            });
-          }
-        };
-      } else {
-        const el = createClusterElement(cluster, currentZoom);
-        
-        el.onclick = (e) => {
-          e.stopPropagation();
-          if (map.current) {
-            map.current.flyTo({
-              center: [cluster.centerLng, cluster.centerLat],
-              zoom: Math.min(map.current.getZoom() + 3, 15),
-              duration: 800,
-            });
-          }
-        };
-        
-        const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
-          .setLngLat([cluster.centerLng, cluster.centerLat])
-          .addTo(map.current!);
-        
-        clusterMarkersRef.current.set(cluster.key, marker);
+        return;
       }
+      
+      if (existingMarker) {
+        existingMarker.remove();
+        clusterMarkersRef.current.delete(cluster.key);
+        clusterHashRef.current.delete(cluster.key);
+      }
+      
+      const handleClick = (e: MouseEvent) => {
+        e.stopPropagation();
+        if (map.current) {
+          map.current.flyTo({
+            center: [cluster.centerLng, cluster.centerLat],
+            zoom: Math.min(map.current.getZoom() + 3, 15),
+            duration: 800,
+          });
+        }
+      };
+      
+      const el = createClusterElement(cluster, currentZoom, handleClick);
+      
+      const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([cluster.centerLng, cluster.centerLat])
+        .addTo(map.current!);
+      
+      clusterMarkersRef.current.set(cluster.key, marker);
+      clusterHashRef.current.set(cluster.key, newHash);
     });
     
     markersRef.current.forEach((marker, key) => {
       if (!currentMarkerKeys.has(key)) {
         marker.remove();
         markersRef.current.delete(key);
+        markerHashRef.current.delete(key);
         labelsRef.current.delete(key);
       }
     });
@@ -626,9 +668,10 @@ export function ClusteredMapCanvas({
       if (!currentClusterKeys.has(key)) {
         marker.remove();
         clusterMarkersRef.current.delete(key);
+        clusterHashRef.current.delete(key);
       }
     });
-  }, [unclusteredEntities, clusters, selectedEntity, highlightedEntityId, currentZoom, isMapReady, onEntityClick]);
+  }, [unclusteredEntities, clusters, selectedEntity, highlightedEntityId, currentZoom, isMapReady]);
 
   const prevSelectedEntityRef = useRef<{ type: EntityType; id: number } | null>(null);
   
