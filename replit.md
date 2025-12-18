@@ -166,3 +166,36 @@ Fixed systemic issue where content was hidden under the permanent footer across 
 - Floating panels are positioned with sufficient bottom margin to stay above the fixed footer (z-50)
 - Footer height (~80px including padding) is accounted for in all layout calculations
 - Ensures NO content is ever hidden under the footer across all pages, routes, and subpages
+
+### Finance Auto-Matching System (December 2024)
+Implemented an enhanced semi-automatic financial entry system with intelligent suggestions across all finance modals.
+
+**New API Endpoints** (`server/routes/finance.routes.ts`):
+- `GET /api/finance/suggestions/invoice` - Invoice amount suggestions based on order totals and outstanding balances
+- `GET /api/finance/suggestions/commission/:salespersonId` - Commission calculation with period breakdown
+- `GET /api/finance/suggestions/payment/:invoiceId` - Payment suggestions with outstanding balance and patterns
+- `GET /api/finance/suggestions/expense/:orderId` - Expense suggestions for COGS, shipping, and commissions
+
+**Reusable Components** (`client/src/components/shared/AmountSuggestionPanel.tsx`):
+- `AmountSuggestionPanel` - Generic suggestion panel with confidence indicators (high/medium/low) and auto-fill
+- `CommissionBreakdown` - Commission calculator showing sales, rate, paid amounts, and order breakdown
+- `PaymentSuggestionPanel` - Payment summary with invoice totals, quick amounts, and preferred method
+
+**Finance Page Enhancements** (`client/src/pages/finance.tsx`):
+- Invoice modal: Smart amount suggestions based on order totals and outstanding balances
+- Commission modal: Auto-calculation with CommissionBreakdown component
+- Payment modal: PaymentSuggestionPanel with invoice summary and quick amounts
+- Expense modal: Order linking with auto-categorization (COGS, shipping, commission)
+- Anomaly detection section: Highlights unmatched orders, overdue invoices, pending commissions
+- Quick action buttons: View Unmatched, Send Reminders (placeholder), Process Commissions
+
+**Financial Matching Modal** (`client/src/components/modals/financial-matching-modal.tsx`):
+- Confidence scoring for suggested matches (high/medium/low based on amount proximity)
+- Smart suggestions section showing potential inflow/outflow matches
+- "Match All High Confidence" button for batch matching
+
+**Technical Details**:
+- `safeParseFloat()` helper prevents NaN values from invalid line item data
+- Input validation on invoice suggestions endpoint with proper error handling
+- Confidence levels: High (within 1%), Medium (within 5%), Low (within 10%)
+- All suggestion panels include data-testid attributes for testing
