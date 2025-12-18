@@ -362,9 +362,10 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
         west: westVal,
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching sales map feed:", error);
-    res.status(500).json({ message: "Failed to fetch map feed" });
+    console.error("Stack trace:", error?.stack);
+    res.status(500).json({ message: "Failed to fetch map feed", error: error?.message || String(error) });
   }
 });
 
