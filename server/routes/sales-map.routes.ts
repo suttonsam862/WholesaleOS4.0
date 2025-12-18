@@ -214,7 +214,7 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
 
     let orderResults: any[] = [];
     if (wantOrders) {
-      const activeStatuses = ["pending", "confirmed", "in_production", "ready_to_ship"];
+      const activeStatuses = ["new", "waiting_sizes", "invoiced", "production"];
       orderResults = await db
         .select({
           id: orders.id,
