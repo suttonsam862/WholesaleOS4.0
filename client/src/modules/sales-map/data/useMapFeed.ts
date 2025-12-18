@@ -44,6 +44,9 @@ function buildQueryString(bounds: UseFeedOptions["bounds"], filters?: MapFilters
 
 export function useMapFeed({ bounds, zoom, filters, enabled = true }: UseFeedOptions) {
   const queryString = buildQueryString(bounds, filters);
+  const isEnabled = enabled && !!bounds;
+  
+  console.log("[useMapFeed] bounds:", bounds, "enabled:", enabled, "isEnabled:", isEnabled);
   
   return useQuery<MapFeedResponse>({
     queryKey: [
@@ -61,13 +64,16 @@ export function useMapFeed({ bounds, zoom, filters, enabled = true }: UseFeedOpt
       filters?.showAttentionOnly,
     ],
     queryFn: async () => {
+      console.log("[useMapFeed] Fetching feed with queryString:", queryString);
       const response = await fetch(`/api/sales-map/feed?${queryString}`);
       if (!response.ok) {
         throw new Error("Failed to fetch map feed");
       }
-      return response.json();
+      const data = await response.json();
+      console.log("[useMapFeed] Feed response:", data);
+      return data;
     },
-    enabled: enabled && !!bounds,
+    enabled: isEnabled,
     staleTime: 30000,
     refetchInterval: 60000,
   });

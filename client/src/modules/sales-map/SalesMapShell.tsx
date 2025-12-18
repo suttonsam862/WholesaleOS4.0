@@ -78,6 +78,9 @@ export default function SalesMapShell() {
     enabled: true,
   });
 
+  console.log("[SalesMapShell] feedData:", feedData);
+  console.log("[SalesMapShell] allEntities count:", feedData ? (feedData.organizations?.length || 0) + (feedData.leads?.length || 0) + (feedData.orders?.length || 0) : 0);
+
   const handleBoundsChange = useCallback(
     (newBounds: { north: number; south: number; east: number; west: number }) => {
       setBounds(newBounds);
