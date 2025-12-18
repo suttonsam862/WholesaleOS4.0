@@ -65,13 +65,21 @@ export function useMapFeed({ bounds, zoom, filters, enabled = true }: UseFeedOpt
     ],
     queryFn: async () => {
       console.log("[useMapFeed] Fetching feed with queryString:", queryString);
-      const response = await fetch(`/api/sales-map/feed?${queryString}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch map feed");
+      try {
+        const response = await fetch(`/api/sales-map/feed?${queryString}`);
+        console.log("[useMapFeed] Response status:", response.status, response.statusText);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("[useMapFeed] Error response body:", errorText);
+          throw new Error(`Failed to fetch map feed: ${response.status} ${errorText}`);
+        }
+        const data = await response.json();
+        console.log("[useMapFeed] Feed response:", data);
+        return data;
+      } catch (err) {
+        console.error("[useMapFeed] Fetch error:", err);
+        throw err;
       }
-      const data = await response.json();
-      console.log("[useMapFeed] Feed response:", data);
-      return data;
     },
     enabled: isEnabled,
     staleTime: 30000,
