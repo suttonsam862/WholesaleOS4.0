@@ -2183,6 +2183,7 @@ export const insertTeamStoreSchema = createInsertSchema(teamStores, {
   storeCloseDate: z.string().optional(),
   notes: z.string().optional(),
   specialInstructions: z.string().optional(),
+  totalRevenue: z.string().optional(),
 }).omit({
   createdAt: true,
   updatedAt: true,

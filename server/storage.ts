@@ -572,7 +572,7 @@ export interface IStorage {
   deleteRolePermissionsByRole(roleId: number): Promise<void>;
 
   // Invoice operations
-  getInvoices(): Promise<(Invoice & { organization?: Organization; salesperson?: User })[]>;
+  getInvoices(filters?: { revenueSource?: "order" | "team_store" | "other" }): Promise<(Invoice & { organization?: Organization; salesperson?: User })[]>;
   getInvoice(id: number): Promise<(Invoice & { organization?: Organization; salesperson?: User }) | undefined>;
   getInvoiceByNumber(invoiceNumber: string): Promise<Invoice | undefined>;
   getInvoicesByOrganization(orgId: number): Promise<Invoice[]>;
@@ -4741,7 +4741,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Invoice operations
-  async getInvoices(): Promise<(Invoice & { organization?: Organization; salesperson?: User })[]> {
+  async getInvoices(filters?: { revenueSource?: "order" | "team_store" | "other" }): Promise<(Invoice & { organization?: Organization; salesperson?: User })[]> {
+    const conditions = [];
+    
+    if (filters?.revenueSource) {
+      conditions.push(eq(invoices.revenueSource, filters.revenueSource));
+    }
+    
     const results = await db
       .select({
         ...getTableColumns(invoices),
@@ -4751,6 +4757,7 @@ export class DatabaseStorage implements IStorage {
       .from(invoices)
       .leftJoin(organizations, eq(invoices.orgId, organizations.id))
       .leftJoin(users, eq(invoices.salespersonId, users.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(invoices.createdAt));
 
     return results.map((row) => ({

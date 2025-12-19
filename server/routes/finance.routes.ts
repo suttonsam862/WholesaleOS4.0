@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { db } from "../db";
-import { orders, invoices, invoicePayments, commissions, commissionPayments, salespersons, users, quotes, organizations, orderLineItems } from "@shared/schema";
+import { orders, invoices, invoicePayments, commissions, commissionPayments, salespersons, users, quotes, organizations, orderLineItems, teamStores } from "@shared/schema";
 import { eq, and, sql, desc, inArray } from "drizzle-orm";
 import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
 import { insertInvoiceSchema, insertInvoicePaymentSchema, insertCommissionPaymentSchema, insertProductCogsSchema, insertFinancialTransactionSchema } from "@shared/schema";
@@ -119,8 +119,9 @@ export function registerFinanceRoutes(app: Express): void {
   // Invoice routes
   app.get('/api/invoices', isAuthenticated, loadUserData, requirePermission('finance', 'read'), async (req, res) => {
     try {
-      const invoices = await storage.getInvoices();
-      res.json(invoices);
+      const revenueSource = req.query.revenueSource as "order" | "team_store" | "other" | undefined;
+      const invoicesList = await storage.getInvoices(revenueSource ? { revenueSource } : undefined);
+      res.json(invoicesList);
     } catch (error) {
       console.error("Error fetching invoices:", error);
       res.status(500).json({ message: "Failed to fetch invoices" });
@@ -238,6 +239,19 @@ export function registerFinanceRoutes(app: Express): void {
     } catch (error: any) {
       console.error("Error deleting invoice:", error);
       res.status(400).json({ message: error.message || "Failed to delete invoice" });
+    }
+  });
+
+  // Team Store Revenue update endpoint
+  app.patch('/api/team-stores/:id/revenue', isAuthenticated, loadUserData, requirePermission('finance', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { totalRevenue } = req.body;
+      const updated = await storage.updateTeamStore(id, { totalRevenue });
+      res.json(updated);
+    } catch (error: any) {
+      console.error("Error updating team store revenue:", error);
+      res.status(400).json({ message: error.message || "Failed to update team store revenue" });
     }
   });
 
@@ -555,29 +569,71 @@ export function registerFinanceRoutes(app: Express): void {
   // Get invoice amount suggestions for an organization or order
   app.get('/api/finance/suggestions/invoice', isAuthenticated, loadUserData, requirePermission('finance', 'read'), async (req, res) => {
     try {
-      const { orgId, orderId } = req.query;
+      const { orgId, orderId, teamStoreId } = req.query;
       
       // Validate query params - at least one must be provided
       const parsedOrgId = orgId ? parseInt(orgId as string) : null;
       const parsedOrderId = orderId ? parseInt(orderId as string) : null;
+      const parsedTeamStoreId = teamStoreId ? parseInt(teamStoreId as string) : null;
       
       // Return empty suggestions if no valid params provided
-      if (!parsedOrgId && !parsedOrderId) {
+      if (!parsedOrgId && !parsedOrderId && !parsedTeamStoreId) {
         return res.json({ suggestions: [] });
       }
       
       // Validate parsed values aren't NaN
-      if ((orgId && isNaN(parsedOrgId!)) || (orderId && isNaN(parsedOrderId!))) {
-        return res.status(400).json({ message: "Invalid orgId or orderId provided" });
+      if ((orgId && isNaN(parsedOrgId!)) || (orderId && isNaN(parsedOrderId!)) || (teamStoreId && isNaN(parsedTeamStoreId!))) {
+        return res.status(400).json({ message: "Invalid orgId, orderId, or teamStoreId provided" });
       }
       
       const suggestions: Array<{
         label: string;
         value: string;
-        source: 'order' | 'quote' | 'outstanding';
+        source: 'order' | 'quote' | 'outstanding' | 'team_store';
         confidence: 'high' | 'medium' | 'low';
         details?: Record<string, any>;
       }> = [];
+      
+      // Team store details to include in response
+      let teamStoreDetails: { id: number; name: string; totalRevenue: string | null } | null = null;
+      
+      // If team store ID is provided, fetch team store details and add suggestions
+      if (parsedTeamStoreId) {
+        const [teamStore] = await db.select().from(teamStores).where(eq(teamStores.id, parsedTeamStoreId));
+        if (teamStore) {
+          teamStoreDetails = {
+            id: teamStore.id,
+            name: teamStore.storeName,
+            totalRevenue: teamStore.totalRevenue
+          };
+          
+          const revenue = safeParseFloat(teamStore.totalRevenue, 0);
+          if (revenue > 0) {
+            // Check existing invoices for this team store
+            const existingInvoices = await db.select().from(invoices).where(eq(invoices.teamStoreId, parsedTeamStoreId));
+            const totalInvoiced = existingInvoices.reduce((sum, inv) => sum + safeParseFloat(inv.totalAmount, 0), 0);
+            const outstanding = revenue - totalInvoiced;
+            
+            suggestions.push({
+              label: `Team Store Revenue: $${revenue.toFixed(2)}`,
+              value: revenue.toFixed(2),
+              source: 'team_store',
+              confidence: existingInvoices.length === 0 ? 'high' : 'medium',
+              details: { teamStoreId: teamStore.id, teamStoreName: teamStore.storeName }
+            });
+            
+            if (totalInvoiced > 0 && outstanding > 0) {
+              suggestions.push({
+                label: `Team Store Outstanding: $${outstanding.toFixed(2)}`,
+                value: outstanding.toFixed(2),
+                source: 'team_store',
+                confidence: 'high',
+                details: { alreadyInvoiced: totalInvoiced, remaining: outstanding }
+              });
+            }
+          }
+        }
+      }
 
       // If an order is selected, get its details first
       if (parsedOrderId) {
@@ -676,7 +732,7 @@ export function registerFinanceRoutes(app: Express): void {
         }
       }
 
-      res.json({ suggestions });
+      res.json({ suggestions, teamStore: teamStoreDetails });
     } catch (error) {
       console.error("Error fetching invoice suggestions:", error);
       res.status(500).json({ message: "Failed to fetch invoice suggestions" });

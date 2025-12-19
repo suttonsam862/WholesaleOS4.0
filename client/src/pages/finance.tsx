@@ -156,6 +156,7 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "invoice" | "payment" | "commission">("all");
   const [statusFilter, setStatusFilter] = useState<string>(initialStatusFilter || "all");
+  const [revenueSourceFilter, setRevenueSourceFilter] = useState<string>("all");
   const [activeTab, setActiveTab] = useState(defaultTab);
 
   const [showCreateInvoiceModal, setShowCreateInvoiceModal] = useState(action === "new" && defaultTab === "invoices");
@@ -180,6 +181,7 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
     issueDate: new Date().toISOString().split('T')[0],
     dueDate: "",
     paymentTerms: "Net 30",
+    revenueSource: "order" as "order" | "team_store" | "other",
   });
 
   const [paymentForm, setPaymentForm] = useState({
@@ -245,13 +247,11 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
   });
 
   const { data: invoices = [], isLoading: invoicesLoading } = useQuery<Invoice[]>({
-    queryKey: ["/api/invoices"],
+    queryKey: ["/api/invoices", revenueSourceFilter],
     queryFn: async () => {
-      const response = await fetch('/api/invoices', { credentials: 'include' });
-      if (response.ok) {
-        return response.json();
-      }
-      return [];
+      const params = revenueSourceFilter !== "all" ? `?revenueSource=${revenueSourceFilter}` : '';
+      const response = await fetch(`/api/invoices${params}`, { credentials: 'include' });
+      return response.ok ? response.json() : [];
     },
     retry: false,
   });
@@ -566,6 +566,7 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
         issueDate: data.issueDate,
         dueDate: data.dueDate,
         paymentTerms: data.paymentTerms,
+        revenueSource: data.revenueSource || "order",
         status: "draft",
       };
       return apiRequest("/api/invoices", { method: "POST", body: payload });
@@ -660,6 +661,7 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
     setInvoiceForm({
       orderId: null, orgId: null, subtotal: "", taxRate: "0", totalAmount: "",
       issueDate: new Date().toISOString().split('T')[0], dueDate: "", paymentTerms: "Net 30",
+      revenueSource: "order",
     });
   };
 
@@ -1408,9 +1410,22 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
         <TabsContent value="invoices" className="space-y-4 mt-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Invoices</h3>
-            <Button onClick={() => setShowCreateInvoiceModal(true)} className="gap-2" data-testid="button-add-invoice">
-              <Plus className="h-4 w-4" /> Add Invoice
-            </Button>
+            <div className="flex items-center gap-2">
+              <Select value={revenueSourceFilter} onValueChange={setRevenueSourceFilter}>
+                <SelectTrigger className="w-[180px]" data-testid="select-revenue-source-filter">
+                  <SelectValue placeholder="All Sources" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sources</SelectItem>
+                  <SelectItem value="order">Regular Orders</SelectItem>
+                  <SelectItem value="team_store">Team Stores</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={() => setShowCreateInvoiceModal(true)} className="gap-2" data-testid="button-add-invoice">
+                <Plus className="h-4 w-4" /> Add Invoice
+              </Button>
+            </div>
           </div>
           <div className="space-y-4">
             {invoices.length === 0 ? (
@@ -1428,9 +1443,19 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                           <FileText className="h-5 w-5 text-blue-400" />
                         </div>
                         <div>
-                          <h4 className="font-medium text-foreground">
-                            {invoice.organization?.name || invoice.invoiceNumber}
-                          </h4>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium text-foreground">
+                              {invoice.organization?.name || invoice.invoiceNumber}
+                            </h4>
+                            {invoice.revenueSource && invoice.revenueSource !== 'order' && (
+                              <Badge variant="secondary" className={cn(
+                                "text-xs capitalize",
+                                invoice.revenueSource === 'team_store' ? "bg-purple-500/20 text-purple-400" : "bg-gray-500/20 text-gray-400"
+                              )} data-testid={`badge-revenue-source-${invoice.id}`}>
+                                {invoice.revenueSource === 'team_store' ? 'Team Store' : invoice.revenueSource}
+                              </Badge>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <span className="text-xs">{invoice.invoiceNumber}</span>
                             <span className="flex items-center gap-1">
@@ -1680,20 +1705,35 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                 <Input type="date" value={invoiceForm.dueDate} onChange={(e) => setInvoiceForm({ ...invoiceForm, dueDate: e.target.value })} data-testid="input-invoice-due-date" />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Payment Terms</Label>
-              <Select value={invoiceForm.paymentTerms} onValueChange={(v) => setInvoiceForm({ ...invoiceForm, paymentTerms: v })}>
-                <SelectTrigger data-testid="select-invoice-terms">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Due on receipt">Due on receipt</SelectItem>
-                  <SelectItem value="Net 15">Net 15</SelectItem>
-                  <SelectItem value="Net 30">Net 30</SelectItem>
-                  <SelectItem value="Net 45">Net 45</SelectItem>
-                  <SelectItem value="Net 60">Net 60</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Payment Terms</Label>
+                <Select value={invoiceForm.paymentTerms} onValueChange={(v) => setInvoiceForm({ ...invoiceForm, paymentTerms: v })}>
+                  <SelectTrigger data-testid="select-invoice-terms">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Due on receipt">Due on receipt</SelectItem>
+                    <SelectItem value="Net 15">Net 15</SelectItem>
+                    <SelectItem value="Net 30">Net 30</SelectItem>
+                    <SelectItem value="Net 45">Net 45</SelectItem>
+                    <SelectItem value="Net 60">Net 60</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Revenue Source</Label>
+                <Select value={invoiceForm.revenueSource} onValueChange={(v: "order" | "team_store" | "other") => setInvoiceForm({ ...invoiceForm, revenueSource: v })}>
+                  <SelectTrigger data-testid="select-invoice-revenue-source">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="order">Regular Order</SelectItem>
+                    <SelectItem value="team_store">Team Store</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <DialogFooter>
