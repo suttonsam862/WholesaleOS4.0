@@ -199,3 +199,26 @@ Implemented an enhanced semi-automatic financial entry system with intelligent s
 - Input validation on invoice suggestions endpoint with proper error handling
 - Confidence levels: High (within 1%), Medium (within 5%), Low (within 10%)
 - All suggestion panels include data-testid attributes for testing
+
+### Team Store Revenue Integration (December 2024)
+Added team store revenue tracking that integrates with the finance invoice and payment systems.
+
+**Schema Changes** (`shared/schema.ts`):
+- Added `totalRevenue` field to team stores table (decimal with precision 12, scale 2)
+- Added `revenueSource` field to invoices table (enum: "order" | "team_store" | "other")
+- Added `teamStoreId` field to invoices table (foreign key to team stores)
+
+**Backend Enhancements** (`server/routes/finance.routes.ts`):
+- `GET /api/invoices` now supports `revenueSource` query parameter for filtering
+- `PATCH /api/team-stores/:id/revenue` endpoint to update team store total revenue
+- Invoice suggestions endpoint includes team store context when teamStoreId provided
+- Server-side filtering at database level for performance
+
+**Finance UI Improvements** (`client/src/pages/finance.tsx`):
+- Revenue source filter dropdown on Invoices tab (All Sources, Regular Orders, Team Stores, Other)
+- Revenue source badges on invoice cards (purple for team stores)
+- Revenue source field in Create Invoice modal
+
+**Team Store Management** (`client/src/components/modals/team-store-detail-modal.tsx`):
+- Total Revenue input field with currency formatting
+- Revenue persists when saving team store changes
