@@ -64,6 +64,9 @@ interface Salesperson {
   ordersCount: number;
   revenue: number;
   quotaAttainment: number;
+  commissionEarned: number;
+  commissionPaid: number;
+  commissionOwed: number;
 }
 
 interface Order {
@@ -193,6 +196,10 @@ export default function Salespeople() {
     const avgQuotaAttainment = activeSalespeople.length > 0
       ? activeSalespeople.reduce((sum, sp) => sum + sp.quotaAttainment, 0) / activeSalespeople.length
       : 0;
+    const totalCommissionEarned = salespeople.reduce((sum, sp) => sum + (sp.commissionEarned || 0), 0);
+    const totalCommissionPaid = salespeople.reduce((sum, sp) => sum + (sp.commissionPaid || 0), 0);
+    const totalCommissionOwed = salespeople.reduce((sum, sp) => sum + (sp.commissionOwed || 0), 0);
+    const totalOrders = salespeople.reduce((sum, sp) => sum + sp.ordersCount, 0);
 
     return {
       total: salespeople.length,
@@ -200,6 +207,10 @@ export default function Salespeople() {
       totalRevenue,
       avgQuotaAttainment,
       totalQuota,
+      totalCommissionEarned,
+      totalCommissionPaid,
+      totalCommissionOwed,
+      totalOrders,
     };
   }, [salespeople]);
 
@@ -278,11 +289,15 @@ export default function Salespeople() {
       "Phone": sp.userPhone || "",
       "Territory": sp.territory || "",
       "Status": sp.active ? "Active" : "Inactive",
+      "Commission Rate %": (parseFloat(sp.commissionRate || "0") * 100).toFixed(1),
       "Monthly Quota": sp.quotaMonthly || "0",
       "Total Leads": sp.totalLeads,
       "Leads Won": sp.leadsWon,
       "Orders": sp.ordersCount,
       "Revenue": sp.revenue.toFixed(2),
+      "Commission Earned": (sp.commissionEarned || 0).toFixed(2),
+      "Commission Paid": (sp.commissionPaid || 0).toFixed(2),
+      "Commission Outstanding": (sp.commissionOwed || 0).toFixed(2),
       "Quota Attainment %": sp.quotaAttainment.toFixed(1),
       "Created": format(new Date(sp.createdAt), "yyyy-MM-dd"),
     }));
@@ -516,7 +531,7 @@ export default function Salespeople() {
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <Card data-testid="card-total-salespeople">
           <CardContent className="p-4">
             <div className="flex items-center space-x-3">
@@ -525,25 +540,25 @@ export default function Salespeople() {
               </div>
               <div>
                 <p className="text-2xl font-bold" data-testid="text-total-salespeople">
-                  {teamStats.total}
+                  {teamStats.active}/{teamStats.total}
                 </p>
-                <p className="text-sm text-muted-foreground">Total Salespeople</p>
+                <p className="text-sm text-muted-foreground">Active/Total</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card data-testid="card-active-salespeople">
+        <Card data-testid="card-total-orders">
           <CardContent className="p-4">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-green-500" />
+              <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                <Package className="w-5 h-5 text-purple-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold" data-testid="text-active-salespeople">
-                  {teamStats.active}
+                <p className="text-2xl font-bold" data-testid="text-total-orders">
+                  {teamStats.totalOrders}
                 </p>
-                <p className="text-sm text-muted-foreground">Active</p>
+                <p className="text-sm text-muted-foreground">Total Orders</p>
               </div>
             </div>
           </CardContent>
@@ -557,7 +572,7 @@ export default function Salespeople() {
               </div>
               <div>
                 <p className="text-2xl font-bold" data-testid="text-total-revenue">
-                  ${teamStats.totalRevenue.toFixed(0)}
+                  ${teamStats.totalRevenue.toLocaleString(undefined, {maximumFractionDigits: 0})}
                 </p>
                 <p className="text-sm text-muted-foreground">Total Revenue</p>
               </div>
@@ -565,33 +580,49 @@ export default function Salespeople() {
           </CardContent>
         </Card>
 
-        <Card data-testid="card-quota-achieved">
+        <Card data-testid="card-commission-earned">
           <CardContent className="p-4">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-                <Target className="w-5 h-5 text-purple-500" />
+              <div className="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center">
+                <Award className="w-5 h-5 text-amber-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold" data-testid="text-quota-achieved">
-                  {teamStats.avgQuotaAttainment.toFixed(0)}%
+                <p className="text-2xl font-bold" data-testid="text-commission-earned">
+                  ${teamStats.totalCommissionEarned.toLocaleString(undefined, {maximumFractionDigits: 0})}
                 </p>
-                <p className="text-sm text-muted-foreground">Avg Quota</p>
+                <p className="text-sm text-muted-foreground">Commission Earned</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card data-testid="card-territories">
+        <Card data-testid="card-commission-paid">
           <CardContent className="p-4">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center">
-                <MapPin className="w-5 h-5 text-indigo-500" />
+              <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
+                <CheckCircle className="w-5 h-5 text-green-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold" data-testid="text-territories">
-                  {territories.length}
+                <p className="text-2xl font-bold" data-testid="text-commission-paid">
+                  ${teamStats.totalCommissionPaid.toLocaleString(undefined, {maximumFractionDigits: 0})}
                 </p>
-                <p className="text-sm text-muted-foreground">Territories</p>
+                <p className="text-sm text-muted-foreground">Commission Paid</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="card-commission-owed">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold" data-testid="text-commission-owed">
+                  ${teamStats.totalCommissionOwed.toLocaleString(undefined, {maximumFractionDigits: 0})}
+                </p>
+                <p className="text-sm text-muted-foreground">Outstanding</p>
               </div>
             </div>
           </CardContent>
@@ -702,12 +733,12 @@ export default function Salespeople() {
                     </th>
                   )}
                   <th className="px-6 py-3">Salesperson</th>
-                  <th className="px-6 py-3">Contact</th>
-                  <th className="px-6 py-3">Monthly Quota</th>
                   <th className="px-6 py-3">Commission %</th>
-                  <th className="px-6 py-3">Leads</th>
                   <th className="px-6 py-3">Orders</th>
                   <th className="px-6 py-3">Revenue</th>
+                  <th className="px-6 py-3">Commission Earned</th>
+                  <th className="px-6 py-3">Commission Paid</th>
+                  <th className="px-6 py-3">Outstanding</th>
                   <th className="px-6 py-3">Performance</th>
                   <th className="px-6 py-3">Status</th>
                   <th className="px-6 py-3">Actions</th>
@@ -716,7 +747,7 @@ export default function Salespeople() {
               <tbody className="divide-y divide-border">
                 {filteredSalespeople.length === 0 ? (
                   <tr>
-                    <td className="px-6 py-12 text-center text-muted-foreground" colSpan={canEdit ? 11 : 10}>
+                    <td className="px-6 py-12 text-center text-muted-foreground" colSpan={canEdit ? 12 : 11}>
                       <div className="flex flex-col items-center">
                         <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
                           <Users className="w-8 h-8 text-muted-foreground" />
@@ -773,48 +804,10 @@ export default function Salespeople() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                        <div className="space-y-1">
-                          {sp.userEmail && (
-                            <div className="flex items-center text-sm text-muted-foreground" data-testid={`text-salesperson-email-${sp.id}`}>
-                              <Mail className="w-3 h-3 mr-2" />
-                              <a href={`mailto:${sp.userEmail}`} className="hover:text-primary hover:underline">
-                                {sp.userEmail}
-                              </a>
-                            </div>
-                          )}
-                          {sp.userPhone && (
-                            <div className="flex items-center text-sm text-muted-foreground" data-testid={`text-salesperson-phone-${sp.id}`}>
-                              <Phone className="w-3 h-3 mr-2" />
-                              <a href={`tel:${sp.userPhone}`} className="hover:text-primary hover:underline">
-                                {sp.userPhone}
-                              </a>
-                            </div>
-                          )}
-                          {!sp.userEmail && !sp.userPhone && (
-                            <span className="text-sm text-muted-foreground">No contact info</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="font-medium" data-testid={`text-quota-${sp.id}`}>
-                          ${parseFloat(sp.quotaMonthly || "0").toLocaleString()}
-                        </span>
-                      </td>
                       <td className="px-6 py-4">
                         <span className="font-medium" data-testid={`text-commission-rate-${sp.id}`}>
                           {(parseFloat(sp.commissionRate || "0") * 100).toFixed(1)}%
                         </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm">
-                          <div data-testid={`text-leads-total-${sp.id}`}>
-                            <span className="font-medium">{sp.totalLeads}</span> total
-                          </div>
-                          <div className="text-muted-foreground" data-testid={`text-leads-won-${sp.id}`}>
-                            <span className="text-green-600">{sp.leadsWon}</span> won
-                          </div>
-                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <span className="font-medium" data-testid={`text-orders-${sp.id}`}>
@@ -823,7 +816,22 @@ export default function Salespeople() {
                       </td>
                       <td className="px-6 py-4">
                         <span className="font-medium" data-testid={`text-revenue-${sp.id}`}>
-                          ${sp.revenue.toLocaleString()}
+                          ${sp.revenue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-medium text-amber-600" data-testid={`text-commission-earned-${sp.id}`}>
+                          ${(sp.commissionEarned || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-medium text-green-600" data-testid={`text-commission-paid-${sp.id}`}>
+                          ${(sp.commissionPaid || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`font-medium ${(sp.commissionOwed || 0) > 0 ? 'text-red-600' : 'text-muted-foreground'}`} data-testid={`text-commission-owed-${sp.id}`}>
+                          ${(sp.commissionOwed || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         </span>
                       </td>
                       <td className="px-6 py-4">

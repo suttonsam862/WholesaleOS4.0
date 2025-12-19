@@ -14,7 +14,8 @@ import {
   Plus,
   AlertTriangle,
   Activity,
-  ShoppingCart
+  ShoppingCart,
+  Briefcase
 } from "lucide-react";
 import { useState } from "react";
 import { QuickCreateModal } from "@/components/modals/quick-create-modal";
@@ -35,6 +36,11 @@ export default function AdminHome() {
 
   const { data: products = [] } = useQuery<any[]>({
     queryKey: ["/api/products"],
+    retry: false,
+  });
+
+  const { data: salespeople = [] } = useQuery<any[]>({
+    queryKey: ["/api/salespeople/with-metrics"],
     retry: false,
   });
 
@@ -78,6 +84,21 @@ export default function AdminHome() {
               { label: "Test Users", href: "/admin/test-users" },
             ]}
             badge={{ count: users.length, label: "Users" }}
+          />
+
+          <WorkflowTile
+            id="sales-management"
+            title="Sales Team Management"
+            description="Manage salespeople, commissions, and territories"
+            icon={Briefcase}
+            bgGradient="from-amber-500/10 to-amber-500/5"
+            iconColor="text-amber-400"
+            primaryAction={{ label: "Manage Sales Team", href: "/salespeople" }}
+            subActions={[
+              { label: "Commission Payments", href: "/finance?tab=commissions" },
+              { label: "Sales Analytics", href: "/sales-analytics" },
+            ]}
+            badge={{ count: salespeople.length, label: "Active" }}
           />
 
           <WorkflowTile

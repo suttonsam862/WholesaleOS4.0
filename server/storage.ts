@@ -466,6 +466,9 @@ export interface IStorage {
     ordersCount: number;
     revenue: number;
     quotaAttainment: number;
+    commissionEarned: number;
+    commissionPaid: number;
+    commissionOwed: number;
   })[]>;
 
   // Business logic operations
@@ -3047,14 +3050,17 @@ export class DatabaseStorage implements IStorage {
     ordersCount: number;
     revenue: number;
     quotaAttainment: number;
+    commissionEarned: number;
+    commissionPaid: number;
+    commissionOwed: number;
   })[]> {
     console.log('🔍 [Storage] Getting salespeople with metrics...');
 
     try {
-      const salespeople = await db.select().from(salespersons).orderBy(desc(salespersons.createdAt));
-      console.log('🔍 [Storage] Found salespeople:', salespeople.length);
+      const allSalespeople = await db.select().from(salespersons).orderBy(desc(salespersons.createdAt));
+      console.log('🔍 [Storage] Found salespeople:', allSalespeople.length);
 
-      const results = await Promise.all(salespeople.map(async (sp) => {
+      const results = await Promise.all(allSalespeople.map(async (sp) => {
         try {
           // Get user info
           const [user] = await db.select().from(users).where(eq(users.id, sp.userId));
@@ -3069,18 +3075,38 @@ export class DatabaseStorage implements IStorage {
           const totalLeads = leadsResult[0]?.total || 0;
           const leadsWon = leadsResult[0]?.won || 0;
 
-          // Get orders statistics with proper decimal handling
-          const ordersResult = await db.select({
-            count: count(),
-            totalValue: sql<string>`COALESCE(SUM(CAST((SELECT COALESCE(SUM(CAST(${orderLineItems.qtyTotal} AS DECIMAL) * CAST(${orderLineItems.unitPrice} AS DECIMAL)), 0) FROM ${orderLineItems} WHERE ${orderLineItems.orderId} = ${orders.id}) AS DECIMAL)), 0)`
-          }).from(orders)
+          // Get orders assigned to this salesperson
+          const salespersonOrders = await db.select().from(orders)
             .where(eq(orders.salespersonId, sp.userId));
 
-          const ordersCount = ordersResult[0]?.count || 0;
-          const revenue = parseFloat(ordersResult[0]?.totalValue?.toString() || "0");
+          const ordersCount = salespersonOrders.length;
+
+          // Calculate revenue from line items using lineTotal column
+          let totalRevenue = 0;
+          for (const order of salespersonOrders) {
+            const lineItemsResult = await db.select({
+              total: sql<string>`COALESCE(SUM(CAST(${orderLineItems.lineTotal} AS DECIMAL)), 0)`
+            }).from(orderLineItems)
+              .where(eq(orderLineItems.orderId, order.id));
+            
+            totalRevenue += parseFloat(lineItemsResult[0]?.total?.toString() || "0");
+          }
+
+          // Calculate commission earned (revenue * commission rate)
+          const commissionRate = parseFloat(sp.commissionRate || "0.1");
+          const commissionEarned = totalRevenue * commissionRate;
+
+          // Get commission payments made to this salesperson
+          const commissionPaymentsResult = await db.select({
+            total: sql<string>`COALESCE(SUM(CAST(${commissionPayments.totalAmount} AS DECIMAL)), 0)`
+          }).from(commissionPayments)
+            .where(eq(commissionPayments.salespersonId, sp.userId));
+          
+          const commissionPaid = parseFloat(commissionPaymentsResult[0]?.total?.toString() || "0");
+          const commissionOwed = commissionEarned - commissionPaid;
 
           const quotaAttainment = parseFloat(sp.quotaMonthly || "0") > 0 
-            ? (revenue / parseFloat(sp.quotaMonthly || "0")) * 100 
+            ? (totalRevenue / parseFloat(sp.quotaMonthly || "0")) * 100 
             : 0;
 
           return {
@@ -3091,8 +3117,11 @@ export class DatabaseStorage implements IStorage {
             totalLeads,
             leadsWon,
             ordersCount,
-            revenue,
-            quotaAttainment
+            revenue: totalRevenue,
+            quotaAttainment,
+            commissionEarned,
+            commissionPaid,
+            commissionOwed
           };
         } catch (error) {
           console.error(`🔍 [Storage] Error processing salesperson ${sp.id}:`, error);
@@ -3105,7 +3134,10 @@ export class DatabaseStorage implements IStorage {
             leadsWon: 0,
             ordersCount: 0,
             revenue: 0,
-            quotaAttainment: 0
+            quotaAttainment: 0,
+            commissionEarned: 0,
+            commissionPaid: 0,
+            commissionOwed: 0
           };
         }
       }));
