@@ -107,6 +107,28 @@ interface FinancialMatchingOrder {
   };
 }
 
+// Extended payment types with related entity data
+interface InvoicePaymentWithRelations extends InvoicePayment {
+  invoice?: {
+    id: number;
+    invoiceNumber: string;
+    orgId: number | null;
+    totalAmount: string;
+  };
+  organization?: {
+    id: number;
+    name: string;
+  };
+}
+
+interface CommissionPaymentWithRelations extends CommissionPayment {
+  salesperson?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
 const CATEGORY_OPTIONS = [
   "Sales",
   "Services",
@@ -234,7 +256,7 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
     retry: false,
   });
 
-  const { data: invoicePayments = [], isLoading: paymentsLoading } = useQuery<InvoicePayment[]>({
+  const { data: invoicePayments = [], isLoading: paymentsLoading } = useQuery<InvoicePaymentWithRelations[]>({
     queryKey: ["/api/invoice-payments"],
     queryFn: async () => {
       const response = await fetch('/api/invoice-payments', { credentials: 'include' });
@@ -246,7 +268,7 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
     retry: false,
   });
 
-  const { data: commissionPayments = [], isLoading: commissionsLoading } = useQuery<CommissionPayment[]>({
+  const { data: commissionPayments = [], isLoading: commissionsLoading } = useQuery<CommissionPaymentWithRelations[]>({
     queryKey: ["/api/commission-payments"],
     queryFn: async () => {
       const response = await fetch('/api/commission-payments', { credentials: 'include' });
@@ -900,7 +922,7 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
   }
 
   return (
-    <div className="p-6 space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80">
+    <div className="p-6 pb-32 space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold gradient-text" data-testid="text-page-title">Finance</h1>
@@ -1397,7 +1419,7 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                 <p>No invoices found.</p>
               </div>
             ) : (
-              invoices.map(invoice => (
+              invoices.map((invoice: any) => (
                 <Card key={invoice.id} className="glass-card border-white/10 hover:border-primary/50 transition-all duration-300" data-testid={`card-invoice-${invoice.id}`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -1406,8 +1428,11 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                           <FileText className="h-5 w-5 text-blue-400" />
                         </div>
                         <div>
-                          <h4 className="font-medium text-foreground">{invoice.invoiceNumber}</h4>
+                          <h4 className="font-medium text-foreground">
+                            {invoice.organization?.name || invoice.invoiceNumber}
+                          </h4>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="text-xs">{invoice.invoiceNumber}</span>
                             <span className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
                               Issued: {format(new Date(invoice.issueDate), "MMM d, yyyy")}
@@ -1451,7 +1476,7 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                 <p>No payments found.</p>
               </div>
             ) : (
-              invoicePayments.map(payment => (
+              invoicePayments.map((payment) => (
                 <Card key={payment.id} className="glass-card border-white/10 hover:border-primary/50 transition-all duration-300" data-testid={`card-payment-${payment.id}`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -1460,8 +1485,11 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                           <CreditCard className="h-5 w-5 text-green-400" />
                         </div>
                         <div>
-                          <h4 className="font-medium text-foreground">{payment.paymentNumber}</h4>
+                          <h4 className="font-medium text-foreground">
+                            {payment.organization?.name || payment.paymentNumber}
+                          </h4>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="text-xs">{payment.paymentNumber}</span>
                             <Badge variant="secondary" className="bg-white/10 text-white hover:bg-white/20 capitalize">
                               {payment.paymentMethod.replace('_', ' ')}
                             </Badge>
@@ -1502,7 +1530,7 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                 <p>No commission payments found.</p>
               </div>
             ) : (
-              commissionPayments.map(commission => (
+              commissionPayments.map((commission) => (
                 <Card key={commission.id} className="glass-card border-white/10 hover:border-primary/50 transition-all duration-300" data-testid={`card-commission-${commission.id}`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -1511,8 +1539,13 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                           <Users className="h-5 w-5 text-purple-400" />
                         </div>
                         <div>
-                          <h4 className="font-medium text-foreground">{commission.paymentNumber}</h4>
+                          <h4 className="font-medium text-foreground">
+                            {commission.salesperson?.firstName && commission.salesperson?.lastName
+                              ? `${commission.salesperson.firstName} ${commission.salesperson.lastName}`
+                              : commission.paymentNumber}
+                          </h4>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <span className="text-xs">{commission.paymentNumber}</span>
                             <Badge variant="secondary" className="bg-white/10 text-white hover:bg-white/20">
                               {commission.period}
                             </Badge>

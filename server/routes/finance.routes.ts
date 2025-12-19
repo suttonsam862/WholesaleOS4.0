@@ -245,8 +245,41 @@ export function registerFinanceRoutes(app: Express): void {
   app.get('/api/invoice-payments', isAuthenticated, loadUserData, requirePermission('finance', 'read'), async (req, res) => {
     try {
       const invoiceId = req.query.invoiceId ? parseInt(req.query.invoiceId as string) : undefined;
-      const payments = await storage.getInvoicePayments(invoiceId);
-      res.json(payments);
+      
+      // Join with invoices and organizations to get organization name
+      const paymentsWithDetails = await db
+        .select({
+          id: invoicePayments.id,
+          invoiceId: invoicePayments.invoiceId,
+          paymentNumber: invoicePayments.paymentNumber,
+          amount: invoicePayments.amount,
+          paymentDate: invoicePayments.paymentDate,
+          paymentMethod: invoicePayments.paymentMethod,
+          referenceNumber: invoicePayments.referenceNumber,
+          notes: invoicePayments.notes,
+          createdAt: invoicePayments.createdAt,
+          updatedAt: invoicePayments.updatedAt,
+          invoice: {
+            id: invoices.id,
+            invoiceNumber: invoices.invoiceNumber,
+            orgId: invoices.orgId,
+            totalAmount: invoices.totalAmount,
+          },
+          organization: {
+            id: organizations.id,
+            name: organizations.name,
+          },
+        })
+        .from(invoicePayments)
+        .leftJoin(invoices, eq(invoicePayments.invoiceId, invoices.id))
+        .leftJoin(organizations, eq(invoices.orgId, organizations.id))
+        .orderBy(desc(invoicePayments.paymentDate));
+
+      const filteredPayments = invoiceId 
+        ? paymentsWithDetails.filter(p => p.invoiceId === invoiceId)
+        : paymentsWithDetails;
+
+      res.json(filteredPayments);
     } catch (error) {
       console.error("Error fetching invoice payments:", error);
       res.status(500).json({ message: "Failed to fetch invoice payments" });
@@ -304,8 +337,36 @@ export function registerFinanceRoutes(app: Express): void {
   app.get('/api/commission-payments', isAuthenticated, loadUserData, requirePermission('finance', 'read'), async (req, res) => {
     try {
       const salespersonId = req.query.salespersonId as string | undefined;
-      const payments = await storage.getCommissionPayments(salespersonId);
-      res.json(payments);
+      
+      // Join with users table to get salesperson name
+      const paymentsWithDetails = await db
+        .select({
+          id: commissionPayments.id,
+          salespersonId: commissionPayments.salespersonId,
+          paymentNumber: commissionPayments.paymentNumber,
+          totalAmount: commissionPayments.totalAmount,
+          period: commissionPayments.period,
+          paymentDate: commissionPayments.paymentDate,
+          paymentMethod: commissionPayments.paymentMethod,
+          referenceNumber: commissionPayments.referenceNumber,
+          notes: commissionPayments.notes,
+          createdAt: commissionPayments.createdAt,
+          updatedAt: commissionPayments.updatedAt,
+          salesperson: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          },
+        })
+        .from(commissionPayments)
+        .leftJoin(users, eq(commissionPayments.salespersonId, users.id))
+        .orderBy(desc(commissionPayments.paymentDate));
+
+      const filteredPayments = salespersonId 
+        ? paymentsWithDetails.filter(p => p.salespersonId === salespersonId)
+        : paymentsWithDetails;
+
+      res.json(filteredPayments);
     } catch (error) {
       console.error("Error fetching commission payments:", error);
       res.status(500).json({ message: "Failed to fetch commission payments" });
