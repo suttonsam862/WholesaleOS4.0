@@ -222,3 +222,33 @@ Added team store revenue tracking that integrates with the finance invoice and p
 **Team Store Management** (`client/src/components/modals/team-store-detail-modal.tsx`):
 - Total Revenue input field with currency formatting
 - Revenue persists when saving team store changes
+
+### Sales Team Management Enhancement (December 2024)
+Added comprehensive sales team KPIs and commission tracking to the admin dashboard.
+
+**Admin Hub Enhancement** (`client/src/pages/admin-home.tsx`):
+- New "Sales Team Management" tile with amber color scheme and Briefcase icon
+- Links to `/salespeople` page for managing sales team
+- Shows active salesperson count badge
+- Sub-actions for Commission Payments and Sales Analytics
+
+**Backend Metrics Enhancement** (`server/storage.ts`):
+- Enhanced `getSalespeopleWithMetrics` to include commission data:
+  - `commissionEarned`: Revenue × commission rate (default 10%)
+  - `commissionPaid`: Sum of all commission payments made
+  - `commissionOwed`: commissionEarned - commissionPaid
+- Uses Drizzle column references (`${orderLineItems.lineTotal}`, `${commissionPayments.totalAmount}`) for proper SQL generation
+- Revenue calculated from order line items' lineTotal field
+
+**Salespeople Page Enhancements** (`client/src/pages/salespeople.tsx`):
+- Updated interface with `commissionEarned`, `commissionPaid`, `commissionOwed` fields
+- Team stats include: totalCommissionEarned, totalCommissionPaid, totalCommissionOwed, totalOrders
+- Redesigned overview cards (6 cards):
+  - Active Salespeople / Total count
+  - Total Orders
+  - Total Revenue
+  - Commission Earned
+  - Commission Paid  
+  - Outstanding Commissions
+- Updated table columns: removed Contact/Leads/Quota, added Commission Earned/Paid/Outstanding
+- CSV export includes all commission data with proper formatting
