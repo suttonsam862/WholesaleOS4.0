@@ -359,6 +359,22 @@ export function registerFinanceRoutes(app: Express): void {
     }
   });
 
+  // Commissions routes (commission records, not payments)
+  app.get('/api/commissions', isAuthenticated, loadUserData, requirePermission('finance', 'read'), async (req, res) => {
+    try {
+      const { salespersonId, status, period } = req.query;
+      const commissionsData = await storage.getCommissions({
+        salespersonId: salespersonId as string,
+        status: status as string,
+        period: period as string
+      });
+      res.json(commissionsData);
+    } catch (error) {
+      console.error("Error fetching commissions:", error);
+      res.status(500).json({ message: "Failed to fetch commissions" });
+    }
+  });
+
   // Product COGS routes
   app.get('/api/product-cogs', isAuthenticated, loadUserData, requirePermission('finance', 'read'), async (req, res) => {
     try {
@@ -583,7 +599,7 @@ export function registerFinanceRoutes(app: Express): void {
         const orgQuotes = await db
           .select()
           .from(quotes)
-          .where(and(eq(quotes.orgId, targetOrgId), eq(quotes.status, 'accepted')))
+          .where(and(eq(quotes.orgId, parsedOrgId), eq(quotes.status, 'accepted')))
           .orderBy(desc(quotes.createdAt));
 
         for (const quote of orgQuotes) {
