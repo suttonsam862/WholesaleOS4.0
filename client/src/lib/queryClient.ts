@@ -114,12 +114,12 @@ async function handleFetch(
 export async function apiRequest<T = any>(
   endpoint: string,
   requestConfig: {
-    method: "GET" | "POST" | "PUT" | "DELETE";
+    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
     body?: any;
   }
 ): Promise<T>;
 export async function apiRequest<T = any>(
-  method: "GET" | "POST" | "PUT" | "DELETE",
+  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
   endpoint: string,
   body?: any
 ): Promise<T>;
@@ -130,12 +130,12 @@ export async function apiRequest<T = any>(
 ): Promise<T> {
   // Handle both parameter formats for backward compatibility
   let endpoint: string;
-  let method: "GET" | "POST" | "PUT" | "DELETE";
+  let method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   let requestBody: any;
 
   if (typeof requestConfigOrEndpoint === "string") {
     // New format: apiRequest(method, endpoint, body)
-    method = endpointOrMethod as "GET" | "POST" | "PUT" | "DELETE";
+    method = endpointOrMethod as "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
     endpoint = requestConfigOrEndpoint;
     requestBody = body;
   } else {

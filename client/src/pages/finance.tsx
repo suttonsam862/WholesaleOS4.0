@@ -43,6 +43,7 @@ import {
   Building2,
   Link2,
   Eye,
+  Edit,
   CheckCircle2,
   AlertCircle,
   Clock,
@@ -50,6 +51,9 @@ import {
   Calculator
 } from "lucide-react";
 import { FinancialMatchingModal } from "@/components/modals/financial-matching-modal";
+import { EditInvoiceModal } from "@/components/modals/edit-invoice-modal";
+import { EditInvoicePaymentModal } from "@/components/modals/edit-invoice-payment-modal";
+import { EditCommissionPaymentModal } from "@/components/modals/edit-commission-payment-modal";
 import { 
   AmountSuggestionPanel, 
   CommissionBreakdown, 
@@ -170,6 +174,9 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
   const [matchingYearFilter, setMatchingYearFilter] = useState<string>("all");
   const [matchingSortBy, setMatchingSortBy] = useState<string>("newest");
   const [selectedOrderForMatching, setSelectedOrderForMatching] = useState<FinancialMatchingOrder | null>(null);
+  const [editingInvoiceId, setEditingInvoiceId] = useState<number | null>(null);
+  const [editingPaymentId, setEditingPaymentId] = useState<number | null>(null);
+  const [editingCommissionId, setEditingCommissionId] = useState<number | null>(null);
 
   // Form states
   const [invoiceForm, setInvoiceForm] = useState({
@@ -1468,16 +1475,26 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                           </div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-lg text-blue-400">{formatCurrency(invoice.totalAmount)}</p>
-                        <div className="flex items-center gap-2 justify-end">
-                          <span className="text-xs text-muted-foreground">
-                            Paid: {formatCurrency(invoice.amountPaid || 0)}
-                          </span>
-                          <Badge variant="outline" className={cn("text-xs capitalize", getStatusBadgeColor(invoice.status))}>
-                            {invoice.status}
-                          </Badge>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="font-bold text-lg text-blue-400">{formatCurrency(invoice.totalAmount)}</p>
+                          <div className="flex items-center gap-2 justify-end">
+                            <span className="text-xs text-muted-foreground">
+                              Paid: {formatCurrency(invoice.amountPaid || 0)}
+                            </span>
+                            <Badge variant="outline" className={cn("text-xs capitalize", getStatusBadgeColor(invoice.status))}>
+                              {invoice.status}
+                            </Badge>
+                          </div>
                         </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setEditingInvoiceId(invoice.id)}
+                          data-testid={`button-edit-invoice-${invoice.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   </CardContent>
@@ -1533,6 +1550,14 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                           </span>
                         )}
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setEditingPaymentId(payment.id)}
+                        data-testid={`button-edit-payment-${payment.id}`}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -1592,6 +1617,14 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
                           </span>
                         )}
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setEditingCommissionId(commission.id)}
+                        data-testid={`button-edit-commission-${commission.id}`}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -2051,6 +2084,30 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {editingInvoiceId && (
+        <EditInvoiceModal
+          isOpen={!!editingInvoiceId}
+          onClose={() => setEditingInvoiceId(null)}
+          invoiceId={editingInvoiceId}
+        />
+      )}
+
+      {editingPaymentId && (
+        <EditInvoicePaymentModal
+          isOpen={!!editingPaymentId}
+          onClose={() => setEditingPaymentId(null)}
+          paymentId={editingPaymentId}
+        />
+      )}
+
+      {editingCommissionId && (
+        <EditCommissionPaymentModal
+          isOpen={!!editingCommissionId}
+          onClose={() => setEditingCommissionId(null)}
+          paymentId={editingCommissionId}
+        />
+      )}
     </div>
   );
 }
