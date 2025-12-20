@@ -51,3 +51,48 @@ Preferred communication style: Simple, everyday language.
 - **Printful API**: For print-on-demand fulfillment.
 - **Google Gemini**: For AI-powered features (client summaries, design assistance).
 - **Pantone Connect API**: For color matching from images.
+
+## Recent Changes
+
+### Native App Quality Mobile Polish (December 2024)
+Enhanced the mobile experience to feel like native iOS/Android apps with smooth loading, spring physics animations, and micro-interactions.
+
+**Loading & Skeleton System** (`client/src/components/ui/skeleton.tsx`):
+- Shimmer animations with gradient sweep (like Instagram)
+- Content-aware skeleton variants: SkeletonCard, SkeletonList, SkeletonTable, SkeletonChart, SkeletonAvatar, SkeletonText
+- LoadingContainer wrapper with smooth crossfade transitions
+- Spring physics for content appearance
+
+**Animation System**:
+- Spring timing functions via CSS variables: `--spring-bounce`, `--spring-smooth`, `--spring-snappy`
+- Page transitions with AnimatePresence and spring physics
+- Stagger animations for lists and grids (`StaggerContainer`, `StaggerItem`, `StaggerGrid`)
+- Modal/popup spring animations with backdrop blur transitions
+
+**Typography System** (`client/src/components/ui/responsive-text.tsx`, `truncate-text.tsx`):
+- Fluid typography with CSS clamp(): `--text-fluid-xs` through `--text-fluid-3xl`
+- TruncateText with expandable tap-to-show-more functionality
+- ResponsiveHeading and ResponsiveText components
+- AutoSizeText for automatic font scaling to fit container
+
+**Micro-Interactions** (`client/src/components/ui/`):
+- `PressFeedback` - Scale-down effect on touch (0.97 scale)
+- `PullToRefresh` - Touch gesture refresh with animated indicator
+- `SmoothScrollArea` - Momentum scrolling with edge gradients
+- `AnimatedCounter` - Spring-animated number transitions
+- `RippleEffect` - Material Design ripple on tap
+
+**Sales Map Mobile Optimization** (`client/src/modules/sales-map/`):
+- Full-screen map with floating glass morphism controls
+- Bottom sheet for mobile filters (TopHUD converted)
+- Bottom drawer for entity details (RightDrawer converted)
+- Collapsible bottom bar for orders panel
+- Larger touch targets (1.4x marker size on mobile)
+- Haptic-style visual feedback on marker tap
+
+**Global Mobile Polish**:
+- All buttons have :active scale transform (0.97)
+- Overscroll behavior utilities
+- 44-48px minimum touch targets throughout
+- Spring physics on all modal/popup transitions
+- No layout shifts during page transitions

@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
+import { AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -7,6 +8,8 @@ import { AuthLoadingScreen } from "@/components/auth-loading-screen";
 import { PermissionGuard } from "@/components/PermissionGuard";
 import { RoleGuard } from "@/components/role-home/RoleGuard";
 import { useSalesLandingRedirect } from "@/hooks/useSalesLandingRedirect";
+import { PageTransition } from "@/components/ui/page-transition";
+import { SkeletonCard } from "@/components/ui/skeleton";
 import {
   publicRoutes,
   roleHomeRoutes,
@@ -18,13 +21,19 @@ import type { FeatureFlags } from "@/lib/featureFlags";
 
 function RouteLoadingFallback() {
   return (
-    <div className="flex items-center justify-center min-h-[400px]">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+    <div className="flex flex-col items-center justify-center min-h-[400px] gap-6 p-6">
+      <div className="w-full max-w-md space-y-4">
+        <SkeletonCard />
+        <div className="flex gap-3">
+          <div className="h-10 flex-1 rounded-md bg-muted skeleton-shimmer" />
+          <div className="h-10 w-24 rounded-md bg-muted skeleton-shimmer" />
+        </div>
+      </div>
     </div>
   );
 }
 
-function RouteRenderer({ route, user }: { route: RouteConfig; user: any }) {
+function RouteRenderer({ route, user, routeKey }: { route: RouteConfig; user: any; routeKey: string }) {
   const Component = route.component;
 
   let content = (
@@ -53,12 +62,17 @@ function RouteRenderer({ route, user }: { route: RouteConfig; user: any }) {
     content = <AppLayout title={route.title}>{content}</AppLayout>;
   }
 
-  return content;
+  return (
+    <PageTransition key={routeKey}>
+      {content}
+    </PageTransition>
+  );
 }
 
 export function AppShell() {
   const { user, isLoading, isAuthenticated } = useAuth();
   const { isEnabled } = useFeatureFlags();
+  const [location] = useLocation();
 
   useSalesLandingRedirect();
 
@@ -68,20 +82,26 @@ export function AppShell() {
 
   if (!isAuthenticated || !user) {
     return (
-      <Switch>
-        {publicRoutes.map((route) => (
-          <Route key={route.path} path={route.path}>
-            <Suspense fallback={<RouteLoadingFallback />}>
-              <route.component />
-            </Suspense>
+      <AnimatePresence mode="wait">
+        <Switch>
+          {publicRoutes.map((route) => (
+            <Route key={route.path} path={route.path}>
+              <PageTransition key={route.path}>
+                <Suspense fallback={<RouteLoadingFallback />}>
+                  <route.component />
+                </Suspense>
+              </PageTransition>
+            </Route>
+          ))}
+          <Route>
+            <PageTransition key="not-found">
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <notFoundRoute.component />
+              </Suspense>
+            </PageTransition>
           </Route>
-        ))}
-        <Route>
-          <Suspense fallback={<RouteLoadingFallback />}>
-            <notFoundRoute.component />
-          </Suspense>
-        </Route>
-      </Switch>
+        </Switch>
+      </AnimatePresence>
     );
   }
 
@@ -93,33 +113,38 @@ export function AppShell() {
   });
 
   return (
-    <Switch>
-      {/* Public routes first - these should be accessible even when authenticated */}
-      {publicRoutes.filter(r => r.path !== "/").map((route) => (
-        <Route key={route.path} path={route.path}>
-          <Suspense fallback={<RouteLoadingFallback />}>
-            <route.component />
-          </Suspense>
-        </Route>
-      ))}
+    <AnimatePresence mode="wait">
+      <Switch key={location}>
+        {publicRoutes.filter(r => r.path !== "/").map((route) => (
+          <Route key={route.path} path={route.path}>
+            <PageTransition key={route.path}>
+              <Suspense fallback={<RouteLoadingFallback />}>
+                <route.component />
+              </Suspense>
+            </PageTransition>
+          </Route>
+        ))}
 
-      {enabledRoleHomeRoutes.map((route) => (
-        <Route key={route.path} path={route.path}>
-          <RouteRenderer route={route} user={user} />
-        </Route>
-      ))}
+        {enabledRoleHomeRoutes.map((route) => (
+          <Route key={route.path} path={route.path}>
+            <RouteRenderer route={route} user={user} routeKey={route.path} />
+          </Route>
+        ))}
 
-      {authenticatedRoutes.map((route) => (
-        <Route key={route.path} path={route.path}>
-          <RouteRenderer route={route} user={user} />
-        </Route>
-      ))}
+        {authenticatedRoutes.map((route) => (
+          <Route key={route.path} path={route.path}>
+            <RouteRenderer route={route} user={user} routeKey={route.path} />
+          </Route>
+        ))}
 
-      <Route>
-        <Suspense fallback={<RouteLoadingFallback />}>
-          <notFoundRoute.component />
-        </Suspense>
-      </Route>
-    </Switch>
+        <Route>
+          <PageTransition key="not-found">
+            <Suspense fallback={<RouteLoadingFallback />}>
+              <notFoundRoute.component />
+            </Suspense>
+          </PageTransition>
+        </Route>
+      </Switch>
+    </AnimatePresence>
   );
 }

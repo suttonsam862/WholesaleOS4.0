@@ -11,6 +11,7 @@ interface ClusteredMapCanvasProps {
   onEntityClick?: (entity: MapEntity) => void;
   selectedEntity?: MapEntity | null;
   highlightedEntityId?: { type: EntityType; id: number } | null;
+  isMobile?: boolean;
 }
 
 const DARK_STYLE = {
@@ -50,6 +51,13 @@ const ICON_SVGS: Record<EntityType, string> = {
   designJob: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="white"/><circle cx="17.5" cy="10.5" r=".5" fill="white"/><circle cx="8.5" cy="7.5" r=".5" fill="white"/><circle cx="6.5" cy="12.5" r=".5" fill="white"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/></svg>`,
 };
 
+const ICON_SVGS_LARGE: Record<EntityType, string> = {
+  organization: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>`,
+  lead: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`,
+  order: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>`,
+  designJob: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5" fill="white"/><circle cx="17.5" cy="10.5" r=".5" fill="white"/><circle cx="8.5" cy="7.5" r=".5" fill="white"/><circle cx="6.5" cy="12.5" r=".5" fill="white"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z"/></svg>`,
+};
+
 const ATTENTION_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>`;
 
 interface ClusterData {
@@ -67,7 +75,7 @@ function getZoomBucket(zoom: number): string {
   return `${showLabels}-${sizeTier}`;
 }
 
-function getEntityHash(entity: MapEntity, isSelected: boolean, isHighlighted: boolean, zoom: number): string {
+function getEntityHash(entity: MapEntity, isSelected: boolean, isHighlighted: boolean, zoom: number, isMobile: boolean): string {
   return JSON.stringify({
     type: entity.type,
     id: entity.id,
@@ -87,10 +95,11 @@ function getEntityHash(entity: MapEntity, isSelected: boolean, isHighlighted: bo
     isSelected,
     isHighlighted,
     zoomBucket: getZoomBucket(zoom),
+    isMobile,
   });
 }
 
-function getClusterHash(cluster: ClusterData, zoom: number): string {
+function getClusterHash(cluster: ClusterData, zoom: number, isMobile: boolean): string {
   return JSON.stringify({
     key: cluster.key,
     count: cluster.entities.length,
@@ -99,6 +108,7 @@ function getClusterHash(cluster: ClusterData, zoom: number): string {
     centerLat: cluster.centerLat,
     centerLng: cluster.centerLng,
     zoomBucket: getZoomBucket(zoom),
+    isMobile,
   });
 }
 
@@ -107,13 +117,15 @@ function createMarkerElement(
   isSelected: boolean,
   isHighlighted: boolean,
   zoom: number,
-  onClick: (e: MouseEvent) => void
+  onClick: (e: MouseEvent | TouchEvent) => void,
+  isMobile: boolean = false
 ): { element: HTMLDivElement; iconSize: number } {
   const el = document.createElement('div');
   el.className = 'map-marker';
   el.setAttribute('data-testid', `marker-${entity.type}-${entity.id}`);
   
-  const baseSize = zoom > 10 ? 32 : zoom > 7 ? 28 : 24;
+  const mobileMultiplier = isMobile ? 1.4 : 1;
+  const baseSize = (zoom > 10 ? 32 : zoom > 7 ? 28 : 24) * mobileMultiplier;
   const color = entity.type === 'lead' 
     ? (STAGE_COLORS[entity.stage || 'lead'] || ENTITY_COLORS.lead)
     : ENTITY_COLORS[entity.type];
@@ -121,14 +133,12 @@ function createMarkerElement(
   const scale = isSelected ? 1.3 : isHighlighted ? 1.2 : 1;
   const size = baseSize * scale;
   
-  // CRITICAL: Do NOT use position:relative, z-index, or transforms here
-  // These properties conflict with MapLibre's translate3d positioning and cause markers to drift
   el.style.cssText = `
     width: ${size}px;
     height: ${size}px;
     border-radius: 50%;
     background: ${entity.type === 'organization' && entity.logoUrl ? 'white' : `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`};
-    border: 2px solid rgba(255,255,255,0.9);
+    border: ${isMobile ? '3px' : '2px'} solid rgba(255,255,255,0.9);
     box-shadow: ${isSelected 
       ? `0 0 20px ${color}80, 0 4px 12px rgba(0,0,0,0.3)` 
       : `0 2px 8px ${color}40`};
@@ -137,6 +147,9 @@ function createMarkerElement(
     align-items: center;
     justify-content: center;
     overflow: visible;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
   `;
   
   if (entity.type === 'organization' && entity.logoUrl) {
@@ -146,29 +159,30 @@ function createMarkerElement(
     img.style.cssText = 'width: 100%; height: 100%; object-fit: cover; border-radius: 50%;';
     img.onerror = () => {
       img.style.display = 'none';
-      el.innerHTML = ICON_SVGS[entity.type];
+      el.innerHTML = isMobile ? ICON_SVGS_LARGE[entity.type] : ICON_SVGS[entity.type];
       el.style.background = `linear-gradient(135deg, ${color} 0%, ${color}cc 100%)`;
     };
     el.appendChild(img);
   } else {
-    el.innerHTML = ICON_SVGS[entity.type];
+    el.innerHTML = isMobile ? ICON_SVGS_LARGE[entity.type] : ICON_SVGS[entity.type];
   }
   
   if (entity.needsAttention) {
     const badge = document.createElement('div');
     badge.className = 'attention-badge';
+    const badgeSize = isMobile ? 20 : 16;
     badge.style.cssText = `
       position: absolute;
       top: -4px;
       right: -4px;
-      width: 16px;
-      height: 16px;
+      width: ${badgeSize}px;
+      height: ${badgeSize}px;
       background: #ef4444;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      border: 1px solid white;
+      border: ${isMobile ? '2px' : '1px'} solid white;
     `;
     badge.innerHTML = ATTENTION_SVG;
     el.appendChild(badge);
@@ -177,20 +191,21 @@ function createMarkerElement(
   if (entity.type === 'organization' && (entity.orderCount || 0) > 0) {
     const countBadge = document.createElement('div');
     countBadge.className = 'count-badge';
+    const badgeHeight = isMobile ? 20 : 16;
     countBadge.style.cssText = `
       position: absolute;
       bottom: -4px;
       right: -4px;
-      min-width: 16px;
-      height: 16px;
-      padding: 0 4px;
+      min-width: ${badgeHeight}px;
+      height: ${badgeHeight}px;
+      padding: 0 ${isMobile ? 5 : 4}px;
       background: #22c55e;
-      border-radius: 8px;
+      border-radius: ${badgeHeight / 2}px;
       display: flex;
       align-items: center;
       justify-content: center;
-      border: 1px solid white;
-      font-size: 10px;
+      border: ${isMobile ? '2px' : '1px'} solid white;
+      font-size: ${isMobile ? 11 : 10}px;
       font-weight: bold;
       color: white;
     `;
@@ -202,32 +217,53 @@ function createMarkerElement(
     ? `0 0 20px ${color}80, 0 4px 12px rgba(0,0,0,0.3)` 
     : `0 2px 8px ${color}40`;
   
-  // No z-index manipulation - it conflicts with MapLibre's translate3d positioning
+  const handleInteraction = (e: MouseEvent | TouchEvent) => {
+    e.stopPropagation();
+    
+    el.style.transform = 'scale(0.95)';
+    el.style.boxShadow = `0 0 25px ${color}90, 0 6px 16px rgba(0,0,0,0.4)`;
+    
+    setTimeout(() => {
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = baseShadow;
+    }, 150);
+    
+    onClick(e);
+  };
+  
   el.addEventListener('mouseenter', () => {
-    el.style.boxShadow = `0 0 20px ${color}80, 0 4px 12px rgba(0,0,0,0.4)`;
+    if (!isMobile) {
+      el.style.boxShadow = `0 0 20px ${color}80, 0 4px 12px rgba(0,0,0,0.4)`;
+    }
   });
   el.addEventListener('mouseleave', () => {
-    el.style.boxShadow = baseShadow;
+    if (!isMobile) {
+      el.style.boxShadow = baseShadow;
+    }
   });
-  el.addEventListener('click', onClick);
+  
+  el.addEventListener('click', handleInteraction);
+  el.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    handleInteraction(e);
+  });
   
   return { element: el, iconSize: size };
 }
 
-function createLabelElement(entity: MapEntity): HTMLDivElement {
+function createLabelElement(entity: MapEntity, isMobile: boolean = false): HTMLDivElement {
   const label = document.createElement('div');
   label.className = 'map-marker-label';
-  // Use flexbox centering instead of transform to avoid MapLibre conflicts
   label.style.cssText = `
     position: absolute;
     left: 0;
     right: 0;
     top: 100%;
-    margin-top: 4px;
+    margin-top: ${isMobile ? 6 : 4}px;
     display: flex;
     justify-content: center;
     white-space: nowrap;
-    font-size: 12px;
+    font-size: ${isMobile ? 13 : 12}px;
     font-weight: 500;
     color: rgba(255,255,255,0.9);
     pointer-events: none;
@@ -236,7 +272,7 @@ function createLabelElement(entity: MapEntity): HTMLDivElement {
   const labelText = document.createElement('span');
   labelText.style.cssText = `
     background: rgba(0,0,0,0.6);
-    padding: 2px 8px;
+    padding: ${isMobile ? '3px 10px' : '2px 8px'};
     border-radius: 4px;
     backdrop-filter: blur(4px);
   `;
@@ -249,14 +285,16 @@ function createLabelElement(entity: MapEntity): HTMLDivElement {
 function createClusterElement(
   cluster: ClusterData,
   zoom: number,
-  onClick: (e: MouseEvent) => void
+  onClick: (e: MouseEvent | TouchEvent) => void,
+  isMobile: boolean = false
 ): { element: HTMLDivElement; iconSize: number } {
   const el = document.createElement('div');
   el.className = 'map-cluster';
   el.setAttribute('data-testid', `cluster-${cluster.entities.length}`);
   
   const count = cluster.entities.length;
-  const size = Math.min(60 + count * 0.5, 100);
+  const mobileMultiplier = isMobile ? 1.3 : 1;
+  const size = Math.min(60 + count * 0.5, 100) * mobileMultiplier;
   
   const sortedTypes = Object.entries(cluster.breakdown)
     .filter(([_, c]) => c > 0)
@@ -283,20 +321,21 @@ function createClusterElement(
     gradient = `conic-gradient(${parts.join(', ')})`;
   }
   
-  // CRITICAL: Do NOT use position:relative, z-index, or transforms here
-  // These properties conflict with MapLibre's translate3d positioning and cause markers to drift
   el.style.cssText = `
     width: ${size}px;
     height: ${size}px;
     border-radius: 50%;
     background: ${gradient};
-    border: 3px solid rgba(255,255,255,0.5);
+    border: ${isMobile ? '4px' : '3px'} solid rgba(255,255,255,0.5);
     box-shadow: 0 0 20px ${dominantColor}40, 0 0 40px ${dominantColor}20;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: visible;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
   `;
   
   const inner = document.createElement('div');
@@ -316,7 +355,7 @@ function createClusterElement(
   countText.style.cssText = `
     color: white;
     font-weight: bold;
-    font-size: 16px;
+    font-size: ${isMobile ? 18 : 16}px;
     text-shadow: 0 2px 4px rgba(0,0,0,0.5);
   `;
   countText.textContent = count > 999 ? '999+' : String(count);
@@ -326,12 +365,13 @@ function createClusterElement(
   if (cluster.hasAttention) {
     const badge = document.createElement('div');
     badge.className = 'attention-badge';
+    const badgeSize = isMobile ? 24 : 20;
     badge.style.cssText = `
       position: absolute;
       top: -4px;
       right: -4px;
-      width: 20px;
-      height: 20px;
+      width: ${badgeSize}px;
+      height: ${badgeSize}px;
       background: #ef4444;
       border-radius: 50%;
       display: flex;
@@ -346,18 +386,17 @@ function createClusterElement(
   
   const legend = document.createElement('div');
   legend.className = 'cluster-legend';
-  // Use margin-based centering instead of transform to avoid MapLibre conflicts
   legend.style.cssText = `
     position: absolute;
     top: 100%;
     left: 0;
     right: 0;
-    margin-top: 6px;
+    margin-top: ${isMobile ? 8 : 6}px;
     display: flex;
     justify-content: center;
-    gap: 6px;
+    gap: ${isMobile ? 8 : 6}px;
     background: rgba(0,0,0,0.5);
-    padding: 4px 8px;
+    padding: ${isMobile ? '5px 10px' : '4px 8px'};
     border-radius: 12px;
     backdrop-filter: blur(4px);
   `;
@@ -367,10 +406,11 @@ function createClusterElement(
     item.style.cssText = 'display: flex; align-items: center; gap: 2px;';
     item.title = `${c} ${type}s`;
     
+    const dotSize = isMobile ? 14 : 12;
     const dot = document.createElement('div');
     dot.style.cssText = `
-      width: 12px;
-      height: 12px;
+      width: ${dotSize}px;
+      height: ${dotSize}px;
       border-radius: 50%;
       background: ${ENTITY_COLORS[type as EntityType]};
       display: flex;
@@ -379,7 +419,7 @@ function createClusterElement(
     `;
     
     const num = document.createElement('span');
-    num.style.cssText = 'font-size: 10px; color: white; font-weight: 500;';
+    num.style.cssText = `font-size: ${isMobile ? 11 : 10}px; color: white; font-weight: 500;`;
     num.textContent = String(c);
     
     item.appendChild(dot);
@@ -389,14 +429,36 @@ function createClusterElement(
   
   el.appendChild(legend);
   
-  // No z-index manipulation - it conflicts with MapLibre's translate3d positioning
-  el.addEventListener('mouseenter', () => {
+  const handleInteraction = (e: MouseEvent | TouchEvent) => {
+    e.stopPropagation();
+    
+    el.style.transform = 'scale(0.95)';
     el.style.boxShadow = `0 0 30px ${dominantColor}80, 0 0 60px ${dominantColor}40, 0 4px 12px rgba(0,0,0,0.4)`;
+    
+    setTimeout(() => {
+      el.style.transform = 'scale(1)';
+      el.style.boxShadow = `0 0 20px ${dominantColor}40, 0 0 40px ${dominantColor}20`;
+    }, 150);
+    
+    onClick(e);
+  };
+  
+  el.addEventListener('mouseenter', () => {
+    if (!isMobile) {
+      el.style.boxShadow = `0 0 30px ${dominantColor}80, 0 0 60px ${dominantColor}40, 0 4px 12px rgba(0,0,0,0.4)`;
+    }
   });
   el.addEventListener('mouseleave', () => {
-    el.style.boxShadow = `0 0 20px ${dominantColor}40, 0 0 40px ${dominantColor}20`;
+    if (!isMobile) {
+      el.style.boxShadow = `0 0 20px ${dominantColor}40, 0 0 40px ${dominantColor}20`;
+    }
   });
-  el.addEventListener('click', onClick);
+  
+  el.addEventListener('click', handleInteraction);
+  el.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    handleInteraction(e);
+  });
   
   return { element: el, iconSize: size };
 }
@@ -481,6 +543,7 @@ export function ClusteredMapCanvas({
   onEntityClick,
   selectedEntity,
   highlightedEntityId,
+  isMobile = false,
 }: ClusteredMapCanvasProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -512,14 +575,18 @@ export function ClusteredMapCanvas({
       center: US_CENTER,
       zoom: DEFAULT_ZOOM,
       attributionControl: false,
+      dragRotate: false,
+      touchPitch: false,
     });
     
     map.current = mapInstance;
 
-    mapInstance.addControl(
-      new maplibregl.NavigationControl({ showCompass: false }),
-      "top-right"
-    );
+    if (!isMobile) {
+      mapInstance.addControl(
+        new maplibregl.NavigationControl({ showCompass: false }),
+        "top-right"
+      );
+    }
 
     mapInstance.addControl(
       new maplibregl.AttributionControl({ compact: true }),
@@ -559,7 +626,7 @@ export function ClusteredMapCanvas({
       mapInstance.remove();
       map.current = null;
     };
-  }, []);
+  }, [isMobile]);
 
   const clusterRadius = useMemo(() => {
     if (currentZoom >= 12) return 0;
@@ -596,7 +663,7 @@ export function ClusteredMapCanvas({
       const isSelected = selectedEntity?.id === entity.id && selectedEntity?.type === entity.type;
       const isHighlighted = highlightedEntityId?.id === entity.id && highlightedEntityId?.type === entity.type;
       
-      const newHash = getEntityHash(entity, isSelected, isHighlighted, currentZoom);
+      const newHash = getEntityHash(entity, isSelected, isHighlighted, currentZoom, isMobile);
       const existingHash = markerHashRef.current.get(key);
       const existingMarker = markersRef.current.get(key);
       
@@ -612,27 +679,23 @@ export function ClusteredMapCanvas({
         labelsRef.current.delete(key);
       }
       
-      const handleClick = (e: MouseEvent) => {
+      const handleClick = (e: MouseEvent | TouchEvent) => {
         e.stopPropagation();
         onEntityClickRef.current?.(entity);
       };
       
-      const { element: el, iconSize } = createMarkerElement(entity, isSelected, isHighlighted, currentZoom, handleClick);
+      const { element: el, iconSize } = createMarkerElement(entity, isSelected, isHighlighted, currentZoom, handleClick, isMobile);
       
-      // Add label at higher zoom levels
       if (currentZoom > 9) {
-        const label = createLabelElement(entity);
+        const label = createLabelElement(entity, isMobile);
         el.appendChild(label);
         labelsRef.current.set(key, label);
       }
       
-      // Use anchor 'bottom' and offset to ensure coordinate is at icon center
-      // This avoids getBoundingClientRect issues with absolute positioned children
-      // In MapLibre, negative y offset moves marker UP
       const marker = new maplibregl.Marker({ 
         element: el, 
         anchor: 'bottom',
-        offset: [0, -(iconSize / 2)] // Negative to shift UP by half icon size
+        offset: [0, -(iconSize / 2)]
       })
         .setLngLat([entity.lng, entity.lat])
         .addTo(map.current!);
@@ -644,7 +707,7 @@ export function ClusteredMapCanvas({
     clusters.forEach(cluster => {
       currentClusterKeys.add(cluster.key);
       
-      const newHash = getClusterHash(cluster, currentZoom);
+      const newHash = getClusterHash(cluster, currentZoom, isMobile);
       const existingHash = clusterHashRef.current.get(cluster.key);
       const existingMarker = clusterMarkersRef.current.get(cluster.key);
       
@@ -659,26 +722,24 @@ export function ClusteredMapCanvas({
         clusterHashRef.current.delete(cluster.key);
       }
       
-      const handleClick = (e: MouseEvent) => {
+      const handleClick = (e: MouseEvent | TouchEvent) => {
         e.stopPropagation();
         if (map.current) {
           map.current.flyTo({
             center: [cluster.centerLng, cluster.centerLat],
-            zoom: Math.min(map.current.getZoom() + 3, 15),
-            duration: 800,
+            zoom: Math.min(currentZoom + 2, 16),
+            duration: 500,
+            essential: true,
           });
         }
       };
       
-      const { element: el, iconSize } = createClusterElement(cluster, currentZoom, handleClick);
+      const { element: el, iconSize } = createClusterElement(cluster, currentZoom, handleClick, isMobile);
       
-      // Use anchor 'bottom' and offset to ensure coordinate is at icon center
-      // Cluster always has legend below, so we use the icon size for offset
-      // In MapLibre, negative y offset moves marker UP
       const marker = new maplibregl.Marker({ 
         element: el, 
         anchor: 'bottom',
-        offset: [0, -(iconSize / 2)] // Negative to shift UP by half icon size
+        offset: [0, -(iconSize / 2)]
       })
         .setLngLat([cluster.centerLng, cluster.centerLat])
         .addTo(map.current!);
@@ -703,34 +764,28 @@ export function ClusteredMapCanvas({
         clusterHashRef.current.delete(key);
       }
     });
-  }, [unclusteredEntities, clusters, selectedEntity, highlightedEntityId, currentZoom, isMapReady]);
+  }, [unclusteredEntities, clusters, selectedEntity, highlightedEntityId, currentZoom, isMapReady, isMobile]);
 
-  const prevSelectedEntityRef = useRef<{ type: EntityType; id: number } | null>(null);
-  
   useEffect(() => {
-    if (!map.current || !selectedEntity?.lat || !selectedEntity?.lng) {
-      prevSelectedEntityRef.current = null;
-      return;
-    }
+    if (!map.current || !selectedEntity?.lat || !selectedEntity?.lng) return;
     
-    const prevEntity = prevSelectedEntityRef.current;
-    const isSameEntity = prevEntity && 
-      prevEntity.type === selectedEntity.type && 
-      prevEntity.id === selectedEntity.id;
-    
-    if (!isSameEntity) {
-      map.current.flyTo({
-        center: [selectedEntity.lng, selectedEntity.lat],
-        zoom: Math.max(map.current.getZoom(), 10),
-        duration: 1000,
-      });
-      prevSelectedEntityRef.current = { type: selectedEntity.type, id: selectedEntity.id };
-    }
-  }, [selectedEntity]);
+    map.current.flyTo({
+      center: [selectedEntity.lng, selectedEntity.lat],
+      zoom: Math.max(currentZoom, 10),
+      duration: 500,
+      essential: true,
+    });
+  }, [selectedEntity, currentZoom]);
 
   return (
     <div className="relative w-full h-full" data-testid="clustered-map-canvas">
-      <div ref={mapContainer} className="w-full h-full" />
+      <div 
+        ref={mapContainer} 
+        className="w-full h-full" 
+        style={{ 
+          touchAction: isMobile ? 'none' : 'auto',
+        }}
+      />
     </div>
   );
 }

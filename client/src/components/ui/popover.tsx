@@ -17,7 +17,17 @@ const PopoverContent = React.forwardRef<
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 w-72 rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[--radix-popover-content-transform-origin]",
+        "z-50 w-72 rounded-lg border bg-popover p-4 text-popover-foreground",
+        "shadow-[0_10px_40px_-10px_rgba(0,0,0,0.4)] outline-none",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out",
+        "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+        "data-[state=closed]:zoom-out-[0.97] data-[state=open]:zoom-in-[0.97]",
+        "data-[state=open]:duration-[350ms] data-[state=closed]:duration-200",
+        "[transition-timing-function:var(--spring-bounce)]",
+        "data-[state=closed]:[transition-timing-function:var(--spring-smooth)]",
+        "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2",
+        "data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+        "origin-[--radix-popover-content-transform-origin]",
         className
       )}
       {...props}

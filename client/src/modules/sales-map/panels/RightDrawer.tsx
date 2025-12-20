@@ -2,6 +2,12 @@ import { X, Building2, Target, Phone, Mail, MapPin, TrendingUp } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import type { MapEntity } from "../types";
 import { cn } from "@/lib/utils";
 
@@ -9,6 +15,7 @@ interface RightDrawerProps {
   entity: MapEntity | null;
   onClose: () => void;
   isOpen: boolean;
+  isMobile?: boolean;
 }
 
 const stageLabels: Record<string, string> = {
@@ -33,16 +40,136 @@ const stageColors: Record<string, string> = {
   no_answer_delete: "bg-gray-400",
 };
 
-export function RightDrawer({ entity, onClose, isOpen }: RightDrawerProps) {
+function DrawerContents({ entity, onClose }: { entity: MapEntity | null; onClose: () => void }) {
+  if (!entity) return null;
+
+  return (
+    <div className="p-4 space-y-6">
+      <div>
+        <h2 className="text-xl font-bold" data-testid="entity-name">
+          {entity.name}
+        </h2>
+        {entity.stage && (
+          <Badge
+            className={cn("mt-2", stageColors[entity.stage])}
+            data-testid="entity-stage"
+          >
+            {stageLabels[entity.stage] || entity.stage}
+          </Badge>
+        )}
+        {entity.clientType && (
+          <Badge variant="outline" className="mt-2 ml-2">
+            {entity.clientType}
+          </Badge>
+        )}
+      </div>
+
+      {(entity.city || entity.state) && (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <MapPin className="h-4 w-4" />
+          <span data-testid="entity-location">
+            {[entity.city, entity.state].filter(Boolean).join(", ")}
+          </span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4">
+        {entity.orderCount !== undefined && (
+          <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+            <div className="text-2xl font-bold text-blue-500">
+              {entity.orderCount}
+            </div>
+            <div className="text-xs text-muted-foreground">Orders</div>
+          </div>
+        )}
+        {entity.leadCount !== undefined && (
+          <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <div className="text-2xl font-bold text-amber-500">
+              {entity.leadCount}
+            </div>
+            <div className="text-xs text-muted-foreground">Leads</div>
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground">
+          Quick Actions
+        </h3>
+        <div className="flex flex-col gap-2">
+          {entity.type === "organization" && (
+            <>
+              <Button
+                variant="outline"
+                className="justify-start min-h-[48px]"
+                onClick={() => window.open(`/organizations/list?id=${entity.id}`, "_self")}
+                data-testid="view-org-button"
+              >
+                <Building2 className="h-4 w-4 mr-2" />
+                View Organization
+              </Button>
+              <Button
+                variant="outline"
+                className="justify-start min-h-[48px]"
+                onClick={() => window.open(`/leads/list?orgId=${entity.id}`, "_self")}
+                data-testid="view-leads-button"
+              >
+                <Target className="h-4 w-4 mr-2" />
+                View Leads
+              </Button>
+            </>
+          )}
+          {entity.type === "lead" && (
+            <Button
+              variant="outline"
+              className="justify-start min-h-[48px]"
+              onClick={() => window.open(`/leads/list?id=${entity.id}`, "_self")}
+              data-testid="view-lead-button"
+            >
+              <Target className="h-4 w-4 mr-2" />
+              View Lead Details
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function RightDrawer({ entity, onClose, isOpen, isMobile = false }: RightDrawerProps) {
+  if (isMobile) {
+    return (
+      <Drawer open={isOpen} onOpenChange={(open) => !open && onClose()}>
+        <DrawerContent className="max-h-[70vh]">
+          <DrawerHeader className="border-b border-white/10">
+            <div className="flex items-center gap-2">
+              {entity?.type === "organization" ? (
+                <Building2 className="h-5 w-5 text-blue-500" />
+              ) : (
+                <Target className="h-5 w-5 text-amber-500" />
+              )}
+              <DrawerTitle className="text-sm uppercase tracking-wide text-muted-foreground">
+                {entity?.type === "organization" ? "Organization" : "Lead"} Details
+              </DrawerTitle>
+            </div>
+          </DrawerHeader>
+          <ScrollArea className="flex-1 overflow-y-auto">
+            <DrawerContents entity={entity} onClose={onClose} />
+          </ScrollArea>
+        </DrawerContent>
+      </Drawer>
+    );
+  }
+
   return (
     <div
       className={cn(
-        "absolute right-0 top-0 h-full w-96 bg-background/95 backdrop-blur-lg border-l shadow-2xl transition-transform duration-300 z-20",
+        "absolute right-0 top-0 h-full w-96 bg-background/95 backdrop-blur-xl border-l border-white/10 shadow-2xl transition-transform duration-300 z-20",
         isOpen ? "translate-x-0" : "translate-x-full"
       )}
       data-testid="right-drawer"
     >
-      <div className="flex items-center justify-between p-4 border-b">
+      <div className="flex items-center justify-between p-4 border-b border-white/10">
         <div className="flex items-center gap-2">
           {entity?.type === "organization" ? (
             <Building2 className="h-5 w-5 text-blue-500" />
@@ -57,105 +184,16 @@ export function RightDrawer({ entity, onClose, isOpen }: RightDrawerProps) {
           variant="ghost"
           size="icon"
           onClick={onClose}
+          className="min-h-[44px] min-w-[44px]"
           data-testid="close-drawer-button"
         >
           <X className="h-4 w-4" />
         </Button>
       </div>
 
-      {entity && (
-        <ScrollArea className="h-[calc(100%-60px)]">
-          <div className="p-4 space-y-6">
-            <div>
-              <h2 className="text-xl font-bold" data-testid="entity-name">
-                {entity.name}
-              </h2>
-              {entity.stage && (
-                <Badge
-                  className={cn("mt-2", stageColors[entity.stage])}
-                  data-testid="entity-stage"
-                >
-                  {stageLabels[entity.stage] || entity.stage}
-                </Badge>
-              )}
-              {entity.clientType && (
-                <Badge variant="outline" className="mt-2 ml-2">
-                  {entity.clientType}
-                </Badge>
-              )}
-            </div>
-
-            {(entity.city || entity.state) && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MapPin className="h-4 w-4" />
-                <span data-testid="entity-location">
-                  {[entity.city, entity.state].filter(Boolean).join(", ")}
-                </span>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              {entity.orderCount !== undefined && (
-                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                  <div className="text-2xl font-bold text-blue-500">
-                    {entity.orderCount}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Orders</div>
-                </div>
-              )}
-              {entity.leadCount !== undefined && (
-                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <div className="text-2xl font-bold text-amber-500">
-                    {entity.leadCount}
-                  </div>
-                  <div className="text-xs text-muted-foreground">Leads</div>
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium text-muted-foreground">
-                Quick Actions
-              </h3>
-              <div className="flex flex-col gap-2">
-                {entity.type === "organization" && (
-                  <>
-                    <Button
-                      variant="outline"
-                      className="justify-start"
-                      onClick={() => window.open(`/organizations/list?id=${entity.id}`, "_self")}
-                      data-testid="view-org-button"
-                    >
-                      <Building2 className="h-4 w-4 mr-2" />
-                      View Organization
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="justify-start"
-                      onClick={() => window.open(`/leads/list?orgId=${entity.id}`, "_self")}
-                      data-testid="view-leads-button"
-                    >
-                      <Target className="h-4 w-4 mr-2" />
-                      View Leads
-                    </Button>
-                  </>
-                )}
-                {entity.type === "lead" && (
-                  <Button
-                    variant="outline"
-                    className="justify-start"
-                    onClick={() => window.open(`/leads/list?id=${entity.id}`, "_self")}
-                    data-testid="view-lead-button"
-                  >
-                    <Target className="h-4 w-4 mr-2" />
-                    View Lead Details
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </ScrollArea>
-      )}
+      <ScrollArea className="h-[calc(100%-60px)]">
+        <DrawerContents entity={entity} onClose={onClose} />
+      </ScrollArea>
     </div>
   );
 }
