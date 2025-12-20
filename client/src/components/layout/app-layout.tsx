@@ -39,8 +39,20 @@ export function AppLayout({ children, title }: AppLayoutProps) {
     setIsMobileSidebarOpen(false);
   };
 
+  const handleOpenCommandPalette = () => {
+    setIsCommandPaletteOpen(true);
+  };
+
   return (
-    <div className="flex h-[100dvh] bg-background text-foreground overflow-hidden relative" data-testid="app-layout">
+    <div 
+      className="flex h-[100dvh] bg-background text-foreground overflow-hidden relative safe-area-insets" 
+      data-testid="app-layout"
+      style={{
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingLeft: 'env(safe-area-inset-left)',
+        paddingRight: 'env(safe-area-inset-right)',
+      }}
+    >
       <BackgroundMesh />
       
       {/* Mobile Sidebar as Sheet */}
@@ -61,10 +73,16 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           title={title} 
           onOpenQuickCreate={handleOpenQuickCreate}
           onToggleMobileSidebar={handleToggleMobileSidebar}
+          onOpenCommandPalette={handleOpenCommandPalette}
           isMobile={isMobile}
         />
         
-        <main className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent pb-28 md:pb-32">
+        <main 
+          className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent touch-pan-y"
+          style={{
+            paddingBottom: isMobile ? 'calc(100px + env(safe-area-inset-bottom))' : '128px',
+          }}
+        >
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

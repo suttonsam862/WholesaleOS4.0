@@ -22,6 +22,10 @@ import {
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { MobileDataCard } from "@/components/ui/mobile-data-card";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -48,7 +52,8 @@ import {
   AlertCircle,
   Clock,
   Sparkles,
-  Calculator
+  Calculator,
+  ChevronDown
 } from "lucide-react";
 import { FinancialMatchingModal } from "@/components/modals/financial-matching-modal";
 import { EditInvoiceModal } from "@/components/modals/edit-invoice-modal";
@@ -156,6 +161,8 @@ interface FinanceProps {
 export default function Finance({ defaultTab = "overview", action, statusFilter: initialStatusFilter }: FinanceProps) {
   const { toast } = useToast();
   const { user, isAuthenticated, isLoading } = useAuth();
+  const isMobile = useIsMobile();
+  const [summaryOpen, setSummaryOpen] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "invoice" | "payment" | "commission">("all");
@@ -939,59 +946,74 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="glass-card border-white/10 bg-blue-500/10">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-400">Total Invoiced</p>
-              <h3 className="text-2xl font-bold text-white" data-testid="stat-invoiced">{formatCurrency(totalInvoiced)}</h3>
-              <p className="text-xs text-muted-foreground mt-1">{invoices.length} invoices</p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center">
-              <FileText className="h-6 w-6 text-blue-400" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="glass-card border-white/10 bg-green-500/10">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-green-400">Payments Received</p>
-              <h3 className="text-2xl font-bold text-white" data-testid="stat-payments">{formatCurrency(totalPaid)}</h3>
-              <p className="text-xs text-muted-foreground mt-1">{invoicePayments.length} payments</p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-green-400" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="glass-card border-white/10 bg-yellow-500/10">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-yellow-400">Outstanding</p>
-              <h3 className="text-2xl font-bold text-white" data-testid="stat-outstanding">{formatCurrency(totalInvoiced - totalPaid)}</h3>
-              <p className="text-xs text-muted-foreground mt-1">Awaiting payment</p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
-              <PieChart className="h-6 w-6 text-yellow-400" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="glass-card border-white/10 bg-purple-500/10">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-purple-400">Commissions Paid</p>
-              <h3 className="text-2xl font-bold text-white" data-testid="stat-commissions">{formatCurrency(totalCommissionsPaid)}</h3>
-              <p className="text-xs text-muted-foreground mt-1">{commissionPayments.length} payments</p>
-            </div>
-            <div className="h-10 w-10 rounded-full bg-purple-500/20 flex items-center justify-center">
-              <Users className="h-6 w-6 text-purple-400" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
+        <CollapsibleTrigger asChild>
+          <Button 
+            variant="ghost" 
+            className="w-full flex items-center justify-between p-3 md:hidden min-h-[44px] mb-2"
+          >
+            <span className="text-sm font-medium">Financial Summary</span>
+            <ChevronDown className={cn("h-4 w-4 transition-transform", summaryOpen && "rotate-180")} />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="md:block">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            <Card className="glass-card border-white/10 bg-blue-500/10">
+              <CardContent className="p-4 md:p-6 flex items-center justify-between">
+                <div>
+                  <p className="text-xs md:text-sm font-medium text-blue-400">Total Invoiced</p>
+                  <h3 className="text-lg md:text-2xl font-bold text-white" data-testid="stat-invoiced">{formatCurrency(totalInvoiced)}</h3>
+                  <p className="text-xs text-muted-foreground mt-1 hidden md:block">{invoices.length} invoices</p>
+                </div>
+                <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                  <FileText className="h-4 w-4 md:h-6 md:w-6 text-blue-400" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="glass-card border-white/10 bg-green-500/10">
+              <CardContent className="p-4 md:p-6 flex items-center justify-between">
+                <div>
+                  <p className="text-xs md:text-sm font-medium text-green-400">Payments Received</p>
+                  <h3 className="text-lg md:text-2xl font-bold text-white" data-testid="stat-payments">{formatCurrency(totalPaid)}</h3>
+                  <p className="text-xs text-muted-foreground mt-1 hidden md:block">{invoicePayments.length} payments</p>
+                </div>
+                <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                  <TrendingUp className="h-4 w-4 md:h-6 md:w-6 text-green-400" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="glass-card border-white/10 bg-yellow-500/10">
+              <CardContent className="p-4 md:p-6 flex items-center justify-between">
+                <div>
+                  <p className="text-xs md:text-sm font-medium text-yellow-400">Outstanding</p>
+                  <h3 className="text-lg md:text-2xl font-bold text-white" data-testid="stat-outstanding">{formatCurrency(totalInvoiced - totalPaid)}</h3>
+                  <p className="text-xs text-muted-foreground mt-1 hidden md:block">Awaiting payment</p>
+                </div>
+                <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                  <PieChart className="h-4 w-4 md:h-6 md:w-6 text-yellow-400" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="glass-card border-white/10 bg-purple-500/10">
+              <CardContent className="p-4 md:p-6 flex items-center justify-between">
+                <div>
+                  <p className="text-xs md:text-sm font-medium text-purple-400">Commissions Paid</p>
+                  <h3 className="text-lg md:text-2xl font-bold text-white" data-testid="stat-commissions">{formatCurrency(totalCommissionsPaid)}</h3>
+                  <p className="text-xs text-muted-foreground mt-1 hidden md:block">{commissionPayments.length} payments</p>
+                </div>
+                <div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-purple-500/20 flex items-center justify-center">
+                  <Users className="h-4 w-4 md:h-6 md:w-6 text-purple-400" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-black/20 border-white/10">
+        <ScrollArea className="w-full">
+          <TabsList className="bg-black/20 border-white/10 inline-flex w-auto min-w-full md:w-full">
+            <ScrollBar orientation="horizontal" className="md:hidden" />
           <TabsTrigger value="overview" data-testid="tab-overview" className="relative">
             All Records
             {totalAnomalies > 0 && (
@@ -1010,11 +1032,12 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
           <TabsTrigger value="invoices" data-testid="tab-invoices">Invoices ({invoices.length})</TabsTrigger>
           <TabsTrigger value="payments" data-testid="tab-payments">Payments ({invoicePayments.length})</TabsTrigger>
           <TabsTrigger value="commissions" data-testid="tab-commissions">Commissions ({commissionPayments.length})</TabsTrigger>
-          <TabsTrigger value="expenses" data-testid="tab-expenses">
+          <TabsTrigger value="expenses" data-testid="tab-expenses" className="min-h-[44px]">
             <Receipt className="h-4 w-4 mr-2" />
             Expenses
           </TabsTrigger>
-        </TabsList>
+          </TabsList>
+        </ScrollArea>
 
         <TabsContent value="overview" className="space-y-4 mt-4">
           <Card className="glass-card border-white/10">

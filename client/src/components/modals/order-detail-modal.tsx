@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { 
+  ResponsiveDialog, 
+  ResponsiveDialogContent, 
+  ResponsiveDialogHeader, 
+  ResponsiveDialogTitle, 
+  ResponsiveDialogFooter 
+} from "@/components/ui/responsive-dialog";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/ui/status-badge";
@@ -729,27 +736,29 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
     window.open(mailtoUrl);
   };
 
+  const isMobile = useIsMobile();
+
   if (orderLoading) {
     return (
-      <Dialog open={isOpen} onOpenChange={onClose}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+      <ResponsiveDialog open={isOpen} onOpenChange={onClose}>
+        <ResponsiveDialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
     );
   }
 
   if (!order) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col" aria-describedby="order-details-description">
-        <DialogHeader>
-          <DialogTitle className="text-2xl">
+    <ResponsiveDialog open={isOpen} onOpenChange={onClose}>
+      <ResponsiveDialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col" aria-describedby="order-details-description">
+        <ResponsiveDialogHeader>
+          <ResponsiveDialogTitle className="text-xl sm:text-2xl">
             Order {order.orderCode}
-          </DialogTitle>
+          </ResponsiveDialogTitle>
           <div id="order-details-description" className="sr-only">
             View and edit order details, line items, and order status
           </div>
@@ -971,7 +980,7 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
               )}
             </div>
           </div>
-        </DialogHeader>
+        </ResponsiveDialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
           <TabsList className="grid w-full grid-cols-3">
@@ -2342,9 +2351,9 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
           </div>
         </Tabs>
 
-        <DialogFooter className="pt-4 border-t">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-2">
+        <ResponsiveDialogFooter className="pt-4 border-t">
+          <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-3">
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
               <div className="text-sm text-muted-foreground">
                 Order Total: <span className="font-bold text-foreground text-lg">${totals.total}</span>
               </div>
@@ -2352,6 +2361,7 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
                 <Button
                   variant="destructive"
                   size="sm"
+                  className="min-h-[44px] w-full sm:w-auto"
                   onClick={handleDeleteOrder}
                   disabled={deleteOrderMutation.isPending}
                   data-testid="button-delete-order"
@@ -2361,18 +2371,18 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
                 </Button>
               )}
             </div>
-            <Button variant="outline" onClick={onClose}>
+            <Button variant="outline" onClick={onClose} className="min-h-[44px] w-full sm:w-auto">
               Close
             </Button>
           </div>
-        </DialogFooter>
-      </DialogContent>
+        </ResponsiveDialogFooter>
+      </ResponsiveDialogContent>
 
       <FullScreenImageViewer
         imageUrl={fullScreenImage || ""}
         isOpen={!!fullScreenImage}
         onClose={() => setFullScreenImage(null)}
       />
-    </Dialog>
+    </ResponsiveDialog>
   );
 }

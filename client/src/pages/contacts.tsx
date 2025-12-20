@@ -4,8 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Label } from "@/components/ui/label";
+import { MobileDataCard } from "@/components/ui/mobile-data-card";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { canModify } from "@/lib/permissions";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useState, useMemo } from "react";
@@ -19,6 +23,7 @@ import { OrgLogo } from "@/components/ui/org-logo";
 export default function Contacts() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [orgFilter, setOrgFilter] = useState<string>("all");
@@ -210,7 +215,7 @@ export default function Contacts() {
       {/* Filters */}
       <Card className="glass-card border-white/10">
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -218,38 +223,72 @@ export default function Contacts() {
                   placeholder="Search by name, email, or phone..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-black/20 border-white/10 text-white"
+                  className="pl-10 bg-black/20 border-white/10 text-white min-h-[44px]"
                   data-testid="input-search-contacts"
                 />
               </div>
             </div>
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-full md:w-48 bg-black/20 border-white/10 text-white" data-testid="select-role-filter">
-                <SelectValue placeholder="Filter by role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="customer">Customer</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="billing">Billing</SelectItem>
-                <SelectItem value="technical">Technical</SelectItem>
-                <SelectItem value="executive">Executive</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={orgFilter} onValueChange={setOrgFilter}>
-              <SelectTrigger className="w-full md:w-64 bg-black/20 border-white/10 text-white" data-testid="select-org-filter">
-                <SelectValue placeholder="Filter by organization" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Organizations</SelectItem>
-                {organizations.map(org => (
-                  <SelectItem key={org.id} value={org.id.toString()}>
-                    {org.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ScrollArea className="w-full md:hidden">
+              <div className="flex gap-2 pb-2">
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                  <SelectTrigger className="w-[140px] bg-black/20 border-white/10 text-white min-h-[44px] shrink-0" data-testid="select-role-filter-mobile">
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="customer">Customer</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="billing">Billing</SelectItem>
+                    <SelectItem value="technical">Technical</SelectItem>
+                    <SelectItem value="executive">Executive</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={orgFilter} onValueChange={setOrgFilter}>
+                  <SelectTrigger className="w-[180px] bg-black/20 border-white/10 text-white min-h-[44px] shrink-0" data-testid="select-org-filter-mobile">
+                    <SelectValue placeholder="Organization" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Organizations</SelectItem>
+                    {organizations.map(org => (
+                      <SelectItem key={org.id} value={org.id.toString()}>
+                        {org.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+            <div className="hidden md:flex gap-4">
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-48 bg-black/20 border-white/10 text-white min-h-[44px]" data-testid="select-role-filter">
+                  <SelectValue placeholder="Filter by role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="customer">Customer</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="billing">Billing</SelectItem>
+                  <SelectItem value="technical">Technical</SelectItem>
+                  <SelectItem value="executive">Executive</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={orgFilter} onValueChange={setOrgFilter}>
+                <SelectTrigger className="w-64 bg-black/20 border-white/10 text-white min-h-[44px]" data-testid="select-org-filter">
+                  <SelectValue placeholder="Filter by organization" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Organizations</SelectItem>
+                  {organizations.map(org => (
+                    <SelectItem key={org.id} value={org.id.toString()}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -271,6 +310,36 @@ export default function Contacts() {
             </p>
           </CardContent>
         </Card>
+      ) : isMobile ? (
+        <div className="space-y-3">
+          {filteredContacts.map((contact, index) => {
+            const org = getOrg(contact.orgId);
+            return (
+              <MobileDataCard
+                key={contact.id}
+                title={
+                  <div className="flex items-center gap-2">
+                    {contact.name}
+                    {contact.isPrimary && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
+                  </div>
+                }
+                subtitle={contact.roleTitle || org?.name || "No Organization"}
+                status={contact.role ? { value: contact.role, label: contact.role.charAt(0).toUpperCase() + contact.role.slice(1) } : undefined}
+                metadata={[
+                  ...(contact.email ? [{ label: "Email", value: contact.email, icon: <Mail className="h-3 w-3" /> }] : []),
+                  ...(contact.phone ? [{ label: "Phone", value: contact.phone, icon: <Phone className="h-3 w-3" /> }] : []),
+                ]}
+                actions={[
+                  { label: "Edit", icon: <Edit className="h-4 w-4" />, onClick: () => { handleContactClick(contact); setIsEditing(true); } },
+                  { label: "Delete", icon: <Trash2 className="h-4 w-4" />, onClick: () => { setSelectedContact(contact); handleDeleteContact(); }, variant: "danger" },
+                ]}
+                onClick={() => handleContactClick(contact)}
+                index={index}
+                data-testid={`card-contact-${contact.id}`}
+              />
+            );
+          })}
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredContacts.map((contact) => (

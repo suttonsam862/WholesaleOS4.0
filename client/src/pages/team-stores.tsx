@@ -7,14 +7,17 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useMemo, useEffect } from "react";
+import { cn } from "@/lib/utils";
 import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
 import { TeamStore, Order, User, Organization } from "@shared/schema";
 import { 
   Package, Plus, Search, Clock, CheckCircle2, Store, Calendar,
-  Building2, User as UserIcon, TrendingUp, BarChart3, ShoppingBag
+  Building2, User as UserIcon, TrendingUp, BarChart3, ShoppingBag, ChevronDown, Filter
 } from "lucide-react";
 import { TeamStoreDetailModal } from "@/components/modals/team-store-detail-modal";
 import { CreateTeamStoreModal } from "@/components/modals/create-team-store-modal";
@@ -42,6 +45,7 @@ export default function TeamStores() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
 
   // State management
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,6 +54,7 @@ export default function TeamStores() {
   const [dateRangeFilter, setDateRangeFilter] = useState<{ start: string; end: string }>({ start: "", end: "" });
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedStore, setSelectedStore] = useState<any | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(!isMobile);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [archiveTab, setArchiveTab] = useState<"active" | "archived">("active");
 
@@ -244,7 +249,7 @@ export default function TeamStores() {
       </div>
 
       {/* Metrics Dashboard */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         <Card data-testid="metric-total-stores">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Stores</CardTitle>
@@ -286,53 +291,112 @@ export default function TeamStores() {
       {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="grid gap-4 md:grid-cols-5">
+          <div className="space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search stores..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
+                className="pl-9 min-h-[44px]"
                 data-testid="input-search"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter} data-testid="select-status-filter">
-              <SelectTrigger data-testid="select-trigger-status">
-                <SelectValue placeholder="All Statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                {teamStoreStages.map(stage => (
-                  <SelectItem key={stage.value} value={stage.value}>{stage.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={salespersonFilter} onValueChange={setSalespersonFilter} data-testid="select-salesperson-filter">
-              <SelectTrigger data-testid="select-trigger-salesperson">
-                <SelectValue placeholder="All Salespeople" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Salespeople</SelectItem>
-                {salespeople.filter(sp => sp.role === 'sales').map(sp => (
-                  <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Input
-              type="date"
-              value={dateRangeFilter.start}
-              onChange={(e) => setDateRangeFilter({ ...dateRangeFilter, start: e.target.value })}
-              placeholder="Start Date"
-              data-testid="input-date-start"
-            />
-            <Input
-              type="date"
-              value={dateRangeFilter.end}
-              onChange={(e) => setDateRangeFilter({ ...dateRangeFilter, end: e.target.value })}
-              placeholder="End Date"
-              data-testid="input-date-end"
-            />
+            
+            <Collapsible open={filtersOpen} onOpenChange={setFiltersOpen} className="md:hidden">
+              <CollapsibleTrigger asChild>
+                <Button variant="outline" className="w-full justify-between min-h-[44px]">
+                  <div className="flex items-center gap-2">
+                    <Filter className="h-4 w-4" />
+                    Filters
+                  </div>
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", filtersOpen && "rotate-180")} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-3 pt-3">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-full min-h-[44px]" data-testid="select-trigger-status-mobile">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {teamStoreStages.map(stage => (
+                      <SelectItem key={stage.value} value={stage.value}>{stage.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={salespersonFilter} onValueChange={setSalespersonFilter}>
+                  <SelectTrigger className="w-full min-h-[44px]" data-testid="select-trigger-salesperson-mobile">
+                    <SelectValue placeholder="All Salespeople" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Salespeople</SelectItem>
+                    {salespeople.filter(sp => sp.role === 'sales').map(sp => (
+                      <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input
+                    type="date"
+                    value={dateRangeFilter.start}
+                    onChange={(e) => setDateRangeFilter({ ...dateRangeFilter, start: e.target.value })}
+                    placeholder="Start Date"
+                    className="min-h-[44px]"
+                    data-testid="input-date-start-mobile"
+                  />
+                  <Input
+                    type="date"
+                    value={dateRangeFilter.end}
+                    onChange={(e) => setDateRangeFilter({ ...dateRangeFilter, end: e.target.value })}
+                    placeholder="End Date"
+                    className="min-h-[44px]"
+                    data-testid="input-date-end-mobile"
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            <div className="hidden md:grid gap-4 md:grid-cols-4">
+              <Select value={statusFilter} onValueChange={setStatusFilter} data-testid="select-status-filter">
+                <SelectTrigger data-testid="select-trigger-status" className="min-h-[44px]">
+                  <SelectValue placeholder="All Statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  {teamStoreStages.map(stage => (
+                    <SelectItem key={stage.value} value={stage.value}>{stage.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={salespersonFilter} onValueChange={setSalespersonFilter} data-testid="select-salesperson-filter">
+                <SelectTrigger data-testid="select-trigger-salesperson" className="min-h-[44px]">
+                  <SelectValue placeholder="All Salespeople" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Salespeople</SelectItem>
+                  {salespeople.filter(sp => sp.role === 'sales').map(sp => (
+                    <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="date"
+                value={dateRangeFilter.start}
+                onChange={(e) => setDateRangeFilter({ ...dateRangeFilter, start: e.target.value })}
+                placeholder="Start Date"
+                className="min-h-[44px]"
+                data-testid="input-date-start"
+              />
+              <Input
+                type="date"
+                value={dateRangeFilter.end}
+                onChange={(e) => setDateRangeFilter({ ...dateRangeFilter, end: e.target.value })}
+                placeholder="End Date"
+                className="min-h-[44px]"
+                data-testid="input-date-end"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -345,8 +409,8 @@ export default function TeamStores() {
         </TabsList>
 
         <TabsContent value="active" className="mt-6">
-          {/* Kanban Board */}
-          <div className="grid gap-6 md:grid-cols-3" data-testid="kanban-board">
+          {/* Kanban Board / Responsive Grid */}
+          <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-3" data-testid="kanban-board">
             {statusOrder.map(status => {
               const statusInfo = statusConfig[status];
               const stores = storesByStatus[status] || [];
@@ -458,7 +522,7 @@ export default function TeamStores() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-3 md:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
               {filteredStores.map((store) => {
                 const order = orders.find((o: any) => o.id === store.orderId);
                 const salesperson = salespeople.find((sp: any) => sp.id === store.salespersonId);

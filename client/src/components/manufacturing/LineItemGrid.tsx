@@ -3,12 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Upload, Image as ImageIcon, Check } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileDataCard } from "@/components/ui/mobile-data-card";
+import { Upload, Image as ImageIcon, Check, Package, Hash, Eye } from "lucide-react";
 import { useState } from "react";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
+import { cn } from "@/lib/utils";
 
 interface LineItem {
   id: number;
@@ -52,8 +56,10 @@ interface UploadingState {
 
 export function LineItemGrid({ lineItems, productVariants, orderId }: LineItemGridProps) {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [uploading, setUploading] = useState<UploadingState>({});
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+  const [expandedItem, setExpandedItem] = useState<number | null>(null);
 
   const uploadImageMutation = useMutation({
     mutationFn: async ({ lineItemId, file }: { lineItemId: number; file: File }) => {
@@ -169,6 +175,151 @@ export function LineItemGrid({ lineItems, productVariants, orderId }: LineItemGr
       .map(size => ({ size, qty: (item as any)[size] || 0 }))
       .filter(s => s.qty > 0);
   };
+
+  if (isMobile) {
+    return (
+      <div className="space-y-3">
+        {lineItems.map((item, index) => {
+          const variant = productVariants.find((v: any) => v.id === item.variantId);
+          const sizeBreakdown = getSizeBreakdown(item);
+          const totalQty = calculateTotalQty(item);
+          const isUploading = uploading[item.id];
+          const isExpanded = expandedItem === item.id;
+
+          return (
+            <MobileDataCard
+              key={item.id}
+              index={index}
+              title={item.itemName || variant?.variantCode || 'Line Item'}
+              subtitle={item.colorNotes}
+              status={item.manufacturer ? {
+                value: "assigned",
+                label: item.manufacturer.name
+              } : {
+                value: "unassigned",
+                label: "Unassigned"
+              }}
+              metadata={[
+                {
+                  label: "Total",
+                  value: totalQty,
+                  icon: <Hash className="h-3 w-3" />
+                },
+                {
+                  label: "Sizes",
+                  value: sizeBreakdown.length,
+                  icon: <Package className="h-3 w-3" />
+                }
+              ]}
+              onClick={() => setExpandedItem(isExpanded ? null : item.id)}
+              data-testid={`mobile-line-item-${item.id}`}
+              actions={item.imageUrl ? [
+                {
+                  label: "View",
+                  icon: <Eye className="h-4 w-4" />,
+                  onClick: () => setFullScreenImage(item.imageUrl || null),
+                  variant: "default"
+                }
+              ] : []}
+            />
+          );
+        })}
+
+        {expandedItem && (
+          <Card className="glass-card border-white/10">
+            <CardContent className="p-4 space-y-4">
+              {(() => {
+                const item = lineItems.find(i => i.id === expandedItem);
+                if (!item) return null;
+                const sizeBreakdown = getSizeBreakdown(item);
+                const isUploading = uploading[item.id];
+                
+                return (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-sm">Size Breakdown</h4>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setExpandedItem(null)}
+                        className="h-8 text-xs"
+                      >
+                        Close
+                      </Button>
+                    </div>
+                    
+                    <ScrollArea className="w-full">
+                      <div className="flex gap-2 pb-2">
+                        {sizeBreakdown.map((sizeInfo) => (
+                          <div
+                            key={sizeInfo.size}
+                            className="border rounded-md p-2 text-center min-w-[60px] shrink-0"
+                            data-testid={`size-${sizeInfo.size}-${item.id}`}
+                          >
+                            <div className="text-xs font-semibold text-muted-foreground">
+                              {getSizeLabel(sizeInfo.size)}
+                            </div>
+                            <div className="text-lg font-bold">{sizeInfo.qty}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <ScrollBar orientation="horizontal" />
+                    </ScrollArea>
+
+                    {item.imageUrl ? (
+                      <div className="relative">
+                        <img 
+                          src={item.imageUrl}
+                          alt={item.itemName || 'Line item'}
+                          className="w-full h-40 object-cover rounded-md border cursor-pointer"
+                          onClick={() => setFullScreenImage(item.imageUrl || null)}
+                          data-testid={`img-manufacturing-line-item-${item.id}`}
+                        />
+                      </div>
+                    ) : (
+                      <div className="border-2 border-dashed rounded-md p-4 text-center">
+                        <Label htmlFor={`image-upload-mobile-${item.id}`} className="cursor-pointer">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={isUploading}
+                            className="h-11 min-h-[44px]"
+                            asChild
+                          >
+                            <span>
+                              <Upload className="w-4 h-4 mr-2" />
+                              {isUploading ? "Uploading..." : "Upload Image"}
+                            </span>
+                          </Button>
+                        </Label>
+                        <Input
+                          id={`image-upload-mobile-${item.id}`}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleFileChange(item.id, e)}
+                          className="hidden"
+                          disabled={isUploading}
+                        />
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </CardContent>
+          </Card>
+        )}
+
+        {fullScreenImage && (
+          <FullScreenImageViewer
+            isOpen={!!fullScreenImage}
+            imageUrl={fullScreenImage}
+            onClose={() => setFullScreenImage(null)}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

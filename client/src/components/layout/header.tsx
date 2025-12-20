@@ -52,6 +52,7 @@ interface HeaderProps {
   title: string;
   onOpenQuickCreate: () => void;
   onToggleMobileSidebar?: () => void;
+  onOpenCommandPalette?: () => void;
   isMobile?: boolean;
 }
 
@@ -62,7 +63,7 @@ interface SearchResult {
   products: any[];
 }
 
-export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobile = false }: HeaderProps) {
+export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, onOpenCommandPalette, isMobile = false }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [, setLocation] = useLocation();
@@ -127,11 +128,9 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
   };
 
   const handleSearchBlur = () => {
-    // Delay hiding results to allow clicking on them
     setTimeout(() => setShowSearchResults(false), 200);
   };
 
-  // Listen for keyboard shortcuts
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === "/" && !["input", "textarea"].includes((e.target as HTMLElement).tagName.toLowerCase())) {
       e.preventDefault();
@@ -142,7 +141,6 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
     }
   };
 
-  // Add keyboard listeners
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
@@ -165,16 +163,16 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
   };
 
   return (
-    <header className="h-16 bg-background/80 backdrop-blur-md border-b border-border px-4 sm:px-6 sticky top-0 z-50" data-testid="header">
-      <div className="h-full flex items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
+    <header className="h-14 md:h-16 bg-background/80 backdrop-blur-md border-b border-border px-3 sm:px-6 sticky top-0 z-50" data-testid="header">
+      <div className="h-full flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
           {isMobile && (
             <Sheet>
               <SheetTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground hover:text-foreground min-w-[44px] min-h-[44px] shrink-0"
                   data-testid="button-mobile-menu"
                 >
                   <Menu className="h-5 w-5" />
@@ -185,10 +183,16 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
               </SheetContent>
             </Sheet>
           )}
-          <h1 className="text-lg font-semibold tracking-tight text-foreground truncate" data-testid="heading-page-title">{title}</h1>
+          <h1 
+            className="text-base sm:text-lg font-semibold tracking-tight text-foreground truncate max-w-[150px] sm:max-w-none" 
+            data-testid="heading-page-title"
+            title={title}
+          >
+            {title}
+          </h1>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4">
+        <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
           {/* Global Search - Hidden on mobile */}
           {!isMobile && (
             <div className="relative group">
@@ -315,12 +319,13 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
             </div>
           )}
 
-          {/* Mobile Search Button */}
+          {/* Mobile Search Button - Opens Command Palette */}
           {isMobile && (
             <Button
               variant="ghost"
               size="icon"
-              className="text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground min-w-[44px] min-h-[44px]"
+              onClick={onOpenCommandPalette}
               data-testid="button-mobile-search"
             >
               <Search className="h-5 w-5" />
@@ -350,22 +355,22 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
             </Button>
           )}
 
-          {/* Quick Create */}
+          {/* Quick Create - Compact on mobile */}
           <Button 
             onClick={onOpenQuickCreate}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium shadow-lg shadow-primary/20 transition-all duration-300"
-            size={isMobile ? "sm" : "default"}
+            className="bg-primary text-primary-foreground hover:bg-primary/90 font-medium shadow-lg shadow-primary/20 transition-all duration-300 min-w-[44px] min-h-[44px]"
+            size={isMobile ? "icon" : "default"}
             data-testid="button-quick-create"
           >
-            <Plus className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Create</span>
+            <Plus className={cn("h-5 w-5", !isMobile && "mr-2 h-4 w-4")} />
+            {!isMobile && <span>Create</span>}
           </Button>
 
           {/* Notifications */}
           <Button
             variant="ghost"
             size="icon"
-            className="relative text-muted-foreground hover:text-foreground"
+            className="relative text-muted-foreground hover:text-foreground min-w-[44px] min-h-[44px]"
             onClick={() => setLocation("/notifications")}
             data-testid="button-notifications"
           >
@@ -378,7 +383,7 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
           {/* User Profile Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-9 w-9 rounded-full ring-2 ring-transparent hover:ring-primary/20 transition-all">
+              <Button variant="ghost" className="relative h-10 w-10 rounded-full ring-2 ring-transparent hover:ring-primary/20 transition-all min-w-[44px] min-h-[44px]">
                 {user.avatarUrl ? (
                   <ImageWithFallback src={user.avatarUrl} alt="User Avatar" className="h-9 w-9 rounded-full object-cover" />
                 ) : (
@@ -396,16 +401,16 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, isMobi
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer" onClick={() => window.location.href = "/profile"}>
+              <DropdownMenuItem className="cursor-pointer min-h-[44px]" onClick={() => window.location.href = "/profile"}>
                 <User className="mr-2 h-4 w-4" />
                 <span>Profile</span>
               </DropdownMenuItem>
-              <DropdownMenuItem className="cursor-pointer" onClick={() => window.location.href = "/settings"}>
+              <DropdownMenuItem className="cursor-pointer min-h-[44px]" onClick={() => window.location.href = "/settings"}>
                 <Settings className="mr-2 h-4 w-4" />
                 <span>Settings</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive" onClick={handleLogout}>
+              <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive min-h-[44px]" onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Logout</span>
               </DropdownMenuItem>

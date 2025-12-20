@@ -14,9 +14,11 @@ import {
   ChevronRight, 
   CheckCircle2, 
   Circle,
-  AlertCircle,
   Filter,
-  X
+  X,
+  RefreshCw,
+  Building2,
+  Calendar
 } from "lucide-react";
 import {
   Select,
@@ -25,6 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { MobileDataCard } from "@/components/ui/mobile-data-card";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   STAGE_CONFIGS,
   getStageConfig,
@@ -64,6 +70,8 @@ export default function OrdersList() {
   const { isAuthenticated, isLoading, user } = useAuth();
   const [, setLocation] = useLocation();
   const searchString = useSearch();
+  const isMobile = useIsMobile();
+  const [isPulling, setIsPulling] = useState(false);
   
   const params = new URLSearchParams(searchString);
   const stageParam = params.get("stage") as StageId | null;
@@ -96,7 +104,7 @@ export default function OrdersList() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: orders = [], isLoading: ordersLoading } = useQuery<Order[]>({
+  const { data: orders = [], isLoading: ordersLoading, refetch } = useQuery<Order[]>({
     queryKey: ["/api/orders"],
     retry: false,
   });
@@ -176,12 +184,18 @@ export default function OrdersList() {
 
   const hasActiveFilters = stageParam || statusParam || priorityParam || debouncedSearch || salespersonParam;
 
+  const handlePullToRefresh = useCallback(async () => {
+    setIsPulling(true);
+    await refetch();
+    setTimeout(() => setIsPulling(false), 500);
+  }, [refetch]);
+
   if (ordersLoading) {
     return (
-      <div className="p-6">
-        <div className="mb-6">
+      <div className={cn("p-4 sm:p-6", isMobile && "pb-24")}>
+        <div className="mb-4 sm:mb-6">
           <Link href="/orders">
-            <Button variant="ghost" size="sm" data-testid="link-back-to-hub">
+            <Button variant="ghost" size="sm" data-testid="link-back-to-hub" className="min-h-[44px]">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Orders
             </Button>
@@ -190,7 +204,7 @@ export default function OrdersList() {
         <div className="space-y-3">
           {[1, 2, 3, 4, 5].map((i) => (
             <Card key={i} className="animate-pulse">
-              <CardContent className="p-4 h-24" />
+              <CardContent className="p-4 h-20 sm:h-24" />
             </Card>
           ))}
         </div>
@@ -198,97 +212,240 @@ export default function OrdersList() {
     );
   }
 
+  const activeFilters = [
+    stageConfig && { key: "stage", label: stageConfig.label },
+    statusParam && { key: "status", label: `Status: ${statusParam}` },
+    priorityParam && { key: "priority", label: `Priority: ${priorityParam}` },
+    salespersonParam && { key: "salesperson", label: salespersonParam === "me" ? "My Orders" : "Filtered" },
+  ].filter(Boolean) as Array<{ key: string; label: string }>;
+
   return (
-    <div className="p-6">
-      <div className="mb-6">
+    <div className={cn("p-4 sm:p-6", isMobile && "pb-24")}>
+      <div className="mb-4 sm:mb-6">
         <Link href="/orders">
-          <Button variant="ghost" size="sm" data-testid="link-back-to-hub">
+          <Button variant="ghost" size="sm" data-testid="link-back-to-hub" className="min-h-[44px]">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Orders
           </Button>
         </Link>
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col gap-3 mb-4 sm:mb-6">
         <div>
-          <h1 className="text-2xl font-bold" data-testid="text-page-title">
+          <h1 className="text-xl sm:text-2xl font-bold" data-testid="text-page-title">
             {stageConfig ? stageConfig.label : "All Orders"}
           </h1>
           {stageConfig && (
-            <p className="text-muted-foreground">{stageConfig.description}</p>
+            <p className="text-sm text-muted-foreground">{stageConfig.description}</p>
           )}
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             {filteredOrders.length} order{filteredOrders.length !== 1 ? "s" : ""}
           </p>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <div className="relative flex-1 max-w-md">
+      {isMobile && (
+        <motion.div
+          initial={false}
+          animate={{ 
+            height: isPulling ? 48 : 0,
+            opacity: isPulling ? 1 : 0
+          }}
+          className="flex items-center justify-center overflow-hidden"
+        >
+          <RefreshCw className={cn("h-5 w-5 text-primary", isPulling && "animate-spin")} />
+          <span className="ml-2 text-sm text-muted-foreground">Refreshing...</span>
+        </motion.div>
+      )}
+
+      <div className="space-y-3 mb-4 sm:mb-6">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search orders..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
+            className={cn("pl-10 min-h-[44px]", isMobile && "text-base")}
             data-testid="input-search"
           />
         </div>
 
-        {!stageParam && (
-          <Select
-            value={stageParam || "all"}
-            onValueChange={(value) => updateUrlParams("stage", value === "all" ? null : value)}
-          >
-            <SelectTrigger className="w-[180px]" data-testid="select-stage">
-              <Filter className="h-4 w-4 mr-2" />
-              <SelectValue placeholder="Filter by stage" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Stages</SelectItem>
-              {STAGE_CONFIGS.map((stage) => (
-                <SelectItem key={stage.id} value={stage.id}>
-                  {stage.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {isMobile ? (
+          <ScrollArea className="w-full whitespace-nowrap">
+            <div className="flex gap-2 pb-2">
+              {!stageParam && (
+                <Select
+                  value={stageParam || "all"}
+                  onValueChange={(value) => updateUrlParams("stage", value === "all" ? null : value)}
+                >
+                  <SelectTrigger className="w-auto min-w-[120px] min-h-[44px]" data-testid="select-stage">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Stage" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Stages</SelectItem>
+                    {STAGE_CONFIGS.map((stage) => (
+                      <SelectItem key={stage.id} value={stage.id}>
+                        {stage.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+
+              <Select
+                value={priorityParam || "all"}
+                onValueChange={(value) => updateUrlParams("priority", value === "all" ? null : value)}
+              >
+                <SelectTrigger className="w-auto min-w-[100px] min-h-[44px]" data-testid="select-priority">
+                  <SelectValue placeholder="Priority" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {hasActiveFilters && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={clearFilters} 
+                  data-testid="button-clear-filters"
+                  className="min-h-[44px] shrink-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        ) : (
+          <div className="flex flex-wrap gap-3">
+            {!stageParam && (
+              <Select
+                value={stageParam || "all"}
+                onValueChange={(value) => updateUrlParams("stage", value === "all" ? null : value)}
+              >
+                <SelectTrigger className="w-[180px]" data-testid="select-stage">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Filter by stage" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Stages</SelectItem>
+                  {STAGE_CONFIGS.map((stage) => (
+                    <SelectItem key={stage.id} value={stage.id}>
+                      {stage.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <Select
+              value={priorityParam || "all"}
+              onValueChange={(value) => updateUrlParams("priority", value === "all" ? null : value)}
+            >
+              <SelectTrigger className="w-[140px]" data-testid="select-priority">
+                <SelectValue placeholder="Priority" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Priorities</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="normal">Normal</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} data-testid="button-clear-filters">
+                <X className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
         )}
 
-        <Select
-          value={priorityParam || "all"}
-          onValueChange={(value) => updateUrlParams("priority", value === "all" ? null : value)}
-        >
-          <SelectTrigger className="w-[140px]" data-testid="select-priority">
-            <SelectValue placeholder="Priority" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Priorities</SelectItem>
-            <SelectItem value="high">High</SelectItem>
-            <SelectItem value="normal">Normal</SelectItem>
-            <SelectItem value="low">Low</SelectItem>
-          </SelectContent>
-        </Select>
-
-        {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} data-testid="button-clear-filters">
-            <X className="h-4 w-4 mr-1" />
-            Clear
-          </Button>
+        {activeFilters.length > 0 && (
+          <ScrollArea className="w-full whitespace-nowrap">
+            <div className="flex gap-2 pb-2">
+              {activeFilters.map((filter) => (
+                <Badge
+                  key={filter.key}
+                  variant="secondary"
+                  className="shrink-0 cursor-pointer hover:bg-secondary/80 min-h-[32px] px-3"
+                  onClick={() => updateUrlParams(filter.key, null)}
+                >
+                  {filter.label}
+                  <X className="h-3 w-3 ml-1" />
+                </Badge>
+              ))}
+            </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         )}
       </div>
 
       {filteredOrders.length === 0 ? (
         <Card>
-          <CardContent className="p-12 text-center">
+          <CardContent className="p-8 sm:p-12 text-center">
             <p className="text-muted-foreground">No orders found matching your filters.</p>
             {hasActiveFilters && (
-              <Button variant="link" onClick={clearFilters} className="mt-2">
+              <Button variant="link" onClick={clearFilters} className="mt-2 min-h-[44px]">
                 Clear all filters
               </Button>
             )}
           </CardContent>
         </Card>
+      ) : isMobile ? (
+        <div className="space-y-3 data-card-stack">
+          <AnimatePresence>
+            {filteredOrders.map((order, index) => {
+              const org = orgMap.get(order.orgId);
+              const orderStage = getOrderStage(order);
+
+              return (
+                <MobileDataCard
+                  key={order.id}
+                  index={index}
+                  title={
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-xs text-muted-foreground">
+                        {order.orderCode}
+                      </span>
+                      {order.priority === "high" && (
+                        <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                          High
+                        </Badge>
+                      )}
+                    </div>
+                  }
+                  subtitle={order.orderName}
+                  status={orderStage ? {
+                    value: order.status,
+                    label: orderStage.label,
+                  } : undefined}
+                  metadata={[
+                    {
+                      label: "Org",
+                      value: org?.name || "Unknown",
+                      icon: <Building2 className="h-3 w-3" />,
+                    },
+                    {
+                      label: "Delivery",
+                      value: order.estDelivery ? new Date(order.estDelivery).toLocaleDateString() : "TBD",
+                      icon: <Calendar className="h-3 w-3" />,
+                    },
+                  ]}
+                  onClick={() => navigateToOrder(order.id)}
+                  data-testid={`card-order-${order.id}`}
+                />
+              );
+            })}
+          </AnimatePresence>
+        </div>
       ) : (
         <div className="space-y-3">
           {filteredOrders.map((order) => {

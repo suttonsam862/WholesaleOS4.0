@@ -4,10 +4,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Eye } from "lucide-react";
+import { Eye, Building2, Calendar, User } from "lucide-react";
 import { format } from "date-fns";
 import { extractDominantColors } from "@/lib/colorExtraction";
 import { createGradient, getReadableTextColorForGradient } from "@/lib/contrastUtils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileDataCard } from "@/components/ui/mobile-data-card";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface Order {
   id: number;
@@ -63,7 +68,6 @@ interface SpreadsheetTableProps {
   showFinancial?: boolean;
 }
 
-// Define column configurations
 const baseColumns: ColumnConfig[] = [
   {
     key: 'orderCode',
@@ -171,10 +175,10 @@ export function SpreadsheetTable({
   onOrderClick,
   showFinancial = false,
 }: SpreadsheetTableProps) {
+  const isMobile = useIsMobile();
   const [orgColors, setOrgColors] = useState<Map<number, string[]>>(new Map());
   const [activeGroup, setActiveGroup] = useState<string>('');
 
-  // Extract colors from organization logos
   useEffect(() => {
     const extractColors = async () => {
       const colorMap = new Map<number, string[]>();
@@ -192,7 +196,6 @@ export function SpreadsheetTable({
     extractColors();
   }, [organizations]);
 
-  // Group orders based on groupBy prop
   const groupedOrders = useMemo(() => {
     const groups = new Map<string, Order[]>();
 
@@ -206,7 +209,6 @@ export function SpreadsheetTable({
           groupLabel = order.status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
           break;
         case 'designer':
-          // For now, using placeholder - will need to fetch design job assignments
           groupKey = 'unassigned';
           groupLabel = 'Unassigned';
           break;
@@ -231,7 +233,6 @@ export function SpreadsheetTable({
       groups.get(groupKey)!.push(order);
     });
 
-    // Convert to array and sort
     return Array.from(groups.entries())
       .map(([key, orders]) => ({
         key,
@@ -241,14 +242,12 @@ export function SpreadsheetTable({
       .sort((a, b) => b.orders.length - a.orders.length);
   }, [orders, groupBy, salespeople]);
 
-  // Set initial active group
   useEffect(() => {
     if (groupedOrders.length > 0 && !activeGroup) {
       setActiveGroup(groupedOrders[0].key);
     }
   }, [groupedOrders, activeGroup]);
 
-  // Get gradient background for an order based on organization logo
   const getOrderGradient = (order: Order): { background: string; textClass: string } => {
     const colors = orgColors.get(order.orgId);
     
@@ -273,81 +272,165 @@ export function SpreadsheetTable({
     );
   }
 
+  const activeGroupOrders = groupedOrders.find(g => g.key === activeGroup)?.orders || [];
+
   return (
     <div className="space-y-4">
       <Tabs value={activeGroup} onValueChange={setActiveGroup} className="w-full">
-        <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
-          {groupedOrders.map(group => (
-            <TabsTrigger
-              key={group.key}
-              value={group.key}
-              data-testid={`tab-${groupBy}-${group.key}`}
-              className="whitespace-nowrap"
-            >
-              {group.label} ({group.orders.length})
-            </TabsTrigger>
-          ))}
-        </TabsList>
+        {isMobile ? (
+          <ScrollArea className="w-full whitespace-nowrap">
+            <TabsList className="inline-flex w-auto justify-start bg-black/20 p-1">
+              {groupedOrders.map(group => (
+                <TabsTrigger
+                  key={group.key}
+                  value={group.key}
+                  data-testid={`tab-${groupBy}-${group.key}`}
+                  className={cn(
+                    "whitespace-nowrap min-h-[44px] px-4",
+                    "data-[state=active]:bg-primary/20 data-[state=active]:text-primary"
+                  )}
+                >
+                  {group.label} ({group.orders.length})
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        ) : (
+          <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
+            {groupedOrders.map(group => (
+              <TabsTrigger
+                key={group.key}
+                value={group.key}
+                data-testid={`tab-${groupBy}-${group.key}`}
+                className="whitespace-nowrap"
+              >
+                {group.label} ({group.orders.length})
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        )}
 
         {groupedOrders.map(group => (
           <TabsContent key={group.key} value={group.key} className="mt-4">
-            <Card>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead className="bg-muted/30 sticky top-0">
-                    <tr>
-                      {baseColumns.map(col => (
-                        <th
-                          key={col.key}
-                          className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider border-b"
-                          style={{ minWidth: col.minWidth }}
-                        >
-                          {col.label}
-                        </th>
-                      ))}
-                      <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider border-b">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {group.orders.map((order) => {
-                      const { background, textClass } = getOrderGradient(order);
-                      
-                      return (
-                        <tr
-                          key={order.id}
-                          className={`border-b transition-opacity hover:opacity-90 ${textClass}`}
-                          style={{ background }}
-                          data-testid={`row-order-${order.id}`}
-                        >
-                          {baseColumns.map(col => (
-                            <td key={col.key} className="px-4 py-3" style={{ minWidth: col.minWidth }}>
-                              <div className={textClass}>
-                                {col.render(order, organizations, salespeople)}
-                              </div>
-                            </td>
-                          ))}
-                          <td className="px-4 py-3">
-                            {onOrderClick && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => onOrderClick(order.id)}
-                                data-testid={`button-view-order-${order.id}`}
-                                className={`${textClass} hover:bg-black/10`}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
+            {isMobile ? (
+              <div className="space-y-3 data-card-stack">
+                <AnimatePresence>
+                  {group.orders.map((order, index) => {
+                    const org = organizations.find(o => o.id === order.orgId);
+                    const salesperson = salespeople.find(sp => sp.userId === order.salespersonId);
+
+                    return (
+                      <MobileDataCard
+                        key={order.id}
+                        index={index}
+                        title={
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {order.orderCode}
+                            </span>
+                            {order.priority === "high" && (
+                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                                High
+                              </Badge>
                             )}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                          </div>
+                        }
+                        subtitle={order.orderName}
+                        status={{
+                          value: order.status,
+                          label: order.status.replace(/_/g, ' '),
+                        }}
+                        metadata={[
+                          {
+                            label: "Org",
+                            value: org?.name || "Unknown",
+                            icon: <Building2 className="h-3 w-3" />,
+                          },
+                          {
+                            label: "Delivery",
+                            value: order.estDelivery ? format(new Date(order.estDelivery), 'MMM d') : "TBD",
+                            icon: <Calendar className="h-3 w-3" />,
+                          },
+                          ...(salesperson ? [{
+                            label: "Sales",
+                            value: salesperson.userName || "Unknown",
+                            icon: <User className="h-3 w-3" />,
+                          }] : []),
+                        ]}
+                        actions={onOrderClick ? [
+                          {
+                            label: "View",
+                            icon: <Eye className="h-4 w-4" />,
+                            onClick: () => onOrderClick(order.id),
+                          },
+                        ] : []}
+                        onClick={onOrderClick ? () => onOrderClick(order.id) : undefined}
+                        data-testid={`card-order-${order.id}`}
+                      />
+                    );
+                  })}
+                </AnimatePresence>
               </div>
-            </Card>
+            ) : (
+              <Card>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead className="bg-muted/30 sticky top-0">
+                      <tr>
+                        {baseColumns.map(col => (
+                          <th
+                            key={col.key}
+                            className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider border-b"
+                            style={{ minWidth: col.minWidth }}
+                          >
+                            {col.label}
+                          </th>
+                        ))}
+                        <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider border-b">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.orders.map((order) => {
+                        const { background, textClass } = getOrderGradient(order);
+                        
+                        return (
+                          <tr
+                            key={order.id}
+                            className={`border-b transition-opacity hover:opacity-90 ${textClass}`}
+                            style={{ background }}
+                            data-testid={`row-order-${order.id}`}
+                          >
+                            {baseColumns.map(col => (
+                              <td key={col.key} className="px-4 py-3" style={{ minWidth: col.minWidth }}>
+                                <div className={textClass}>
+                                  {col.render(order, organizations, salespeople)}
+                                </div>
+                              </td>
+                            ))}
+                            <td className="px-4 py-3">
+                              {onOrderClick && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onOrderClick(order.id)}
+                                  data-testid={`button-view-order-${order.id}`}
+                                  className={`${textClass} hover:bg-black/10`}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
           </TabsContent>
         ))}
       </Tabs>

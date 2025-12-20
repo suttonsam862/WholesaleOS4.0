@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { DashboardSkeleton } from "@/components/ui/loading-skeletons";
 import { HelpButton } from "@/components/help-button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useFeatureFlags } from "@/contexts/FeatureFlagContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { CreateLeadModal } from "@/components/modals/create-lead-modal";
@@ -26,8 +28,44 @@ import {
   Target, Award, Briefcase, BarChart3, Palette, Clock, 
   CheckCircle, Star, Package, Truck, AlertTriangle, Gauge,
   Factory, Calendar, Settings, FileText, Plus, Upload,
-  ClipboardList, RefreshCw, ListTodo
+  ClipboardList, RefreshCw, ListTodo, ChevronDown
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+
+function CollapsibleSection({ 
+  title, 
+  defaultOpen = true, 
+  children,
+  icon: Icon,
+  badge
+}: { 
+  title: string; 
+  defaultOpen?: boolean; 
+  children: React.ReactNode;
+  icon?: React.ElementType;
+  badge?: React.ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger className="flex items-center justify-between w-full p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors mb-4">
+        <div className="flex items-center gap-3">
+          {Icon && <Icon className="w-5 h-5 text-primary" />}
+          <span className="text-sm sm:text-base font-semibold text-foreground">{title}</span>
+          {badge}
+        </div>
+        <ChevronDown className={cn(
+          "w-5 h-5 text-muted-foreground transition-transform duration-200",
+          isOpen && "rotate-180"
+        )} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="animate-in slide-in-from-top-2">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
 
 interface DashboardStats {
   totalLeads: number;
@@ -165,6 +203,7 @@ export default function Dashboard() {
 
 // Admin Dashboard
 function AdminDashboard({ stats, activity }: { stats?: DashboardStats; activity?: ActivityItem[] }) {
+  const isMobile = useIsMobile();
   const { data: taskStats } = useQuery<{
     total: number;
     pending: number;
@@ -193,33 +232,33 @@ function AdminDashboard({ stats, activity }: { stats?: DashboardStats; activity?
   ];
 
   return (
-    <div className="p-3 sm:p-6 space-y-6">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold gradient-text tracking-tight" data-testid="heading-admin-dashboard">Admin Dashboard</h1>
-          <p className="text-muted-foreground mt-1">System overview and management</p>
+          <h1 className="text-xl sm:text-3xl font-bold gradient-text tracking-tight" data-testid="heading-admin-dashboard">Admin Dashboard</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">System overview and management</p>
         </div>
         <HelpButton pageTitle="Admin Dashboard" helpItems={adminHelpItems} />
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <CollapsibleSection title="Key Metrics" icon={Activity} defaultOpen={true}>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div>
           <Card data-testid="card-total-users" className="glass-card border-primary/20 hover:border-primary/50 transition-colors">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
-                  <Users className="w-6 h-6 text-primary" />
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center justify-between mb-2 sm:mb-4">
+                <div className="w-8 h-8 sm:w-12 sm:h-12 bg-primary/10 rounded-lg sm:rounded-xl flex items-center justify-center border border-primary/20">
+                  <Users className="w-4 h-4 sm:w-6 sm:h-6 text-primary" />
                 </div>
-                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">+5%</Badge>
+                <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20 text-xs">+5%</Badge>
               </div>
-              <h3 className="text-3xl font-bold mb-1 text-foreground" data-testid="text-total-users">
+              <h3 className="text-xl sm:text-3xl font-bold mb-1 text-foreground" data-testid="text-total-users">
                 {formatNumber(stats?.totalUsers)}
               </h3>
-              <p className="text-sm text-muted-foreground">Total Users</p>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <p className="text-xs sm:text-sm text-muted-foreground">Total Users</p>
+              <div className="mt-2 sm:mt-4 flex flex-wrap gap-1 sm:gap-2">
                 {stats?.usersByRole && Object.entries(stats.usersByRole).map(([role, count]) => (
-                  <Badge key={role} variant="outline" className="text-xs border-white/10 bg-white/5">
+                  <Badge key={role} variant="outline" className="text-[10px] sm:text-xs border-white/10 bg-white/5">
                     {role}: {formatNumber(count)}
                   </Badge>
                 ))}
@@ -230,18 +269,18 @@ function AdminDashboard({ stats, activity }: { stats?: DashboardStats; activity?
 
         <div>
           <Card data-testid="card-system-revenue" className="glass-card border-green-500/20 hover:border-green-500/50 transition-colors">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center border border-green-500/20">
-                  <DollarSign className="w-6 h-6 text-green-500" />
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center justify-between mb-2 sm:mb-4">
+                <div className="w-8 h-8 sm:w-12 sm:h-12 bg-green-500/10 rounded-lg sm:rounded-xl flex items-center justify-center border border-green-500/20">
+                  <DollarSign className="w-4 h-4 sm:w-6 sm:h-6 text-green-500" />
                 </div>
-                <Badge variant="secondary" className="bg-green-500/10 text-green-500 border-green-500/20">+12%</Badge>
+                <Badge variant="secondary" className="bg-green-500/10 text-green-500 border-green-500/20 text-xs">+12%</Badge>
               </div>
-              <h3 className="text-3xl font-bold mb-1 text-foreground" data-testid="text-system-revenue">
+              <h3 className="text-xl sm:text-3xl font-bold mb-1 text-foreground" data-testid="text-system-revenue">
                 ${((stats?.systemRevenue || 0) / 1000).toFixed(1)}K
               </h3>
-              <p className="text-sm text-muted-foreground">System Revenue</p>
-              <div className="mt-4">
+              <p className="text-xs sm:text-sm text-muted-foreground">System Revenue</p>
+              <div className="mt-2 sm:mt-4 hidden sm:block">
                 <StatusBadge status="target">Monthly Target: $500K</StatusBadge>
               </div>
             </CardContent>
@@ -250,20 +289,20 @@ function AdminDashboard({ stats, activity }: { stats?: DashboardStats; activity?
 
         <div>
           <Card data-testid="card-active-orders" className="glass-card border-secondary/20 hover:border-secondary/50 transition-colors">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center border border-secondary/20">
-                  <ShoppingCart className="w-6 h-6 text-secondary" />
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center justify-between mb-2 sm:mb-4">
+                <div className="w-8 h-8 sm:w-12 sm:h-12 bg-secondary/10 rounded-lg sm:rounded-xl flex items-center justify-center border border-secondary/20">
+                  <ShoppingCart className="w-4 h-4 sm:w-6 sm:h-6 text-secondary" />
                 </div>
-                <Badge variant="secondary" className="bg-secondary/10 text-secondary border-secondary/20">+8%</Badge>
+                <Badge variant="secondary" className="bg-secondary/10 text-secondary border-secondary/20 text-xs">+8%</Badge>
               </div>
-              <h3 className="text-3xl font-bold mb-1 text-foreground" data-testid="text-active-orders">
+              <h3 className="text-xl sm:text-3xl font-bold mb-1 text-foreground" data-testid="text-active-orders">
                 {formatNumber(stats?.totalOrders)}
               </h3>
-              <p className="text-sm text-muted-foreground">Active Orders</p>
-              <div className="mt-4 flex gap-2">
-                <StatusBadge status="production">{formatNumber(stats?.ordersByStatus?.production)}</StatusBadge>
-                <StatusBadge status="shipped">{formatNumber(stats?.ordersByStatus?.shipped)}</StatusBadge>
+              <p className="text-xs sm:text-sm text-muted-foreground">Active Orders</p>
+              <div className="mt-2 sm:mt-4 flex gap-1 sm:gap-2 flex-wrap">
+                <StatusBadge status="production" className="text-[10px] sm:text-xs">{formatNumber(stats?.ordersByStatus?.production)}</StatusBadge>
+                <StatusBadge status="shipped" className="text-[10px] sm:text-xs">{formatNumber(stats?.ordersByStatus?.shipped)}</StatusBadge>
               </div>
             </CardContent>
           </Card>
@@ -271,27 +310,28 @@ function AdminDashboard({ stats, activity }: { stats?: DashboardStats; activity?
 
         <div>
           <Card data-testid="card-system-health" className="glass-card border-emerald-500/20 hover:border-emerald-500/50 transition-colors">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
-                  <Activity className="w-6 h-6 text-emerald-500" />
+            <CardContent className="p-3 sm:p-6">
+              <div className="flex items-center justify-between mb-2 sm:mb-4">
+                <div className="w-8 h-8 sm:w-12 sm:h-12 bg-emerald-500/10 rounded-lg sm:rounded-xl flex items-center justify-center border border-emerald-500/20">
+                  <Activity className="w-4 h-4 sm:w-6 sm:h-6 text-emerald-500" />
                 </div>
-                <Badge variant="default" className="bg-emerald-500/20 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/30">Healthy</Badge>
+                <Badge variant="default" className="bg-emerald-500/20 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/30 text-xs">Healthy</Badge>
               </div>
-              <h3 className="text-3xl font-bold mb-1 text-foreground" data-testid="text-system-health">
+              <h3 className="text-xl sm:text-3xl font-bold mb-1 text-foreground" data-testid="text-system-health">
                 {stats?.systemHealth || 'Good'}
               </h3>
-              <p className="text-sm text-muted-foreground">System Health</p>
-              <div className="mt-4">
+              <p className="text-xs sm:text-sm text-muted-foreground">System Health</p>
+              <div className="mt-2 sm:mt-4 hidden sm:block">
                 <StatusBadge status="ready">All Systems Operational</StatusBadge>
               </div>
             </CardContent>
           </Card>
         </div>
-      </div>
+        </div>
+      </CollapsibleSection>
 
-      {/* Task Analytics Card */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <CollapsibleSection title="Task Management" icon={ListTodo} defaultOpen={!isMobile}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         <div className="h-full">
           <Card data-testid="card-task-stats" className="glass-card border-white/10 h-full">
             <CardHeader>
@@ -405,23 +445,24 @@ function AdminDashboard({ stats, activity }: { stats?: DashboardStats; activity?
             </CardContent>
           </Card>
         </div>
-      </div>
+        </div>
+      </CollapsibleSection>
 
-      {/* Charts and Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <CollapsibleSection title="Charts & Actions" icon={TrendingUp} defaultOpen={!isMobile}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
         <div>
           <Card data-testid="card-revenue-chart" className="glass-card border-white/10">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between text-lg text-foreground">
+            <CardHeader className="p-3 sm:p-6">
+              <CardTitle className="flex items-center justify-between text-sm sm:text-lg text-foreground">
                 <span>Revenue Trends</span>
-                <TrendingUp className="w-5 h-5 text-green-500" />
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="h-56 bg-black/20 rounded-xl flex items-end justify-center space-x-4 p-6 border border-white/5">
+            <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+              <div className="h-40 sm:h-56 bg-black/20 rounded-xl flex items-end justify-center space-x-2 sm:space-x-4 p-3 sm:p-6 border border-white/5 overflow-x-auto">
                 {[40, 65, 45, 80, 100, 75, 90].map((height, i) => (
-                  <div key={i} className="w-10 bg-gradient-to-t from-primary/20 to-primary rounded-t-sm relative group" style={{ height: `${height}%` }}>
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div key={i} className="w-6 sm:w-10 min-w-[24px] bg-gradient-to-t from-primary/20 to-primary rounded-t-sm relative group" style={{ height: `${height}%` }}>
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/80 text-white text-[10px] sm:text-xs py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                       {height}%
                     </div>
                   </div>
@@ -458,15 +499,12 @@ function AdminDashboard({ stats, activity }: { stats?: DashboardStats; activity?
             </CardContent>
           </Card>
         </div>
-      </div>
+        </div>
+      </CollapsibleSection>
 
-      {/* Activity Feed */}
-      <div>
+      <CollapsibleSection title="Activity Feed" icon={RefreshCw} defaultOpen={!isMobile}>
         <Card data-testid="card-activity-feed" className="glass-card border-white/10">
-          <CardHeader>
-            <CardTitle className="text-lg text-foreground">Full Activity Feed</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="p-3 sm:p-6">
             {activity && activity.length > 0 ? (
               <div className="space-y-4">
                 {activity.map((item) => (
@@ -486,7 +524,7 @@ function AdminDashboard({ stats, activity }: { stats?: DashboardStats; activity?
             )}
           </CardContent>
         </Card>
-      </div>
+      </CollapsibleSection>
     </div>
   );
 }

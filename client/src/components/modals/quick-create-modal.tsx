@@ -1,6 +1,12 @@
 import { useState, useMemo } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { 
+  ResponsiveDialog, 
+  ResponsiveDialogContent, 
+  ResponsiveDialogHeader, 
+  ResponsiveDialogTitle 
+} from "@/components/ui/responsive-dialog";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { CreateOrganizationModal } from "./create-organization-modal";
 import { CreateContactModal } from "./create-contact-modal";
 import { CreateLeadModal } from "./create-lead-modal";
@@ -83,37 +89,40 @@ export function QuickCreateModal({ isOpen, onClose }: QuickCreateModalProps) {
     setSelectedType(null);
   };
 
+  const isMobile = useIsMobile();
+
   return (
     <>
-      <Dialog open={isOpen && !selectedType} onOpenChange={(open) => {
-        // Only call onClose when the dialog is being closed (open === false)
-        // This prevents the dialog from closing immediately when it opens
+      <ResponsiveDialog open={isOpen && !selectedType} onOpenChange={(open) => {
         if (!open) {
           onClose();
         }
       }}>
-        <DialogContent className="sm:max-w-md" data-testid="modal-quick-create">
-          <DialogHeader>
-            <DialogTitle className="flex items-center justify-between">
+        <ResponsiveDialogContent className="sm:max-w-md" data-testid="modal-quick-create">
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle className="flex items-center justify-between">
               Quick Create
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onClose}
-                data-testid="button-close-modal"
-              >
-                <i className="fas fa-times"></i>
-              </Button>
-            </DialogTitle>
-          </DialogHeader>
+              {!isMobile && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onClose}
+                  className="min-h-[44px] min-w-[44px]"
+                  data-testid="button-close-modal"
+                >
+                  <i className="fas fa-times"></i>
+                </Button>
+              )}
+            </ResponsiveDialogTitle>
+          </ResponsiveDialogHeader>
           
-          <div className="space-y-3 mt-4">
+          <div className="space-y-3 mt-4 px-4 sm:px-0">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option) => (
                 <Button
                   key={option.id}
                   variant="ghost"
-                  className="w-full justify-start p-4 h-auto hover:bg-muted/30"
+                  className="w-full justify-start p-4 min-h-[56px] h-auto hover:bg-muted/30"
                   onClick={() => handleCreate(option.id)}
                   data-testid={`button-create-${option.id}`}
                 >
@@ -134,8 +143,8 @@ export function QuickCreateModal({ isOpen, onClose }: QuickCreateModalProps) {
               </div>
             )}
           </div>
-        </DialogContent>
-      </Dialog>
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
 
       <CreateOrganizationModal 
         isOpen={selectedType === "organization"}

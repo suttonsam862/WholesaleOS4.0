@@ -54,6 +54,11 @@
   --ok: hsl(142, 71%, 45%);
   --warn: hsl(38, 92%, 50%);
   --bad: hsl(0, 84%, 60%);
+
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-right: env(safe-area-inset-right, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-inset-left: env(safe-area-inset-left, 0px);
 }
 
 .glass-card {
@@ -86,6 +91,126 @@
   border-color: var(--primary);
 }
 
+.data-card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.data-card-stack > * {
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .data-card-stack {
+    gap: 1rem;
+  }
+}
+
+.scroll-shadow-left {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.6), transparent);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.scroll-shadow-right {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(to left, rgba(0, 0, 0, 0.6), transparent);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.responsive-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.responsive-table-sticky .sticky-column {
+  position: sticky;
+  left: 0;
+  background: var(--card);
+  z-index: 5;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.swipe-actions {
+  display: flex;
+  height: 100%;
+}
+
+.swipe-actions button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  min-width: 60px;
+  height: 100%;
+  border: none;
+  outline: none;
+  transition: opacity 0.2s ease;
+}
+
+.swipe-actions button:active {
+  opacity: 0.8;
+}
+
+.mobile-filter-bar {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.mobile-filter-bar > * {
+  flex-shrink: 0;
+}
+
+.mobile-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--muted-foreground);
+  transition: all 0.2s ease;
+}
+
+.mobile-filter-chip:hover,
+.mobile-filter-chip.active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--primary);
+  color: var(--foreground);
+}
+
+.mobile-filter-chip.active {
+  background: rgba(0, 255, 255, 0.1);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -98,8 +223,8 @@
   body {
     @apply font-sans antialiased bg-background text-foreground;
     font-family: 'Inter', system-ui, sans-serif;
-    font-size: 16px; /* Ensure minimum 16px for mobile readability */
-    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+    font-size: 16px;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .sidebar-active {
@@ -116,15 +241,55 @@
     to { opacity: 1; transform: translateY(0); }
   }
 
-  /* Mobile-specific utilities */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  .safe-area-insets {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+
+  .touch-pan-x {
+    touch-action: pan-x;
+  }
+
+  .touch-pan-y {
+    touch-action: pan-y;
+  }
+
+  .touch-pan-both {
+    touch-action: pan-x pan-y;
+  }
+
+  .touch-manipulation {
+    touch-action: manipulation;
+  }
+
+  .touch-none {
+    touch-action: none;
+  }
+
   @media (max-width: 768px) {
-    /* Ensure touch targets are at least 44px */
     button, a, [role="button"] {
       min-height: 44px;
       min-width: 44px;
     }
 
-    /* Mobile card layout for tables */
     .mobile-card-table {
       display: block;
     }
@@ -141,26 +306,40 @@
       display: block;
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      margin-bottom: 0.75rem;
+      margin-bottom: 1rem;
       padding: 1rem;
+      background: var(--card);
+    }
+
+    .mobile-card-table tr:active {
+      background: var(--muted);
     }
 
     .mobile-card-table td {
-      display: block;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       text-align: left;
-      padding: 0.25rem 0;
+      padding: 0.5rem 0;
       border: none;
+      min-height: 36px;
+    }
+
+    .mobile-card-table td:not(:last-child) {
+      border-bottom: 1px solid var(--border);
     }
 
     .mobile-card-table td:before {
       content: attr(data-label);
       font-weight: 600;
-      display: inline-block;
-      margin-right: 0.5rem;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
       color: var(--muted-foreground);
+      flex-shrink: 0;
+      margin-right: 1rem;
     }
 
-    /* Full-screen modals on mobile */
     [role="dialog"] {
       max-width: 100% !important;
       width: 100% !important;
@@ -169,7 +348,6 @@
       border-radius: 0 !important;
     }
 
-    /* Responsive text sizes */
     h1 {
       font-size: clamp(1.5rem, 5vw, 2rem);
     }
@@ -182,14 +360,12 @@
       font-size: clamp(1.125rem, 3.5vw, 1.5rem);
     }
 
-    /* Improve form inputs on mobile */
     input, select, textarea {
-      font-size: 16px; /* Prevent zoom on iOS */
+      font-size: 16px;
       min-height: 44px;
     }
   }
 
-  /* Responsive padding utilities */
   .px-responsive {
     @apply px-3 sm:px-4 md:px-6;
   }
@@ -202,7 +378,14 @@
     @apply p-3 sm:p-4 md:p-6;
   }
 
-  /* Custom scrollbar styles */
+  .pb-safe {
+    padding-bottom: max(1rem, var(--safe-area-inset-bottom));
+  }
+
+  .pt-safe {
+    padding-top: max(0.5rem, var(--safe-area-inset-top));
+  }
+
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -222,7 +405,6 @@
     background: hsl(var(--muted-foreground) / 0.5);
   }
 
-  /* Organization card button styles */
   [data-testid^="button-edit-org-"],
   [data-testid^="button-view-org-"],
   [data-testid^="button-delete-org-"] {

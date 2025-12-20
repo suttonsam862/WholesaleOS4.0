@@ -27,9 +27,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { useAuth } from "@/hooks/useAuth";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { MobileDataCard } from "@/components/ui/mobile-data-card";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { 
   Factory, 
@@ -52,7 +56,9 @@ import {
   RefreshCcw,
   Eye,
   Archive,
-  ChevronRight
+  ChevronRight,
+  ChevronDown,
+  SlidersHorizontal
 } from "lucide-react";
 import { format } from "date-fns";
 import type { Manufacturing, Order } from "@shared/schema";
@@ -97,6 +103,7 @@ export default function Manufacturing() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading, user } = useAuth();
   const { canAccess } = usePermissions();
+  const isMobile = useIsMobile();
 
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -110,6 +117,7 @@ export default function Manufacturing() {
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [isFiltersExpanded, setIsFiltersExpanded] = useState(!isMobile);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -264,106 +272,214 @@ export default function Manufacturing() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] p-6 space-y-4">
+    <div className={cn("flex flex-col h-[calc(100vh-64px)] space-y-4", isMobile ? "p-3" : "p-6")}>
       {/* Header - Matching Orders Page */}
       <div className="space-y-4 flex-shrink-0">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className={cn("flex items-start justify-between gap-4", isMobile && "flex-col")}>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight gradient-text" data-testid="text-page-title">
+            <h1 className={cn("font-bold tracking-tight gradient-text", isMobile ? "text-2xl" : "text-3xl")} data-testid="text-page-title">
               Manufacturing
             </h1>
-            <p className="text-muted-foreground mt-1">
+            <p className={cn("text-muted-foreground mt-1", isMobile && "text-sm")}>
               Track production and manufacturing orders efficiently.
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline"
-              onClick={() => refetch()}
-              className="border-white/10 hover:bg-white/5"
-            >
-              <RefreshCcw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
-            <Button 
-              onClick={() => setIsPantoneModalOpen(true)} 
-              variant="outline"
-              className="border-white/10 hover:bg-white/5"
-            >
-              <Palette className="w-4 h-4 mr-2" />
-              Pantone
-            </Button>
-            <Button 
-              onClick={() => setIsCreateModalOpen(true)} 
-              data-testid="button-create-order"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_10px_rgba(0,255,255,0.3)]"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Record
-            </Button>
-          </div>
+          {isMobile ? (
+            <ScrollArea className="w-full">
+              <div className="flex items-center gap-2 pb-2">
+                <Button 
+                  variant="outline"
+                  onClick={() => refetch()}
+                  className="border-white/10 hover:bg-white/5 h-11 min-h-[44px] shrink-0"
+                  size="sm"
+                >
+                  <RefreshCcw className="w-4 h-4" />
+                </Button>
+                <Button 
+                  onClick={() => setIsPantoneModalOpen(true)} 
+                  variant="outline"
+                  className="border-white/10 hover:bg-white/5 h-11 min-h-[44px] shrink-0"
+                  size="sm"
+                >
+                  <Palette className="w-4 h-4 mr-2" />
+                  Pantone
+                </Button>
+                <Button 
+                  onClick={() => setIsCreateModalOpen(true)} 
+                  data-testid="button-create-order"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_10px_rgba(0,255,255,0.3)] h-11 min-h-[44px] shrink-0"
+                  size="sm"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  New
+                </Button>
+              </div>
+              <ScrollBar orientation="horizontal" />
+            </ScrollArea>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline"
+                onClick={() => refetch()}
+                className="border-white/10 hover:bg-white/5"
+              >
+                <RefreshCcw className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
+              <Button 
+                onClick={() => setIsPantoneModalOpen(true)} 
+                variant="outline"
+                className="border-white/10 hover:bg-white/5"
+              >
+                <Palette className="w-4 h-4 mr-2" />
+                Pantone
+              </Button>
+              <Button 
+                onClick={() => setIsCreateModalOpen(true)} 
+                data-testid="button-create-order"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-[0_0_10px_rgba(0,255,255,0.3)]"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Record
+              </Button>
+            </div>
+          )}
         </div>
 
-        {/* Filters - Glass Card Style Matching Orders */}
-        <Card className="glass-card border-white/10">
-          <CardContent className="p-4">
-            <div className="flex flex-col md:flex-row gap-4 items-center">
-              <div className="relative flex-1 w-full">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by order, organization, batch..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 bg-black/20 border-white/10 focus:border-primary/50"
-                  data-testid="input-search"
-                />
-              </div>
-              <div className="flex gap-2 w-full md:w-auto flex-wrap">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[160px] bg-black/20 border-white/10 text-white" data-testid="select-status-filter">
-                    <SelectValue placeholder="All Statuses" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    {manufacturingStages.map(stage => (
-                      <SelectItem key={stage.value} value={stage.value}>
-                        {stage.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
-                {/* View Toggle */}
-                <div className="flex items-center gap-1 p-1 rounded-lg bg-white/5 border border-white/10">
-                  <button
-                    onClick={() => setViewMode("board")}
-                    className={cn(
-                      "p-2 rounded-md transition-colors",
-                      viewMode === "board"
-                        ? "bg-primary/20 text-primary"
-                        : "text-white/40 hover:text-white"
+        {/* Filters - Collapsible on Mobile */}
+        {isMobile ? (
+          <Collapsible open={isFiltersExpanded} onOpenChange={setIsFiltersExpanded}>
+            <Card className="glass-card border-white/10">
+              <CollapsibleTrigger asChild>
+                <CardContent className="p-3 flex items-center justify-between cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">Filters</span>
+                    {statusFilter !== "all" && (
+                      <Badge variant="secondary" className="text-xs">{statusFilter}</Badge>
                     )}
-                    data-testid="button-view-board"
-                  >
-                    <LayoutGrid className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode("list")}
-                    className={cn(
-                      "p-2 rounded-md transition-colors",
-                      viewMode === "list"
-                        ? "bg-primary/20 text-primary"
-                        : "text-white/40 hover:text-white"
-                    )}
-                    data-testid="button-view-list"
-                  >
-                    <List className="w-4 h-4" />
-                  </button>
+                  </div>
+                  <ChevronDown className={cn("w-4 h-4 transition-transform", isFiltersExpanded && "rotate-180")} />
+                </CardContent>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="p-3 pt-0 space-y-3">
+                  <div className="relative w-full">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9 bg-black/20 border-white/10 focus:border-primary/50 h-11 min-h-[44px]"
+                      data-testid="input-search"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+                      <SelectTrigger className="flex-1 bg-black/20 border-white/10 text-white h-11 min-h-[44px]" data-testid="select-status-filter">
+                        <SelectValue placeholder="All Statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Statuses</SelectItem>
+                        {manufacturingStages.map(stage => (
+                          <SelectItem key={stage.value} value={stage.value}>
+                            {stage.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex items-center gap-1 p-1 rounded-lg bg-white/5 border border-white/10">
+                      <button
+                        onClick={() => setViewMode("board")}
+                        className={cn(
+                          "p-2.5 rounded-md transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center",
+                          viewMode === "board"
+                            ? "bg-primary/20 text-primary"
+                            : "text-white/40 hover:text-white"
+                        )}
+                        data-testid="button-view-board"
+                      >
+                        <LayoutGrid className="w-5 h-5" />
+                      </button>
+                      <button
+                        onClick={() => setViewMode("list")}
+                        className={cn(
+                          "p-2.5 rounded-md transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center",
+                          viewMode === "list"
+                            ? "bg-primary/20 text-primary"
+                            : "text-white/40 hover:text-white"
+                        )}
+                        data-testid="button-view-list"
+                      >
+                        <List className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+        ) : (
+          <Card className="glass-card border-white/10">
+            <CardContent className="p-4">
+              <div className="flex flex-col md:flex-row gap-4 items-center">
+                <div className="relative flex-1 w-full">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by order, organization, batch..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 bg-black/20 border-white/10 focus:border-primary/50"
+                    data-testid="input-search"
+                  />
+                </div>
+                <div className="flex gap-2 w-full md:w-auto flex-wrap">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[160px] bg-black/20 border-white/10 text-white" data-testid="select-status-filter">
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      {manufacturingStages.map(stage => (
+                        <SelectItem key={stage.value} value={stage.value}>
+                          {stage.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* View Toggle */}
+                  <div className="flex items-center gap-1 p-1 rounded-lg bg-white/5 border border-white/10">
+                    <button
+                      onClick={() => setViewMode("board")}
+                      className={cn(
+                        "p-2 rounded-md transition-colors",
+                        viewMode === "board"
+                          ? "bg-primary/20 text-primary"
+                          : "text-white/40 hover:text-white"
+                      )}
+                      data-testid="button-view-board"
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode("list")}
+                      className={cn(
+                        "p-2 rounded-md transition-colors",
+                        viewMode === "list"
+                          ? "bg-primary/20 text-primary"
+                          : "text-white/40 hover:text-white"
+                      )}
+                      data-testid="button-view-list"
+                    >
+                      <List className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Content */}

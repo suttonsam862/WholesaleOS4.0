@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { MobileDataCard } from "@/components/ui/mobile-data-card";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,6 +68,7 @@ interface User {
 export default function UserManagement() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading: authLoading, user } = useAuth();
+  const isMobile = useIsMobile();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -342,7 +345,7 @@ export default function UserManagement() {
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
         <Card className="glass-card" data-testid="card-total-users">
           <CardContent className="p-4">
             <div className="flex items-center space-x-3">
@@ -411,41 +414,42 @@ export default function UserManagement() {
       {/* Filters */}
       <Card className="glass-card mb-6" data-testid="card-filters">
         <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
+          <div className="flex flex-col gap-4">
             <div className="relative flex-1">
               <Search className="absolute inset-y-0 left-3 my-auto w-4 h-4 text-muted-foreground" />
               <Input 
                 type="text" 
                 placeholder="Search by name, email, role, or phone..." 
-                className="pl-10"
+                className="pl-10 min-h-[44px]"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 data-testid="input-search-users"
               />
             </div>
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-full md:w-[180px]" data-testid="select-role-filter">
-                <SelectValue placeholder="All Roles" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Roles</SelectItem>
-                {roles.map(role => (
-                  <SelectItem key={role} value={role}>
-                    {role.charAt(0).toUpperCase() + role.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-[150px]" data-testid="select-status-filter">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-full sm:w-[180px] min-h-[44px]" data-testid="select-role-filter">
+                  <SelectValue placeholder="All Roles" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  {roles.map(role => (
+                    <SelectItem key={role} value={role}>
+                      {role.charAt(0).toUpperCase() + role.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-[150px] min-h-[44px]" data-testid="select-status-filter">
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
             {selectedUsers.length > 0 && canWrite && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -486,7 +490,50 @@ export default function UserManagement() {
         </CardContent>
       </Card>
 
-      {/* Users Table */}
+      {/* Users List - Mobile View */}
+      {isMobile ? (
+        <div className="space-y-3" data-testid="users-mobile-list">
+          {filteredUsers.length === 0 ? (
+            <Card className="glass-card">
+              <CardContent className="p-6 text-center">
+                <div className="flex flex-col items-center">
+                  <div className="w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
+                    <Users className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">No users found</h3>
+                  <p className="text-muted-foreground mb-4">
+                    {searchTerm || roleFilter !== "all" || statusFilter !== "all"
+                      ? "Try adjusting your filters"
+                      : "Add your first user to start managing the team."}
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredUsers.map((u, index) => (
+              <MobileDataCard
+                key={u.id}
+                title={u.name || "Unknown"}
+                subtitle={u.email || "No email"}
+                status={u.isActive ? { value: "active", label: "Active" } : { value: "inactive", label: "Inactive" }}
+                metadata={[
+                  { label: "Role", value: <Badge className={getRoleColor(u.role)}>{u.role?.charAt(0).toUpperCase() + u.role?.slice(1)}</Badge> },
+                  ...(u.phone ? [{ label: "Phone", value: u.phone, icon: <Phone className="h-3 w-3" /> }] : []),
+                ]}
+                actions={[
+                  { label: "View", icon: <Eye className="h-4 w-4" />, onClick: () => handleViewUser(u.id) },
+                  ...(canWrite ? [{ label: "Edit", icon: <Edit className="h-4 w-4" />, onClick: () => handleEditUser(u.id) }] : []),
+                  ...(canDelete ? [{ label: "Delete", icon: <Trash2 className="h-4 w-4" />, onClick: () => handleDeleteUser(u.id), variant: "danger" as const }] : []),
+                ]}
+                onClick={() => handleViewUser(u.id)}
+                index={index}
+                data-testid={`card-user-${u.id}`}
+              />
+            ))
+          )}
+        </div>
+      ) : (
+      /* Users Table - Desktop View */
       <Card className="glass-card" data-testid="card-users-table">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -642,6 +689,7 @@ export default function UserManagement() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteUserId} onOpenChange={(open) => !open && setDeleteUserId(null)}>

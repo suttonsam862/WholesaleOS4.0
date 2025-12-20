@@ -5,9 +5,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Dialog,
-  DialogContent,
-} from "@/components/ui/dialog";
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+} from "@/components/ui/responsive-dialog";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Form,
   FormControl,
@@ -155,9 +156,11 @@ export function CreateLeadModal({ isOpen, onClose }: CreateLeadModalProps) {
 
   const selectedStage = STAGES.find(s => s.value === form.watch("stage"));
 
+  const isMobile = useIsMobile();
+
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl bg-black/90 backdrop-blur-xl border-white/10 p-0 overflow-hidden" data-testid="modal-create-lead">
+    <ResponsiveDialog open={isOpen} onOpenChange={handleClose}>
+      <ResponsiveDialogContent className="sm:max-w-2xl bg-black/90 backdrop-blur-xl border-white/10 p-0 overflow-hidden" data-testid="modal-create-lead">
         {/* Header with Progress */}
         <div className="p-6 border-b border-white/10">
           <div className="flex items-center justify-between mb-4">
@@ -516,7 +519,7 @@ export function CreateLeadModal({ isOpen, onClose }: CreateLeadModalProps) {
             </div>
           </form>
         </Form>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   );
 }

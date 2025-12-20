@@ -1,6 +1,13 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { 
+  ResponsiveDialog, 
+  ResponsiveDialogContent, 
+  ResponsiveDialogHeader, 
+  ResponsiveDialogTitle, 
+  ResponsiveDialogFooter 
+} from "@/components/ui/responsive-dialog";
 import { GlassButton, GlassInput, GlassCard, GlassTextarea } from "@/components/ui/glass";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -390,15 +397,17 @@ export function CreateOrderModal({ isOpen, onClose }: CreateOrderModalProps) {
     setStep(1);
   };
 
+  const isMobile = useIsMobile();
+
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col bg-black/80 backdrop-blur-xl border-white/10 p-0 gap-0">
-        <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
+    <ResponsiveDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <ResponsiveDialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col bg-black/80 backdrop-blur-xl border-white/10 p-0 gap-0">
+        <div className="p-4 sm:p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
           <div>
-            <DialogTitle className="text-2xl font-bold text-white flex items-center gap-2">
-              <ShoppingCart className="w-6 h-6 text-neon-blue" />
+            <ResponsiveDialogTitle className="text-xl sm:text-2xl font-bold text-white flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-neon-blue" />
               Create New Order
-            </DialogTitle>
+            </ResponsiveDialogTitle>
             <p className="text-muted-foreground text-sm mt-1">
               {step === 1 && "Step 1: Order Details"}
               {step === 2 && "Step 2: Add Products"}
@@ -871,7 +880,7 @@ export function CreateOrderModal({ isOpen, onClose }: CreateOrderModalProps) {
             )}
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   );
 }

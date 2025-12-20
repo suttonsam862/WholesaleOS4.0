@@ -146,7 +146,7 @@ export default function Catalog() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-12">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-8 md:mb-12">
           {[
             { label: "Categories", value: categories.length, icon: Folder, color: "text-purple-400", bg: "bg-purple-500/10" },
             { label: "Products", value: products?.length || 0, icon: Box, color: "text-blue-400", bg: "bg-blue-500/10" },
@@ -154,13 +154,13 @@ export default function Catalog() {
             { label: "Active", value: products?.filter(p => p.active).length || 0, icon: CheckCircle, color: "text-green-400", bg: "bg-green-500/10" }
           ].map((stat, i) => (
             <Card key={i} className="glass-card border-white/10 hover:bg-white/5 transition-colors">
-              <CardContent className="p-4 flex items-center space-x-4">
-                <div className={`w-12 h-12 ${stat.bg} rounded-xl flex items-center justify-center backdrop-blur-sm`}>
-                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
+              <CardContent className="p-3 md:p-4 flex items-center space-x-3 md:space-x-4">
+                <div className={`w-10 h-10 md:w-12 md:h-12 ${stat.bg} rounded-xl flex items-center justify-center backdrop-blur-sm`}>
+                  <stat.icon className={`h-5 w-5 md:h-6 md:w-6 ${stat.color}`} />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="text-xl md:text-2xl font-bold text-foreground">{stat.value}</p>
+                  <p className="text-xs md:text-sm text-muted-foreground">{stat.label}</p>
                 </div>
               </CardContent>
             </Card>
@@ -190,7 +190,7 @@ export default function Catalog() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-8">
           {categories.map((category) => {
             const categoryProducts = products?.filter(p => p.categoryId === category.id) || [];
             
@@ -201,7 +201,7 @@ export default function Catalog() {
                 data-testid={`card-category-${category.id}`}
               >
                 <Link href={`/catalog/category/${category.id}`}>
-                  <div className="relative aspect-[4/5] overflow-hidden rounded-2xl bg-muted glass-card border-white/10 card-hover-effect">
+                  <div className="relative aspect-[3/4] md:aspect-[4/5] overflow-hidden rounded-xl md:rounded-2xl bg-muted glass-card border-white/10 card-hover-effect min-h-[44px]">
                     {/* Background Image / Gradient */}
                     {category.imageUrl ? (
                       <ImageWithFallback 
@@ -219,25 +219,25 @@ export default function Catalog() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
 
                     {/* Content */}
-                    <div className="absolute inset-0 p-6 flex flex-col justify-end">
+                    <div className="absolute inset-0 p-3 md:p-6 flex flex-col justify-end">
                       <div className="transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
-                        <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-primary transition-colors">
+                        <h3 className="text-lg md:text-2xl font-bold text-white mb-1 md:mb-2 group-hover:text-primary transition-colors line-clamp-2">
                           {category.name}
                         </h3>
                         {category.description && (
-                          <p className="text-sm text-gray-300 line-clamp-2 mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
+                          <p className="hidden md:block text-sm text-gray-300 line-clamp-2 mb-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
                             {category.description}
                           </p>
                         )}
                         
                         <div className="flex items-center justify-between">
-                          <Badge variant="secondary" className="bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-md">
+                          <Badge variant="secondary" className="bg-white/10 hover:bg-white/20 text-white border-none backdrop-blur-md text-xs md:text-sm">
                             {categoryProducts.length} Products
                           </Badge>
                           
-                          {/* Product Previews */}
+                          {/* Product Previews - Hidden on mobile */}
                           {categoryProducts.length > 0 && (
-                            <div className="flex -space-x-2">
+                            <div className="hidden md:flex -space-x-2">
                               {categoryProducts.slice(0, 3).map((product) => (
                                 <div 
                                   key={product.id} 

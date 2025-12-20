@@ -1,5 +1,11 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { 
+  ResponsiveDialog, 
+  ResponsiveDialogContent, 
+  ResponsiveDialogHeader, 
+  ResponsiveDialogTitle 
+} from "@/components/ui/responsive-dialog";
 import { useQuery } from "@tanstack/react-query";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,12 +64,14 @@ export function QuoteDetailModal({ isOpen, onClose, quote }: QuoteDetailModalPro
     }
   };
 
+  const isMobile = useIsMobile();
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle>Quote Details: {quote?.quoteName}</DialogTitle>
+    <ResponsiveDialog open={isOpen} onOpenChange={onClose}>
+      <ResponsiveDialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <ResponsiveDialogHeader>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <ResponsiveDialogTitle className="text-lg sm:text-xl">Quote Details: {quote?.quoteName}</ResponsiveDialogTitle>
             <Button
               onClick={handleDownloadPDF}
               disabled={isLoading || isGeneratingPDF || !quoteWithLineItems}
@@ -75,7 +83,7 @@ export function QuoteDetailModal({ isOpen, onClose, quote }: QuoteDetailModalPro
               {isGeneratingPDF ? 'Generating...' : 'Download PDF'}
             </Button>
           </div>
-        </DialogHeader>
+        </ResponsiveDialogHeader>
         
         {isLoading ? (
           <div className="text-center py-8">Loading quote details...</div>
@@ -194,7 +202,7 @@ export function QuoteDetailModal({ isOpen, onClose, quote }: QuoteDetailModalPro
             )}
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+      </ResponsiveDialogContent>
+    </ResponsiveDialog>
   );
 }
