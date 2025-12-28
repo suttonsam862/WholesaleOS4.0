@@ -225,7 +225,7 @@ export function CreateManufacturingModal({ isOpen, onClose, preselectedOrderId }
   const calculateTotalQty = (item: any) => {
     return (item.yxs || 0) + (item.ys || 0) + (item.ym || 0) + (item.yl || 0) +
            (item.xs || 0) + (item.s || 0) + (item.m || 0) + (item.l || 0) +
-           (item.xl || 0) + (item.xxl || 0) + (item.xxxl || 0);
+           (item.xl || 0) + (item.xxl || 0) + (item.xxxl || 0) + (item.xxxxl || 0);
   };
 
   return (
