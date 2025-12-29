@@ -2570,7 +2570,7 @@ export const insertEventSchema = createInsertSchema(events, {
   endDate: z.string().optional(),
   timezone: z.string().optional(),
   location: z.string().optional(),
-}).omit({ createdAt: true, updatedAt: true });
+}).omit({ createdAt: true, updatedAt: true, createdBy: true });
 
 export const insertEventStageSchema = createInsertSchema(eventStages, {
   stageNumber: z.number().int().min(1).max(10),

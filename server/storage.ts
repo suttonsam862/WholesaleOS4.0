@@ -3516,19 +3516,14 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Get design costs ($50 per design job)
+    const designDateConditions = [];
+    if (startDate) designDateConditions.push(gte(designJobs.createdAt, new Date(startDate)));
+    if (endDate) designDateConditions.push(lte(designJobs.createdAt, new Date(endDate)));
+    
     const designJobsResult = await db
       .select({ count: count() })
       .from(designJobs)
-      .where(
-        dateConditions.length > 0 
-          ? and(...dateConditions.map(cond => {
-              if (cond.toString().includes('>=')) {
-                return gte(designJobs.createdAt, new Date(startDate!));
-              }
-              return lte(designJobs.createdAt, new Date(endDate!));
-            }))
-          : undefined
-      );
+      .where(designDateConditions.length > 0 ? and(...designDateConditions) : undefined);
 
     const designCosts = (designJobsResult[0]?.count || 0) * 50;
 
