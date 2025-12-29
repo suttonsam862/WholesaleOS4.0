@@ -1156,7 +1156,11 @@ export function FinancialMatchingModal({
                         <CardContent className="p-3">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="font-medium">{invoice.invoiceNumber}</p>
+                              <p className="font-medium">
+                                {invoice.organization?.name 
+                                  ? `${invoice.organization.name} - ${invoice.invoiceNumber}` 
+                                  : invoice.invoiceNumber}
+                              </p>
                               <p className="text-sm text-muted-foreground">Issued: {formatDate(invoice.issueDate)}</p>
                             </div>
                             <div className="flex items-center gap-2">

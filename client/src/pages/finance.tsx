@@ -116,7 +116,19 @@ interface FinancialMatchingOrder {
   };
 }
 
-// Extended payment types with related entity data
+// Extended types with related entity data
+interface InvoiceWithRelations extends Invoice {
+  organization?: {
+    id: number;
+    name: string;
+  };
+  salesperson?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
+}
+
 interface InvoicePaymentWithRelations extends InvoicePayment {
   invoice?: {
     id: number;
@@ -260,7 +272,7 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
     retry: false,
   });
 
-  const { data: invoices = [], isLoading: invoicesLoading } = useQuery<Invoice[]>({
+  const { data: invoices = [], isLoading: invoicesLoading } = useQuery<InvoiceWithRelations[]>({
     queryKey: ["/api/invoices", revenueSourceFilter],
     queryFn: async () => {
       const params = revenueSourceFilter !== "all" ? `?revenueSource=${revenueSourceFilter}` : '';
@@ -764,52 +776,77 @@ export default function Finance({ defaultTab = "overview", action, statusFilter:
     });
 
   const unifiedRecords: UnifiedFinancialRecord[] = [
-    ...invoices.map((inv): UnifiedFinancialRecord => ({
-      id: `invoice-${inv.id}`,
-      type: "invoice",
-      description: `Invoice ${inv.invoiceNumber}`,
-      amount: Number(inv.totalAmount),
-      status: inv.status,
-      date: new Date(inv.issueDate),
-      category: "Invoice",
-      reference: inv.invoiceNumber,
-      details: {
-        amountPaid: Number(inv.amountPaid || 0),
-        amountDue: Number(inv.amountDue || 0),
-        dueDate: inv.dueDate,
-        orgId: inv.orgId,
-      }
-    })),
-    ...invoicePayments.map((payment): UnifiedFinancialRecord => ({
-      id: `payment-${payment.id}`,
-      type: "payment",
-      description: `Payment ${payment.paymentNumber}`,
-      amount: Number(payment.amount),
-      status: "completed",
-      date: new Date(payment.paymentDate),
-      category: "Payment Received",
-      reference: payment.paymentNumber,
-      details: {
-        invoiceId: payment.invoiceId,
-        paymentMethod: payment.paymentMethod,
-        referenceNumber: payment.referenceNumber,
-      }
-    })),
-    ...commissionPayments.map((comm): UnifiedFinancialRecord => ({
-      id: `commission-${comm.id}`,
-      type: "commission",
-      description: `Commission ${comm.paymentNumber} - ${comm.period}`,
-      amount: Number(comm.totalAmount),
-      status: "paid",
-      date: new Date(comm.paymentDate),
-      category: "Commission Payment",
-      reference: comm.paymentNumber,
-      details: {
-        salespersonId: comm.salespersonId,
-        period: comm.period,
-        paymentMethod: comm.paymentMethod,
-      }
-    })),
+    ...invoices.map((inv): UnifiedFinancialRecord => {
+      const orgName = inv.organization?.name;
+      const description = orgName 
+        ? `${orgName} - ${inv.invoiceNumber}`
+        : `Invoice ${inv.invoiceNumber}`;
+      return {
+        id: `invoice-${inv.id}`,
+        type: "invoice",
+        description,
+        amount: Number(inv.totalAmount),
+        status: inv.status,
+        date: new Date(inv.issueDate),
+        category: "Invoice",
+        reference: inv.invoiceNumber,
+        details: {
+          amountPaid: Number(inv.amountPaid || 0),
+          amountDue: Number(inv.amountDue || 0),
+          dueDate: inv.dueDate,
+          orgId: inv.orgId,
+          organizationName: orgName,
+        }
+      };
+    }),
+    ...invoicePayments.map((payment): UnifiedFinancialRecord => {
+      const orgName = payment.organization?.name;
+      const invoiceNum = payment.invoice?.invoiceNumber || payment.paymentNumber;
+      const description = orgName 
+        ? `${orgName} - ${payment.paymentNumber}`
+        : `Payment ${payment.paymentNumber}`;
+      return {
+        id: `payment-${payment.id}`,
+        type: "payment",
+        description,
+        amount: Number(payment.amount),
+        status: "completed",
+        date: new Date(payment.paymentDate),
+        category: "Payment Received",
+        reference: payment.paymentNumber,
+        details: {
+          invoiceId: payment.invoiceId,
+          paymentMethod: payment.paymentMethod,
+          referenceNumber: payment.referenceNumber,
+          invoiceNumber: invoiceNum,
+          organizationName: orgName,
+        }
+      };
+    }),
+    ...commissionPayments.map((comm): UnifiedFinancialRecord => {
+      const salespersonName = comm.salesperson 
+        ? `${comm.salesperson.firstName || ''} ${comm.salesperson.lastName || ''}`.trim()
+        : null;
+      const description = salespersonName 
+        ? `${salespersonName} - ${comm.period}`
+        : `Commission ${comm.paymentNumber} - ${comm.period}`;
+      return {
+        id: `commission-${comm.id}`,
+        type: "commission",
+        description,
+        amount: Number(comm.totalAmount),
+        status: "paid",
+        date: new Date(comm.paymentDate),
+        category: "Commission Payment",
+        reference: comm.paymentNumber,
+        details: {
+          salespersonId: comm.salespersonId,
+          period: comm.period,
+          paymentMethod: comm.paymentMethod,
+          salespersonName,
+        }
+      };
+    }),
   ].sort((a, b) => b.date.getTime() - a.date.getTime());
 
   const filteredRecords = unifiedRecords.filter(record => {

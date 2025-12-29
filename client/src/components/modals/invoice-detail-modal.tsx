@@ -101,7 +101,7 @@ export function InvoiceDetailModal({ isOpen, onClose, invoiceId, onEdit }: Invoi
         <DialogHeader>
           <DialogTitle>Invoice Details</DialogTitle>
           <DialogDescription>
-            {invoice.invoiceNumber}
+            {org?.name ? `${org.name} - ${invoice.invoiceNumber}` : invoice.invoiceNumber}
           </DialogDescription>
         </DialogHeader>
 

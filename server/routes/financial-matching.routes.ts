@@ -236,8 +236,27 @@ export function registerFinancialMatchingRoutes(app: Express): void {
   app.get('/api/financial-matching/unassigned-invoices', isAuthenticated, loadUserData, requirePermission('finance', 'write'), async (req, res) => {
     try {
       const unassignedInvoices = await db
-        .select()
+        .select({
+          id: invoices.id,
+          invoiceNumber: invoices.invoiceNumber,
+          orderId: invoices.orderId,
+          orgId: invoices.orgId,
+          salespersonId: invoices.salespersonId,
+          issueDate: invoices.issueDate,
+          dueDate: invoices.dueDate,
+          status: invoices.status,
+          subtotal: invoices.subtotal,
+          totalAmount: invoices.totalAmount,
+          amountPaid: invoices.amountPaid,
+          amountDue: invoices.amountDue,
+          createdAt: invoices.createdAt,
+          organization: {
+            id: organizations.id,
+            name: organizations.name,
+          },
+        })
         .from(invoices)
+        .leftJoin(organizations, eq(invoices.orgId, organizations.id))
         .where(isNull(invoices.orderId));
 
       res.json(unassignedInvoices);
