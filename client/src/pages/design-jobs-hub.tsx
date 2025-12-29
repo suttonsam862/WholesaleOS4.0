@@ -16,6 +16,7 @@ import {
 interface DesignJob {
   id: number;
   status: "pending" | "assigned" | "in_progress" | "review" | "approved" | "rejected" | "completed";
+  assignedDesignerId: string | null;
 }
 
 export default function DesignJobsHub() {
@@ -53,7 +54,13 @@ export default function DesignJobsHub() {
     };
 
     designJobs.forEach((job) => {
-      if (counts[job.status] !== undefined) {
+      // "Pending" = jobs awaiting assignment (no designer assigned yet)
+      // "Assigned" = jobs with a designer assigned (status pending or assigned)
+      if (!job.assignedDesignerId && (job.status === "pending" || job.status === "assigned")) {
+        counts.pending++;
+      } else if (job.assignedDesignerId && (job.status === "pending" || job.status === "assigned")) {
+        counts.assigned++;
+      } else if (counts[job.status] !== undefined) {
         counts[job.status]++;
       }
     });
