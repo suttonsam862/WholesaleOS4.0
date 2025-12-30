@@ -486,6 +486,7 @@ export default function UserManagement() {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            </div>
           </div>
         </CardContent>
       </Card>
