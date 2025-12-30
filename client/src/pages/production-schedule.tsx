@@ -149,7 +149,7 @@ export function SizeChecker() {
   }
 
   return (
-    <div className="space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80 p-6">
+    <div className="space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80 p-6 pb-24">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight gradient-text" data-testid="heading-size-checker">Size Checking System</h1>

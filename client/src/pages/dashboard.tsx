@@ -195,7 +195,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90 pb-24">
       {dashboardContent}
     </div>
   );

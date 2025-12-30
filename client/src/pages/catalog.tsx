@@ -105,7 +105,7 @@ export default function Catalog() {
   }
 
   return (
-    <div className="p-3 sm:p-6 min-h-screen bg-gradient-to-br from-background to-background/80">
+    <div className="p-3 sm:p-6 min-h-screen bg-gradient-to-br from-background to-background/80 pb-24">
       {/* Header */}
       <div className="mb-8 relative z-10">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">

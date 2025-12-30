@@ -236,7 +236,7 @@ export default function DesignJobDetail() {
   }
 
   return (
-    <div className="p-3 sm:p-6 min-h-screen bg-gradient-to-br from-background to-background/80">
+    <div className="p-3 sm:p-6 min-h-screen bg-gradient-to-br from-background to-background/80 pb-24">
       {/* Organization Branded Header */}
       <div 
         className="rounded-2xl p-6 mb-8 relative overflow-hidden"

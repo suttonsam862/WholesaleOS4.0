@@ -474,7 +474,7 @@ export default function DesignJobs() {
   }
 
   return (
-    <div className="p-3 sm:p-6 space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80">
+    <div className="p-3 sm:p-6 space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80 pb-24">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-8">
         <div>
           <h1 className="text-4xl font-bold tracking-tight gradient-text mb-2" data-testid="heading-design-jobs">

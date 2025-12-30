@@ -320,7 +320,7 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90 pb-24">
       <div className="p-6" data-testid="user-management-page">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent" data-testid="heading-user-management">User Management</h1>

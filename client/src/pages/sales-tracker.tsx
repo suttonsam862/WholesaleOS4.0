@@ -291,7 +291,7 @@ export function SalesTracker() {
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80 p-3 sm:p-6">
+    <div className="space-y-4 sm:space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80 p-3 sm:p-6 pb-24">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl sm:text-3xl font-bold tracking-tight gradient-text" data-testid="heading-sales-tracker">Sales Tracker</h1>

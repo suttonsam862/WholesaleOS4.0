@@ -203,7 +203,7 @@ export default function Contacts() {
   }
 
   return (
-    <div className="p-6 space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80">
+    <div className="p-6 space-y-6 min-h-screen bg-gradient-to-br from-background to-background/80 pb-24">
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>

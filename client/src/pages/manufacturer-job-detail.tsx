@@ -176,7 +176,7 @@ export default function ManufacturerJobDetail() {
   const isOverdue = job.requiredDeliveryDate && new Date(job.requiredDeliveryDate) < new Date();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 pb-24">
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">

@@ -32,13 +32,13 @@ const STAGE_NAMES = [
 ];
 
 // Stage 1: Basic Info Schema (omit createdBy as it's auto-populated from auth)
-const stage1Schema = insertEventSchema.extend({
+const stage1Schema = insertEventSchema.omit({ createdBy: true }).extend({
   name: z.string().min(1, "Event name is required"),
   eventType: z.enum(["small-scale", "large-scale", "seminar", "clinic", "camp"]),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   location: z.string().optional(),
-}).omit({ createdBy: true });
+});
 
 type Stage1Data = z.infer<typeof stage1Schema>;
 

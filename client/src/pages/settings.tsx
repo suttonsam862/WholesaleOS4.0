@@ -54,7 +54,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background/95 to-background/90 pb-24">
       <div className="p-6 max-w-4xl mx-auto">
         <div className="mb-6">
           <h1 className="text-3xl font-bold gradient-text" data-testid="heading-settings">Settings</h1>
