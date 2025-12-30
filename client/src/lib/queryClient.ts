@@ -1,4 +1,5 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { QueryClient, QueryFunction, QueryCache, MutationCache } from "@tanstack/react-query";
+import { toast } from "@/hooks/use-toast";
 
 // Global CSRF token cache
 let cachedCsrfToken: string | null = null;
@@ -249,6 +250,39 @@ export const queryClient = new QueryClient({
       retry: false,
     },
   },
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      // Don't show toast for 401s as they are handled by auth logic
+      // and don't show toast if explicitly disabled for this query
+      if (
+        (error as any)?.status === 401 || 
+        query.meta?.silent || 
+        query.options.meta?.silent
+      ) {
+        return;
+      }
+
+      toast({
+        title: "Query Failed",
+        description: error.message || "An error occurred while fetching data",
+        variant: "destructive",
+      });
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error, _variables, _context, mutation) => {
+      // Don't show toast if explicitly disabled for this mutation
+      if (mutation.meta?.silent || mutation.options.meta?.silent) {
+        return;
+      }
+
+      toast({
+        title: "Action Failed",
+        description: error.message || "An error occurred while performing this action",
+        variant: "destructive",
+      });
+    },
+  }),
 });
 
 // Logout helper function that properly clears all state
