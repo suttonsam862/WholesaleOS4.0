@@ -396,3 +396,4 @@ Same validation and data fetching patterns duplicated across 30+ modals.
 | Date | Version | Changes |
 |------|---------|---------|
 | 2024-12-30 | 1.0 | Initial document - 15 issues fixed, 25 documented for future |
+| 2024-12-30 | 1.1 | Query Client improvements (queryKeys.ts, global error handling), data assessment complete (0 violations), accessibility fixes - 20 issues fixed, 20 deferred |

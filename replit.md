@@ -70,9 +70,15 @@ Systematic error elimination for improved stability and security.
 
 **Documentation** (`docs/COMPREHENSIVE_ERROR_LIST.md`):
 - Created comprehensive error tracking document
-- 15 issues fixed, 25 documented for future phases
-- Includes data assessment queries for safe constraint implementation
+- 20 issues fixed, 20 documented for future phases
+- Data assessment complete: 0 violations for prices/quantities/orphans - constraints safe to add
 - Priority matrix for remaining work
+
+**Query Client Improvements** (`client/src/lib/queryClient.ts`, `client/src/lib/queryKeys.ts`):
+- Added `queryKeys.ts` factory pattern with 15+ resource patterns for consistent cache invalidation
+- Global error handling via `QueryCache` and `MutationCache` with toast notifications
+- Configured reasonable stale time (30s) and gcTime (5min)
+- Added `silent` meta option to suppress toasts when needed
 
 ### Native App Quality Mobile Polish (December 2024)
 Enhanced the mobile experience to feel like native iOS/Android apps with smooth loading, spring physics animations, and micro-interactions.

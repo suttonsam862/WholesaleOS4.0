@@ -1,6 +1,17 @@
 import { QueryClient, QueryFunction, QueryCache, MutationCache } from "@tanstack/react-query";
 import { toast } from "@/hooks/use-toast";
 
+// Custom error class that preserves HTTP status for global error handling
+export class HttpError extends Error {
+  status: number;
+  
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+    this.name = 'HttpError';
+  }
+}
+
 // Global CSRF token cache
 let cachedCsrfToken: string | null = null;
 
@@ -59,7 +70,7 @@ async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     const friendlyMessage = getUserFriendlyErrorMessage(res.status, text);
-    throw new Error(friendlyMessage);
+    throw new HttpError(friendlyMessage, res.status);
   }
 }
 
@@ -189,7 +200,7 @@ export async function apiRequest<T = any>(
 
     // Get user-friendly error message
     const friendlyMessage = getUserFriendlyErrorMessage(response.status, errorMessage);
-    throw new Error(friendlyMessage);
+    throw new HttpError(friendlyMessage, response.status);
   }
 
   // For 204 No Content responses, return null instead of trying to parse JSON
@@ -254,11 +265,10 @@ export const queryClient = new QueryClient({
     onError: (error, query) => {
       // Don't show toast for 401s as they are handled by auth logic
       // and don't show toast if explicitly disabled for this query
-      if (
-        (error as any)?.status === 401 || 
-        query.meta?.silent || 
-        query.options.meta?.silent
-      ) {
+      const isUnauthorized = error instanceof HttpError && error.status === 401;
+      const isSilent = query.meta?.silent || query.options.meta?.silent;
+      
+      if (isUnauthorized || isSilent) {
         return;
       }
 
