@@ -1276,7 +1276,6 @@ export const requests = pgTable("requests", {
 ]);
 
 export const insertRequestSchema = createInsertSchema(requests).omit({
-  id: true,
   createdAt: true,
   updatedAt: true,
 });
@@ -2143,7 +2142,10 @@ export const insertProductionScheduleSchema = createInsertSchema(productionSched
 });
 
 // Manufacturer Portal Schemas
-export const insertManufacturerJobSchema = createInsertSchema(manufacturerJobs, {
+export const insertManufacturerJobSchema = createInsertSchema(manufacturerJobs).omit({
+  createdAt: true,
+  updatedAt: true,
+}).extend({
   manufacturerStatus: z.enum([
     "intake_pending", "specs_lock_review", "specs_locked", "materials_reserved",
     "samples_in_progress", "samples_awaiting_approval", "samples_approved", "samples_revise",
@@ -2153,22 +2155,17 @@ export const insertManufacturerJobSchema = createInsertSchema(manufacturerJobs, 
   priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
   printMethod: z.enum(["screen", "plastisol", "water_based", "sublimation", "embroidery", "dtg", "other"]).optional(),
   sampleRequired: z.boolean().optional(),
-}).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
 });
 
-export const insertManufacturerEventSchema = createInsertSchema(manufacturerEvents, {
+export const insertManufacturerEventSchema = createInsertSchema(manufacturerEvents).omit({
+  createdAt: true,
+}).extend({
   eventType: z.enum([
     "status_change", "spec_update", "pantone_update", "sample_approved", "sample_rejected",
     "deadline_changed", "note_added", "attachment_added", "shipment_created", "shipment_split",
     "issue_flagged", "issue_resolved"
   ]),
   title: z.string().min(1, "Title is required"),
-}).omit({
-  id: true,
-  createdAt: true,
 });
 
 // Team Store Schemas
@@ -2732,18 +2729,26 @@ export type CustomerComment = typeof customerComments.$inferSelect;
 export type InsertCustomerComment = z.infer<typeof insertCustomerCommentSchema>;
 
 // Size Adjustment Request Schemas
-export const insertSizeAdjustmentRequestSchema = createInsertSchema(sizeAdjustmentRequests, {
+export const insertSizeAdjustmentRequestSchema = createInsertSchema(sizeAdjustmentRequests).omit({
+  createdAt: true,
+  updatedAt: true,
+  respondedAt: true,
+}).extend({
   orderId: z.number().int().positive("Order ID is required"),
   requestMessage: z.string().min(1, "Request message is required"),
   status: z.enum(["pending", "approved", "rejected", "completed"]).optional(),
-}).omit({ id: true, createdAt: true, updatedAt: true, respondedAt: true });
+});
 
 export type SizeAdjustmentRequest = typeof sizeAdjustmentRequests.$inferSelect;
 export type InsertSizeAdjustmentRequest = z.infer<typeof insertSizeAdjustmentRequestSchema>;
 
 // ==================== FABRIC MANAGEMENT SCHEMAS ====================
 
-export const insertFabricSchema = createInsertSchema(fabrics, {
+export const insertFabricSchema = createInsertSchema(fabrics).omit({
+  createdAt: true,
+  updatedAt: true,
+  approvedAt: true,
+}).extend({
   name: z.string().min(1, "Fabric name is required"),
   gsm: z.number().int().positive().optional(),
   blend: z.string().optional(),
@@ -2756,20 +2761,26 @@ export const insertFabricSchema = createInsertSchema(fabrics, {
   colorOptions: z.array(z.string()).optional(),
   notes: z.string().optional(),
   isApproved: z.boolean().optional(),
-}).omit({ id: true, createdAt: true, updatedAt: true, approvedAt: true });
+});
 
 export type Fabric = typeof fabrics.$inferSelect;
 export type InsertFabric = z.infer<typeof insertFabricSchema>;
 
-export const insertProductVariantFabricSchema = createInsertSchema(productVariantFabrics, {
+export const insertProductVariantFabricSchema = createInsertSchema(productVariantFabrics).omit({
+  assignedAt: true,
+}).extend({
   variantId: z.number().int().positive("Variant ID is required"),
   fabricId: z.number().int().positive("Fabric ID is required"),
-}).omit({ id: true, assignedAt: true });
+});
 
 export type ProductVariantFabric = typeof productVariantFabrics.$inferSelect;
 export type InsertProductVariantFabric = z.infer<typeof insertProductVariantFabricSchema>;
 
-export const insertFabricSubmissionSchema = createInsertSchema(fabricSubmissions, {
+export const insertFabricSubmissionSchema = createInsertSchema(fabricSubmissions).omit({
+  createdAt: true,
+  updatedAt: true,
+  reviewedAt: true,
+}).extend({
   fabricName: z.string().min(1, "Fabric name is required"),
   gsm: z.number().int().positive().optional(),
   blend: z.string().optional(),
@@ -2782,14 +2793,17 @@ export const insertFabricSubmissionSchema = createInsertSchema(fabricSubmissions
   notes: z.string().optional(),
   status: z.enum(["pending", "approved", "rejected"]).optional(),
   reviewNotes: z.string().optional(),
-}).omit({ id: true, createdAt: true, updatedAt: true, reviewedAt: true });
+});
 
 export type FabricSubmission = typeof fabricSubmissions.$inferSelect;
 export type InsertFabricSubmission = z.infer<typeof insertFabricSubmissionSchema>;
 
 // ==================== PANTONE ASSIGNMENT SCHEMAS ====================
 
-export const insertPantoneAssignmentSchema = createInsertSchema(pantoneAssignments, {
+export const insertPantoneAssignmentSchema = createInsertSchema(pantoneAssignments).omit({
+  createdAt: true,
+  updatedAt: true,
+}).extend({
   pantoneCode: z.string().min(1, "Pantone code is required"),
   pantoneName: z.string().optional(),
   pantoneType: z.enum(["C", "TCX", "TPX", "U"]).optional(),
@@ -2802,13 +2816,17 @@ export const insertPantoneAssignmentSchema = createInsertSchema(pantoneAssignmen
   matchQuality: z.enum(["excellent", "very_close", "good", "approximate", "not_recommended"]).optional(),
   matchDistance: z.number().int().optional(),
   sampledFromImageUrl: z.string().url().optional(),
-}).omit({ id: true, createdAt: true, updatedAt: true });
+});
 
 export type PantoneAssignment = typeof pantoneAssignments.$inferSelect;
 export type InsertPantoneAssignment = z.infer<typeof insertPantoneAssignmentSchema>;
 
 // Quick Action Logs Schemas
-export const insertQuickActionLogSchema = createInsertSchema(quickActionLogs, {
+export const insertQuickActionLogSchema = createInsertSchema(quickActionLogs).omit({
+  createdAt: true,
+  startedAt: true,
+  completedAt: true,
+}).extend({
   actionId: z.string().min(1, "Action ID is required"),
   actionTitle: z.string().min(1, "Action title is required"),
   hubId: z.string().min(1, "Hub ID is required"),
@@ -2821,13 +2839,16 @@ export const insertQuickActionLogSchema = createInsertSchema(quickActionLogs, {
   entityId: z.number().int().optional(),
   duration: z.number().int().optional(),
   metadata: z.any().optional(),
-}).omit({ id: true, createdAt: true, startedAt: true, completedAt: true });
+});
 
 export type QuickActionLog = typeof quickActionLogs.$inferSelect;
 export type InsertQuickActionLog = z.infer<typeof insertQuickActionLogSchema>;
 
 // AI Design Sessions Schemas
-export const insertAiDesignSessionSchema = createInsertSchema(aiDesignSessions, {
+export const insertAiDesignSessionSchema = createInsertSchema(aiDesignSessions).omit({
+  createdAt: true,
+  updatedAt: true,
+}).extend({
   sessionCode: z.string().min(1, "Session code is required"),
   designJobId: z.number().int().optional(),
   orderId: z.number().int().optional(),
@@ -2842,13 +2863,16 @@ export const insertAiDesignSessionSchema = createInsertSchema(aiDesignSessions, 
   tokensUsed: z.number().int().optional(),
   generationDuration: z.number().int().optional(),
   errorMessage: z.string().optional(),
-}).omit({ id: true, createdAt: true, updatedAt: true });
+});
 
 export type AiDesignSession = typeof aiDesignSessions.$inferSelect;
 export type InsertAiDesignSession = z.infer<typeof insertAiDesignSessionSchema>;
 
 // Tour Merch Bundles Schemas
-export const insertTourMerchBundleSchema = createInsertSchema(tourMerchBundles, {
+export const insertTourMerchBundleSchema = createInsertSchema(tourMerchBundles).omit({
+  createdAt: true,
+  updatedAt: true,
+}).extend({
   bundleCode: z.string().min(1, "Bundle code is required"),
   eventId: z.number().int().optional(),
   teamStoreId: z.number().int().optional(),
@@ -2863,13 +2887,17 @@ export const insertTourMerchBundleSchema = createInsertSchema(tourMerchBundles, 
   totalAllocated: z.number().int().optional(),
   totalSold: z.number().int().optional(),
   revenue: z.string().optional(),
-}).omit({ id: true, createdAt: true, updatedAt: true });
+});
 
 export type TourMerchBundle = typeof tourMerchBundles.$inferSelect;
 export type InsertTourMerchBundle = z.infer<typeof insertTourMerchBundleSchema>;
 
 // Printful Sync Records Schemas
-export const insertPrintfulSyncRecordSchema = createInsertSchema(printfulSyncRecords, {
+export const insertPrintfulSyncRecordSchema = createInsertSchema(printfulSyncRecords).omit({
+  createdAt: true,
+  updatedAt: true,
+  lastSyncAttempt: true,
+}).extend({
   orderId: z.number().int().positive("Order ID is required"),
   manufacturingId: z.number().int().optional(),
   printfulOrderId: z.string().optional(),
@@ -2880,7 +2908,7 @@ export const insertPrintfulSyncRecordSchema = createInsertSchema(printfulSyncRec
   errorMessage: z.string().optional(),
   syncAttempts: z.number().int().optional(),
   printfulResponse: z.any().optional(),
-}).omit({ id: true, createdAt: true, updatedAt: true, lastSyncAttempt: true });
+});
 
 export type PrintfulSyncRecord = typeof printfulSyncRecords.$inferSelect;
 export type InsertPrintfulSyncRecord = z.infer<typeof insertPrintfulSyncRecordSchema>;

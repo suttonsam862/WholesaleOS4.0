@@ -37,10 +37,14 @@ import { registerAIRoutes } from "./ai.routes";
 import salesMapRoutes from "./sales-map.routes";
 
 import { csrfProtection } from '../middleware/csrf.middleware';
+import { apiRateLimiter } from '../middleware/rateLimit.middleware';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware must be set up first
   await setupAuth(app);
+  
+  // Apply rate limiting to all API routes (before CSRF to reject abuse early)
+  app.use('/api', apiRateLimiter);
   
   // Apply CSRF protection globally (after session middleware)
   app.use(csrfProtection);
