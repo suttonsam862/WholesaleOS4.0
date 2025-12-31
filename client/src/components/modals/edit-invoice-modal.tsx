@@ -123,7 +123,7 @@ export function EditInvoiceModal({ isOpen, onClose, invoiceId }: EditInvoiceModa
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Invoice</DialogTitle>
           <DialogDescription>
@@ -133,7 +133,7 @@ export function EditInvoiceModal({ isOpen, onClose, invoiceId }: EditInvoiceModa
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <ScrollArea className="max-h-[60vh] pr-4">
+            <div className="pr-4">
               <div className="space-y-4">
                 <FormField
                   control={form.control}
@@ -418,7 +418,7 @@ export function EditInvoiceModal({ isOpen, onClose, invoiceId }: EditInvoiceModa
                   )}
                 />
               </div>
-            </ScrollArea>
+            </div>
             
             <DialogFooter>
               <Button
