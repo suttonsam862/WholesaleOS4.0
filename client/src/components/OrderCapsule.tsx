@@ -489,6 +489,12 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
     enabled: isOpen,
   });
 
+  // Fetch users (for designer names)
+  const { data: users = [] } = useQuery<any[]>({
+    queryKey: ["/api/users"],
+    enabled: isOpen,
+  });
+
   // Fetch form submissions - API returns { ...submission, lineItemSizes: [...] } or null
   const { data: formSubmissionData } = useQuery<{
     id: number;
@@ -2565,7 +2571,7 @@ function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: a
                               <span className="text-xs font-medium text-white/70 uppercase">Assigned Designer</span>
                             </div>
                             <p className="text-sm text-white">
-                              {job.assignedDesignerId ? `Designer ID: ${job.assignedDesignerId}` : 'Unassigned'}
+                              {job.assignedDesignerId ? users.find(u => u.id === job.assignedDesignerId)?.name || 'Unknown Designer' : 'Unassigned'}
                             </p>
                           </div>
                           <div className="p-3 rounded-lg bg-white/5">
