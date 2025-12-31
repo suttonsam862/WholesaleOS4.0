@@ -1459,8 +1459,7 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                                         const file = result.successful[0] as any;
                                         const uploadId = file.__uploadId;
                                         if (uploadId) {
-                                          const publicUrl = `/public-objects/${uploadId}`;
-                                          updateMockupImageMutation.mutate({ lineItemId: item.id, mockupImageUrl: publicUrl });
+                                          updateMockupImageMutation.mutate({ lineItemId: item.id, mockupImageUrl: uploadId });
                                         }
                                       }
                                     }}

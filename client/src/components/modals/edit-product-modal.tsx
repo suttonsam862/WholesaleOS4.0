@@ -304,9 +304,8 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
                       const file = result.successful[0] as any;
                       const uploadId = file.__uploadId;
                       if (uploadId) {
-                        const publicUrl = `/public-objects/${uploadId}`;
-                        setPrimaryImageUrl(publicUrl);
-                        form.setValue("primaryImageUrl", publicUrl);
+                        setPrimaryImageUrl(uploadId);
+                        form.setValue("primaryImageUrl", uploadId);
                       }
                     }
                   }}
@@ -376,8 +375,7 @@ export function EditProductModal({ isOpen, onClose, product }: EditProductModalP
                     result.successful.forEach((file: any) => {
                       const uploadId = file.__uploadId;
                       if (uploadId) {
-                        const publicUrl = `/public-objects/${uploadId}`;
-                        newUrls.push(publicUrl);
+                        newUrls.push(uploadId);
                       }
                     });
                     const updatedImages = [...additionalImageUrls, ...newUrls];

@@ -382,6 +382,7 @@ export function CreateProductModal({ isOpen, onClose, categoryId }: CreateProduc
                         size: file.size,
                         mimeType: file.type
                       }) as any;
+                      (file as any).__uploadId = response.uploadId;
                       return {
                         method: "PUT" as const,
                         url: response.uploadURL,
@@ -392,8 +393,10 @@ export function CreateProductModal({ isOpen, onClose, categoryId }: CreateProduc
                     }}
                     onComplete={(result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
                       if (result.successful?.[0]) {
-                        const uploadedUrl = (result.successful[0] as any).uploadURL;
-                        setPrimaryImageUrl(uploadedUrl);
+                        const uploadId = (result.successful[0] as any).__uploadId;
+                        if (uploadId) {
+                          setPrimaryImageUrl(uploadId);
+                        }
                       }
                     }}
                   >
@@ -445,6 +448,7 @@ export function CreateProductModal({ isOpen, onClose, categoryId }: CreateProduc
                         size: file.size,
                         mimeType: file.type
                       }) as any;
+                      (file as any).__uploadId = response.uploadId;
                       return {
                         method: "PUT" as const,
                         url: response.uploadURL,
@@ -454,7 +458,7 @@ export function CreateProductModal({ isOpen, onClose, categoryId }: CreateProduc
                       };
                     }}
                     onComplete={(result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-                      const newImages = result.successful?.map((file: any) => file.uploadURL) || [];
+                      const newImages = result.successful?.map((file: any) => file.__uploadId).filter(Boolean) || [];
                       setAdditionalImages([...additionalImages, ...newImages]);
                     }}
                   >
