@@ -122,3 +122,23 @@ Enhanced the mobile experience to feel like native iOS/Android apps with smooth 
 - 44-48px minimum touch targets throughout
 - Spring physics on all modal/popup transitions
 - No layout shifts during page transitions
+
+### React Query Cache Invalidation Fix (December 2024)
+Fixed cache invalidation "drift" across all CRUD operations by standardizing query key patterns.
+
+**Problem**: Template string query keys like `` [`/api/orders/${orderId}`] `` created single-string keys that didn't match hierarchical cache invalidation patterns, causing stale data after create/edit/delete operations.
+
+**Solution**: Converted all query keys to array segment format for proper prefix-based invalidation:
+- `['/api/orders', orderId]` instead of `` [`/api/orders/${orderId}`] ``
+- `['/api/orders', orderId, 'line-items']` instead of `` [`/api/orders/${orderId}/line-items`] ``
+
+**Files Updated**:
+- `OrderCapsule.tsx` - 16 query key fixes
+- `order-detail-modal.tsx` - 16 fixes
+- `manufacturing-detail-modal.tsx` - 1 fix
+- `edit-organization-modal.tsx`, `organization-detail-modal.tsx` - 4 fixes
+- `DataCapsule.tsx` - 2 fixes
+- `product-variants.tsx`, `category-products.tsx`, `customer-order-form.tsx`, `variant-design-archive.tsx` - 4 fixes
+- `salesperson-action-panel.tsx`, `salesperson-workflow-dashboard.tsx` - 4 fixes
+
+**Best Practice**: Always use array segment format for React Query keys to ensure cache invalidation works correctly with prefix matching.
