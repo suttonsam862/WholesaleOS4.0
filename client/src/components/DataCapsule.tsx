@@ -272,7 +272,7 @@ export function DataCapsule({ isOpen, onClose, orderId, onOpenFullView }: DataCa
 
   // Fetch line items
   const { data: lineItems = [] } = useQuery<any[]>({
-    queryKey: [`/api/orders/${orderId}/line-items`],
+    queryKey: ['/api/orders', orderId, 'line-items'],
     enabled: isOpen && !!orderId,
   });
 
@@ -925,7 +925,7 @@ function ManufacturingModule({ manufacturing, order }: { manufacturing: any; ord
 function CommunicationModule({ orderId }: { orderId: number }) {
   // Fetch comments for this order
   const { data: comments = [] } = useQuery<any[]>({
-    queryKey: [`/api/orders/${orderId}/comments`],
+    queryKey: ['/api/orders', orderId, 'comments'],
     enabled: !!orderId,
   });
 

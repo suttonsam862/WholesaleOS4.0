@@ -167,7 +167,7 @@ export default function CustomerOrderForm() {
 
   // Fetch order data from public API
   const { data: orderData, isLoading, error } = useQuery<PublicOrderData>({
-    queryKey: [`/api/public/orders/${orderId}/form-data`],
+    queryKey: ['/api/public/orders', orderId, 'form-data'],
     enabled: !!orderId,
   });
 

@@ -54,7 +54,7 @@ export default function ProductVariants() {
   const [isCreateVariantModalOpen, setIsCreateVariantModalOpen] = useState(false);
 
   const { data: product, isLoading: productLoading } = useQuery<Product>({
-    queryKey: [`/api/products/${productId}`],
+    queryKey: ['/api/products', productId],
     enabled: !!productId,
     retry: false,
   });

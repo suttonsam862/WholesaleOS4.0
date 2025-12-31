@@ -77,7 +77,7 @@ export function OrganizationDetailModal({
   const [contactToDelete, setContactToDelete] = useState<Contact | null>(null);
   
   const { data: contacts } = useQuery<Contact[]>({
-    queryKey: [`/api/organizations/${organization?.id}/contacts`],
+    queryKey: ['/api/organizations', organization?.id, 'contacts'],
     enabled: !!organization?.id && isOpen,
     retry: false,
   });
@@ -90,7 +90,7 @@ export function OrganizationDetailModal({
         title: "Success",
         description: "Contact deleted successfully",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}/contacts`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/organizations', organization?.id, 'contacts'] });
       setIsDeleteContactDialogOpen(false);
       setContactToDelete(null);
     },

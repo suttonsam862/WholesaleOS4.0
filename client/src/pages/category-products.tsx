@@ -51,7 +51,7 @@ export default function CategoryProducts() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const { data: category, isLoading: categoryLoading } = useQuery<Category>({
-    queryKey: [`/api/categories/${categoryId}`],
+    queryKey: ['/api/categories', categoryId],
     enabled: !!categoryId,
     retry: false,
   });

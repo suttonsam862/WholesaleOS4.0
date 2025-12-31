@@ -140,7 +140,7 @@ export function EditOrganizationModal({ isOpen, onClose, organization }: EditOrg
 
   // Fetch organization contacts
   const { data: contacts, refetch: refetchContacts } = useQuery<Contact[]>({
-    queryKey: [`/api/organizations/${organization?.id}/contacts`],
+    queryKey: ['/api/organizations', organization?.id, 'contacts'],
     enabled: !!organization?.id && isOpen,
     retry: false,
   });
@@ -384,9 +384,9 @@ export function EditOrganizationModal({ isOpen, onClose, organization }: EditOrg
         title: "Success",
         description: "Organization updated successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/organizations"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/organizations/${organization?.id}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/organizations', organization?.id] });
+      queryClient.invalidateQueries({ queryKey: ['/api/dashboard/stats'] });
       onClose();
     },
     onError: (error: any) => {

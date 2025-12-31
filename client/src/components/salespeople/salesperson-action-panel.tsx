@@ -106,8 +106,17 @@ export function SalespersonActionPanel({
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/${entityType}s`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/${entityType}s`, entityId] });
+      // Invalidate resource-specific caches based on entity type
+      if (entityType === 'lead') {
+        queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/leads', entityId] });
+      } else if (entityType === 'order') {
+        queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/orders', entityId] });
+      } else if (entityType === 'quote') {
+        queryClient.invalidateQueries({ queryKey: ['/api/quotes'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/quotes', entityId] });
+      }
       toast({
         title: "Success",
         description: "Action recorded successfully",

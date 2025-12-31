@@ -199,7 +199,7 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
 
   // Fetch order tracking numbers
   const { data: orderTrackingNumbers = [], isFetching: isTrackingFetching } = useQuery<any[]>({
-    queryKey: [`/api/orders/${manufacturingUpdate?.orderId}/tracking`],
+    queryKey: ['/api/orders', manufacturingUpdate?.orderId, 'tracking'],
     enabled: !!manufacturingUpdate?.orderId && isOpen,
   });
 

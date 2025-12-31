@@ -398,7 +398,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
 
   // Fetch order data
   const { data: order, isLoading: orderLoading } = useQuery<any>({
-    queryKey: [`/api/orders/${orderId}`],
+    queryKey: ['/api/orders', orderId],
     enabled: isOpen && !!orderId,
   });
 
@@ -410,7 +410,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
 
   // Fetch line items
   const { data: lineItems = [], isLoading: lineItemsLoading, error: lineItemsError } = useQuery<any[]>({
-    queryKey: [`/api/orders/${orderId}/line-items`],
+    queryKey: ['/api/orders', orderId, 'line-items'],
     enabled: isOpen && !!orderId,
   });
 
@@ -473,13 +473,13 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
 
   // Fetch activity
   const { data: orderActivity = [] } = useQuery<any[]>({
-    queryKey: [`/api/orders/${orderId}/activity`],
+    queryKey: ['/api/orders', orderId, 'activity'],
     enabled: isOpen && activeModule === "activity" && !!orderId,
   });
 
   // Fetch tracking numbers
   const { data: trackingNumbers = [] } = useQuery<any[]>({
-    queryKey: [`/api/orders/${orderId}/tracking`],
+    queryKey: ['/api/orders', orderId, 'tracking'],
     enabled: isOpen && !!orderId,
   });
 
@@ -539,7 +539,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
       itemNotes: string | null;
     }>;
   } | null>({
-    queryKey: [`/api/orders/${orderId}/form-submission/latest`],
+    queryKey: ['/api/orders', orderId, 'form-submission', 'latest'],
     enabled: isOpen && !!orderId,
   });
 
@@ -572,7 +572,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
     mutationFn: (data: any) =>
       apiRequest(`/api/orders/${orderId}`, { method: "PUT", body: data }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] });
       queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
       toast({ title: "Success", description: "Order updated successfully" });
       setIsEditing(false);
@@ -586,8 +586,8 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
     mutationFn: (lineItem: any) =>
       apiRequest(`/api/orders/${orderId}/line-items`, { method: "POST", body: lineItem }),
     onSuccess: async () => {
-      await queryClient.refetchQueries({ queryKey: [`/api/orders/${orderId}/line-items`] });
-      await queryClient.refetchQueries({ queryKey: [`/api/orders/${orderId}`] });
+      await queryClient.refetchQueries({ queryKey: ['/api/orders', orderId, 'line-items'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/orders', orderId] });
       toast({ title: "Success", description: "Line item added successfully" });
       setShowAddLineItem(false);
       setNewLineItem({ yxs: 0, ys: 0, ym: 0, yl: 0, xs: 0, s: 0, m: 0, l: 0, xl: 0, xxl: 0, xxxl: 0, xxxxl: 0 });
@@ -601,8 +601,8 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
     mutationFn: ({ itemId, data }: { itemId: number; data: any }) =>
       apiRequest(`/api/orders/${orderId}/line-items/${itemId}`, { method: "PUT", body: data }),
     onSuccess: async () => {
-      await queryClient.refetchQueries({ queryKey: [`/api/orders/${orderId}/line-items`] });
-      await queryClient.refetchQueries({ queryKey: [`/api/orders/${orderId}`] });
+      await queryClient.refetchQueries({ queryKey: ['/api/orders', orderId, 'line-items'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/orders', orderId] });
       toast({ title: "Success", description: "Line item updated successfully" });
       setEditingLineItem(null);
       setEditingLineItemData(null);
@@ -616,8 +616,8 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
     mutationFn: (itemId: number) =>
       apiRequest(`/api/orders/${orderId}/line-items/${itemId}`, { method: "DELETE" }),
     onSuccess: async () => {
-      await queryClient.refetchQueries({ queryKey: [`/api/orders/${orderId}/line-items`] });
-      await queryClient.refetchQueries({ queryKey: [`/api/orders/${orderId}`] });
+      await queryClient.refetchQueries({ queryKey: ['/api/orders', orderId, 'line-items'] });
+      await queryClient.refetchQueries({ queryKey: ['/api/orders', orderId] });
       toast({ title: "Success", description: "Line item deleted" });
     },
     onError: () => {
@@ -629,7 +629,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
     mutationFn: (note: string) =>
       apiRequest(`/api/orders/${orderId}/notes`, { method: "POST", body: { note } }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}/activity`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId, 'activity'] });
       toast({ title: "Success", description: "Note added" });
       setNewNote("");
     },
@@ -1680,8 +1680,8 @@ function LineItemsModule({
   const aiCleanupMutation = useMutation({
     mutationFn: () => apiRequest(`/api/orders/${orderId}/ai-cleanup-names`, { method: "POST" }),
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}/line-items`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId, 'line-items'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] });
       toast({
         title: "AI Name Cleanup Complete",
         description: `Cleaned up ${data.cleanedItems} of ${data.totalItems} line item names`
@@ -2382,7 +2382,7 @@ function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: a
         title: "Design job attached",
         description: "The design job has been linked to this order.",
       });
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${order.id}/design-jobs`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', order.id, 'design-jobs'] });
       queryClient.invalidateQueries({ queryKey: ['/api/design-jobs'] });
       setShowAttachDialog(false);
       setDialogMode('choose');

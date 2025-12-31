@@ -44,7 +44,7 @@ export default function VariantDesignArchive() {
   const { isAuthenticated, isLoading } = useAuth();
 
   const { data: archiveData, isLoading: archiveLoading } = useQuery<DesignArchiveResponse>({
-    queryKey: [`/api/variants/${variantId}/design-archive`],
+    queryKey: ['/api/variants', variantId, 'design-archive'],
     enabled: !!variantId,
     retry: false,
   });

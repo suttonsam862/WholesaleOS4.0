@@ -67,12 +67,12 @@ export function SalespersonWorkflowDashboard() {
 
   // Fetch workflow data for the current salesperson
   const { data: workflowData = [], isLoading } = useQuery<WorkflowItem[]>({
-    queryKey: [`/api/salespeople/workflow-dashboard/${user?.id}`],
+    queryKey: ['/api/salespeople/workflow-dashboard', user?.id],
     enabled: !!user?.id,
   });
 
   const { data: metrics = {} as WorkflowMetrics } = useQuery<WorkflowMetrics>({
-    queryKey: [`/api/salespeople/workflow-metrics/${user?.id}`],
+    queryKey: ['/api/salespeople/workflow-metrics', user?.id],
     enabled: !!user?.id,
   });
 

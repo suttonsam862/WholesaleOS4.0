@@ -143,13 +143,13 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
 
   // Fetch order with line items
   const { data: order, isLoading: orderLoading } = useQuery<any>({
-    queryKey: [`/api/orders/${orderId}`],
+    queryKey: ['/api/orders', orderId],
     enabled: isOpen && !!orderId,
   });
 
   // Check if manufacturing updates exist for this order
   const { data: manufacturingUpdates = [] } = useQuery<any[]>({
-    queryKey: [`/api/manufacturing-updates`, orderId],
+    queryKey: ['/api/manufacturing-updates', orderId],
     queryFn: async () => {
       const response = await fetch(`/api/manufacturing-updates?orderId=${orderId}`);
       if (!response.ok) return [];
@@ -226,19 +226,19 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
 
   // Fetch order-specific activity
   const { data: orderActivity = [] } = useQuery<any[]>({
-    queryKey: [`/api/orders/${orderId}/activity`],
+    queryKey: ['/api/orders', orderId, 'activity'],
     enabled: isOpen && activeTab === "activity" && !!orderId,
   });
 
   // Fetch tracking numbers
   const { data: trackingNumbers = [] } = useQuery<any[]>({
-    queryKey: [`/api/orders/${orderId}/tracking`],
+    queryKey: ['/api/orders', orderId, 'tracking'],
     enabled: isOpen && !!orderId,
   });
 
   // Fetch design jobs for this order
   const { data: orderDesignJobs = [], isLoading: designJobsLoading } = useQuery<any[]>({
-    queryKey: [`/api/design-jobs/order/${orderId}`],
+    queryKey: ['/api/design-jobs/order', orderId],
     enabled: isOpen && !!orderId,
   });
 
@@ -261,9 +261,9 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
     mutationFn: (data: any) =>
       apiRequest(`/api/orders/${orderId}`, { method: "PUT", body: data }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}/activity`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId, 'activity'] });
       toast({
         title: "Success",
         description: "Order updated successfully",
@@ -288,7 +288,7 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] });
       toast({
         title: "Success",
         description: "Line item added successfully",
@@ -312,7 +312,7 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
     mutationFn: ({ itemId, data }: { itemId: number; data: any }) =>
       apiRequest(`/api/orders/${orderId}/line-items/${itemId}`, { method: "PUT", body: data }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] });
       toast({
         title: "Success",
         description: "Line item updated successfully",
@@ -334,7 +334,7 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
     mutationFn: (itemId: number) =>
       apiRequest(`/api/orders/${orderId}/line-items/${itemId}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] });
       toast({
         title: "Success",
         description: "Line item deleted successfully",
@@ -409,7 +409,7 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
         method: "POST",
       }),
     onSuccess: (result: any) => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] });
       toast({
         title: "Success",
         description: result.updatedCount > 0
@@ -434,8 +434,8 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
         body: { note }
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}/activity`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId, 'activity'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] });
       toast({
         title: "Success",
         description: "Note added successfully",
@@ -461,8 +461,8 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
         body: data
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}/tracking`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId, 'tracking'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] });
       toast({
         title: "Success",
         description: "Tracking number added successfully",
@@ -485,8 +485,8 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
     mutationFn: (trackingId: number) =>
       apiRequest(`/api/tracking/${trackingId}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}/tracking`] });
-      queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId, 'tracking'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] });
       toast({
         title: "Success",
         description: "Tracking number deleted successfully",
@@ -506,7 +506,7 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
     mutationFn: () =>
       apiRequest(`/api/orders/${orderId}`, { method: "DELETE" }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/orders"] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
       toast({
         title: "Success",
         description: "Order deleted successfully",
