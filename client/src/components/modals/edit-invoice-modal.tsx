@@ -98,7 +98,7 @@ export function EditInvoiceModal({ isOpen, onClose, invoiceId }: EditInvoiceModa
 
   const updateInvoiceMutation = useMutation({
     mutationFn: (values: EditInvoiceFormValues) =>
-      apiRequest("PUT", `/api/invoices/${invoiceId}`, values),
+      apiRequest("PATCH", `/api/invoices/${invoiceId}`, values),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/invoices"] });
       queryClient.invalidateQueries({ queryKey: ["/api/invoices", invoiceId] });
