@@ -7408,6 +7408,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ==================== TASK MANAGEMENT ROUTES ====================
+  const { registerTaskRoutes } = await import("./routes/tasks.routes");
+  registerTaskRoutes(app);
+
   // ==================== SALES MAP ROUTES ====================
   const salesMapRoutes = (await import("./routes/sales-map.routes")).default;
   app.use("/api/sales-map", salesMapRoutes);
