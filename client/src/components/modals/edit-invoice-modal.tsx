@@ -4,6 +4,7 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -181,39 +182,41 @@ export function EditInvoiceModal({ isOpen, onClose, invoiceId }: EditInvoiceModa
                 <FormField
                   control={form.control}
                   name="orgId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Organization (Optional)</FormLabel>
-                      <Select
-                        value={field.value?.toString() || "none"}
-                        onValueChange={(value) => {
-                          if (value === "none") {
-                            field.onChange(null);
-                          } else {
-                            field.onChange(parseInt(value));
-                          }
-                        }}
-                      >
+                  render={({ field }) => {
+                    const orgOptions = [
+                      { value: "none", label: "None" },
+                      ...organizations.map((org: any) => ({
+                        value: org.id.toString(),
+                        label: org.name,
+                      })),
+                    ];
+                    return (
+                      <FormItem>
+                        <FormLabel>Organization (Optional)</FormLabel>
                         <FormControl>
-                          <SelectTrigger data-testid="select-organization">
-                            <SelectValue placeholder="Select an organization (optional)" />
-                          </SelectTrigger>
+                          <SearchableSelect
+                            options={orgOptions}
+                            value={field.value?.toString() || "none"}
+                            onValueChange={(value) => {
+                              if (value === "none") {
+                                field.onChange(null);
+                              } else {
+                                field.onChange(parseInt(value));
+                              }
+                            }}
+                            placeholder="Search organizations..."
+                            searchPlaceholder="Search by name..."
+                            emptyMessage="No organizations found"
+                            testId="select-organization"
+                          />
                         </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          {organizations.map((org: any) => (
-                            <SelectItem key={org.id} value={org.id.toString()}>
-                              {org.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Optionally link this invoice to an organization
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                        <FormDescription>
+                          Optionally link this invoice to an organization
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
 
                 <div className="grid grid-cols-3 gap-4">
