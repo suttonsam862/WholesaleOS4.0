@@ -1152,8 +1152,42 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async deleteLead(id: number): Promise<void> {
+  async getLeadDependencies(id: number): Promise<{ orders: number; designJobs: number }> {
+    const [orderCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(orders)
+      .where(eq(orders.leadId, id));
+    
+    const [designJobCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(designJobs)
+      .where(eq(designJobs.leadId, id));
+    
+    return {
+      orders: orderCount?.count || 0,
+      designJobs: designJobCount?.count || 0,
+    };
+  }
+
+  async deleteLead(id: number, forceDelete: boolean = false): Promise<{ success: boolean; archived?: boolean; dependencies?: { orders: number; designJobs: number } }> {
+    const dependencies = await this.getLeadDependencies(id);
+    const hasDependencies = dependencies.orders > 0 || dependencies.designJobs > 0;
+    
+    if (hasDependencies && !forceDelete) {
+      return {
+        success: false,
+        archived: false,
+        dependencies,
+      };
+    }
+    
+    if (hasDependencies) {
+      await db.update(orders).set({ leadId: null }).where(eq(orders.leadId, id));
+      await db.update(designJobs).set({ leadId: null }).where(eq(designJobs.leadId, id));
+    }
+    
     await db.delete(leads).where(eq(leads.id, id));
+    return { success: true };
   }
 
   async getLeadsByStage(stage: string): Promise<Lead[]> {

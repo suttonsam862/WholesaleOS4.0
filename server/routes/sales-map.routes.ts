@@ -1,6 +1,5 @@
 import { Router, Request, Response } from "express";
-import { isAuthenticated } from "../replitAuth";
-import { loadUserData, type AuthenticatedRequest } from "../permissions";
+import { isAuthenticated, loadUserData, type AuthenticatedRequest } from "./shared/middleware";
 import { db } from "../db";
 import { organizations, leads, orders, designJobs } from "@shared/schema";
 import { eq, and, isNotNull, isNull, sql, gte, lte, or, lt } from "drizzle-orm";
@@ -591,7 +590,13 @@ router.get("/attention", isAuthenticated, loadUserData, async (req: Request, res
     const userData = authReq.user?.userData;
     const userId = authReq.user?.userData?.id;
     
-    const canAccessSalesMap = userData?.salesMapEnabled || userData?.role === 'sales' || userData?.role === 'admin' || userData?.role === 'ops';
+    // Ensure userData is available
+    if (!userData) {
+      console.error("[attention] User data not available after auth middleware");
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    const canAccessSalesMap = userData.salesMapEnabled || userData.role === 'sales' || userData.role === 'admin' || userData.role === 'ops';
     if (!canAccessSalesMap) {
       return res.status(403).json({ message: "Sales Map feature is not enabled for your account" });
     }

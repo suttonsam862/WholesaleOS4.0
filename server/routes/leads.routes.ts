@@ -138,9 +138,58 @@ export function registerLeadRoutes(app: Express): void {
     }
   });
 
+  // Archive a lead (soft delete)
+  app.post('/api/leads/:id/archive', isAuthenticated, loadUserData, requirePermission('leads', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userId = (req as AuthenticatedRequest).user.userData!.id;
+
+      const existingLead = await storage.getLead(id);
+      if (!existingLead) {
+        return res.status(404).json({ message: "Lead not found" });
+      }
+
+      const userRole = (req as AuthenticatedRequest).user.userData!.role as UserRole;
+      if (userRole === 'sales') {
+        return res.status(403).json({ message: "Sales users cannot archive leads" });
+      }
+
+      const archivedLead = await storage.archiveLead(id, userId);
+
+      await storage.logActivity(
+        userId,
+        'lead',
+        id,
+        'archived',
+        existingLead,
+        archivedLead
+      );
+
+      res.json({ message: "Lead archived successfully", lead: archivedLead });
+    } catch (error) {
+      console.error("Error archiving lead:", error);
+      res.status(500).json({ message: "Failed to archive lead" });
+    }
+  });
+
+  // Check lead dependencies before delete
+  app.get('/api/leads/:id/dependencies', isAuthenticated, loadUserData, requirePermission('leads', 'read'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const dependencies = await storage.getLeadDependencies(id);
+      res.json(dependencies);
+    } catch (error) {
+      console.error("Error checking lead dependencies:", error);
+      res.status(500).json({ message: "Failed to check lead dependencies" });
+    }
+  });
+
   app.delete('/api/leads/:id', isAuthenticated, loadUserData, requirePermission('leads', 'delete'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const forceDelete = req.query.force === 'true';
+      const useArchive = req.query.archive === 'true';
+      const userId = (req as AuthenticatedRequest).user.userData!.id;
 
       const existingLead = await storage.getLead(id);
       if (!existingLead) {
@@ -153,17 +202,46 @@ export function registerLeadRoutes(app: Express): void {
         return res.status(403).json({ message: "Sales users cannot delete leads" });
       }
 
-      await storage.deleteLead(id);
+      // Check for dependencies first
+      const dependencies = await storage.getLeadDependencies(id);
+      const hasDependencies = dependencies.orders > 0 || dependencies.designJobs > 0;
+
+      // If has dependencies and not force deleting, archive instead or return error
+      if (hasDependencies && !forceDelete) {
+        if (useArchive) {
+          // Archive the lead instead
+          const archivedLead = await storage.archiveLead(id, userId);
+          await storage.logActivity(userId, 'lead', id, 'archived', existingLead, archivedLead);
+          return res.json({ 
+            message: "Lead has dependencies and was archived instead of deleted",
+            archived: true,
+            lead: archivedLead,
+            dependencies
+          });
+        }
+        
+        return res.status(409).json({ 
+          message: "Cannot delete lead with associated records. Use ?archive=true to archive instead, or ?force=true to unlink dependencies and delete.",
+          dependencies,
+          suggestions: [
+            "Archive the lead to hide it from active lists",
+            "Force delete to unlink dependencies and permanently remove"
+          ]
+        });
+      }
+
+      // Proceed with deletion
+      const result = await storage.deleteLead(id, forceDelete);
+
+      if (!result.success) {
+        return res.status(409).json({ 
+          message: "Failed to delete lead due to dependencies",
+          dependencies: result.dependencies
+        });
+      }
 
       // Log activity
-      await storage.logActivity(
-        (req as AuthenticatedRequest).user.userData!.id,
-        'lead',
-        id,
-        'deleted',
-        existingLead,
-        null
-      );
+      await storage.logActivity(userId, 'lead', id, 'deleted', existingLead, null);
 
       res.status(204).send();
     } catch (error) {
