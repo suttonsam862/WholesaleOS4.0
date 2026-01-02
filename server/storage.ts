@@ -263,7 +263,9 @@ export interface IStorage {
   getLead(id: number): Promise<(Lead & { organization?: Organization; contact?: Contact; owner?: User }) | undefined>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: number, lead: Partial<InsertLead>): Promise<Lead>;
-  deleteLead(id: number): Promise<void>;
+  deleteLead(id: number, forceDelete?: boolean): Promise<{ success: boolean; archived?: boolean; dependencies?: { orders: number; designJobs: number } }>;
+  archiveLead(id: number, archivedBy: string): Promise<Lead>;
+  getLeadDependencies(id: number): Promise<{ orders: number; designJobs: number }>;
   getLeadsByStage(stage: string): Promise<Lead[]>;
   getLeadsBySalesperson(userId: string): Promise<(Lead & { organization?: Organization; contact?: Contact })[]>;
 
