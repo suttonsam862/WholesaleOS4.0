@@ -235,7 +235,16 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    // Build the URL from query key segments
+    const url = queryKey.join("/");
+    
+    // Validate the URL is a proper API path to prevent accidental root requests
+    if (!url || url === "/" || !url.startsWith("/api")) {
+      devError(`[getQueryFn] Invalid query key produced URL: "${url}" from queryKey:`, queryKey);
+      throw new Error(`Invalid API endpoint: "${url}". Query keys must start with /api`);
+    }
+    
+    const res = await fetch(url, {
       credentials: "include",
     });
 
