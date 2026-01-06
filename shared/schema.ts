@@ -905,6 +905,7 @@ export const quotes = pgTable("quotes", {
   orgId: integer("org_id").references(() => organizations.id),
   contactId: integer("contact_id").references(() => contacts.id),
   salespersonId: varchar("salesperson_id").references(() => users.id),
+  orderId: integer("order_id").references(() => orders.id),
   quoteName: varchar("quote_name").notNull(),
   status: varchar("status").notNull().$type<"draft" | "sent" | "accepted" | "rejected" | "expired">().default("draft"),
   validUntil: date("valid_until"),

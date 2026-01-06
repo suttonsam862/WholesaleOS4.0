@@ -203,9 +203,9 @@ export default function Catalog() {
                 <Link href={`/catalog/category/${category.id}`}>
                   <div className="relative aspect-[3/4] md:aspect-[4/5] overflow-hidden rounded-xl md:rounded-2xl bg-muted glass-card border-white/10 card-hover-effect min-h-[44px]">
                     {/* Background Image / Gradient */}
-                    {category.imageUrl ? (
+                    {category.imageUrl && category.imageUrl.trim() !== '' ? (
                       <ImageWithFallback 
-                        src={`/public-objects/${category.imageUrl}`}
+                        src={category.imageUrl.startsWith('/') ? category.imageUrl : `/public-objects/${category.imageUrl}`}
                         alt={category.name}
                         className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                       />
@@ -243,9 +243,9 @@ export default function Catalog() {
                                   key={product.id} 
                                   className="w-8 h-8 rounded-full border-2 border-black bg-gray-800 overflow-hidden"
                                 >
-                                  {product.primaryImageUrl ? (
+                                  {product.primaryImageUrl && product.primaryImageUrl.trim() !== '' ? (
                                     <ImageWithFallback 
-                                      src={`/public-objects/${product.primaryImageUrl}`}
+                                      src={product.primaryImageUrl.startsWith('/') ? product.primaryImageUrl : `/public-objects/${product.primaryImageUrl}`}
                                       alt=""
                                       className="w-full h-full object-cover"
                                     />

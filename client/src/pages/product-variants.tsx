@@ -169,10 +169,10 @@ export default function ProductVariants() {
         </div>
         
         <div className="flex items-start gap-6">
-          {product?.primaryImageUrl ? (
+          {product?.primaryImageUrl && product.primaryImageUrl.trim() !== '' ? (
             <div className="w-32 h-32 rounded-lg overflow-hidden flex-shrink-0 border border-border">
               <ImageWithFallback 
-                src={`/public-objects/${product.primaryImageUrl}`}
+                src={product.primaryImageUrl.startsWith('/') ? product.primaryImageUrl : `/public-objects/${product.primaryImageUrl}`}
                 alt={product.name || 'Product'}
                 className="w-full h-full"
                 fallbackIcon={<i className="fas fa-box text-5xl text-orange-400/40"></i>}
@@ -245,9 +245,9 @@ export default function ProductVariants() {
                 >
                   {/* Variant Image */}
                   <div className="relative h-64 bg-gradient-to-br from-purple-500/10 to-pink-500/10 overflow-hidden">
-                    {variant.imageUrl ? (
+                    {variant.imageUrl && variant.imageUrl.trim() !== '' ? (
                       <ImageWithFallback 
-                        src={`/public-objects/${variant.imageUrl}`}
+                        src={variant.imageUrl.startsWith('/') ? variant.imageUrl : `/public-objects/${variant.imageUrl}`}
                         alt={variant.variantCode}
                         className="w-full h-full group-hover:scale-105 transition-transform duration-300"
                         fallbackIcon={<i className="fas fa-palette text-7xl text-purple-400/40"></i>}

@@ -1283,6 +1283,223 @@ export function registerOrdersRoutes(app: Express): void {
     }
   });
 
+  // PUBLIC: Generate and download a quote PDF for an order (no auth required)
+  app.get('/api/public/orders/:orderId/quote', async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.orderId);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
+
+      // Fetch order with line items
+      const order = await storage.getOrderWithLineItems(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // Fetch organization info
+      const organization = order.orgId ? await storage.getOrganization(order.orgId) : null;
+
+      // Calculate subtotal from line items (no tax, no discount)
+      let subtotal = 0;
+      const lineItemsForQuote = (order.lineItems || []).map((item: any) => {
+        const quantity = (item.yxs || 0) + (item.ys || 0) + (item.ym || 0) + (item.yl || 0) +
+                         (item.xs || 0) + (item.s || 0) + (item.m || 0) + (item.l || 0) +
+                         (item.xl || 0) + (item.xxl || 0) + (item.xxxl || 0) + (item.xxxxl || 0);
+        const unitPrice = parseFloat(item.unitPrice || '0');
+        const lineTotal = quantity * unitPrice;
+        subtotal += lineTotal;
+        return {
+          variantId: item.variantId,
+          itemName: item.itemName || 'Line Item',
+          description: item.notes || '',
+          quantity,
+          unitPrice: unitPrice.toFixed(2),
+        };
+      });
+
+      // Generate quote code for this PDF (not persisted to database)
+      const quoteCode = `Q-${order.orderCode}`;
+
+      // Generate PDF using jsPDF - no database write, just stream the PDF
+      const jsPDF = (await import('jspdf')).default;
+      await import('jspdf-autotable');
+
+      const doc = new jsPDF();
+      const primaryColor: [number, number, number] = [25, 48, 91];
+      const lightGray: [number, number, number] = [245, 245, 245];
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+      let yPosition = margin;
+
+      // Header - "QUOTE" title
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(40);
+      doc.setTextColor(...primaryColor);
+      doc.text('QUOTE', margin, yPosition + 15);
+
+      // Company name on right
+      doc.setFontSize(16);
+      doc.text('Rich Habits LLC', pageWidth - margin, yPosition + 10, { align: 'right' });
+      yPosition += 25;
+
+      // Company address
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(80, 80, 80);
+      doc.text('Developing Habits LLC', margin, yPosition);
+      yPosition += 5;
+      doc.text('3101 Whitehall Rd', margin, yPosition);
+      yPosition += 5;
+      doc.text('Birmingham, AL 35209', margin, yPosition);
+      yPosition += 15;
+
+      // Quote Info Section
+      const colWidth = (pageWidth - 2 * margin) / 3;
+      const col1X = margin;
+      const col3X = margin + 2 * colWidth;
+      const sectionStartY = yPosition;
+
+      // BILL TO
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...primaryColor);
+      doc.text('BILL TO:', col1X, yPosition);
+      
+      let billToY = yPosition + 5;
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      
+      if (organization) {
+        doc.text(organization.name || 'N/A', col1X, billToY);
+        billToY += 4;
+        if (organization.city || organization.state) {
+          const location = [organization.city, organization.state].filter(Boolean).join(', ');
+          doc.text(location, col1X, billToY);
+        }
+      } else {
+        doc.text('N/A', col1X, billToY);
+      }
+
+      // Quote Info column
+      let quoteInfoY = sectionStartY;
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...primaryColor);
+      doc.text('QUOTE #:', col3X, quoteInfoY);
+      quoteInfoY += 5;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text(quoteCode, col3X + 25, quoteInfoY - 5);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...primaryColor);
+      doc.text('DATE:', col3X, quoteInfoY);
+      quoteInfoY += 5;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      const quoteDate = new Date().toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      });
+      doc.text(quoteDate, col3X + 25, quoteInfoY - 5);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...primaryColor);
+      doc.text('ORDER REF:', col3X, quoteInfoY);
+      quoteInfoY += 5;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.text(order.orderCode, col3X + 25, quoteInfoY - 5);
+
+      yPosition = Math.max(billToY + 10, quoteInfoY + 5);
+
+      // Line Items Table
+      if (lineItemsForQuote.length > 0) {
+        const tableData = lineItemsForQuote.map((item) => {
+          const qty = item.quantity.toString();
+          const description = item.itemName || 'Item';
+          const unitPrice = `$${parseFloat(item.unitPrice).toFixed(2)}`;
+          const amount = `$${(item.quantity * parseFloat(item.unitPrice)).toFixed(2)}`;
+          return [qty, description, unitPrice, amount];
+        });
+
+        (doc as any).autoTable({
+          startY: yPosition,
+          head: [['QTY', 'DESCRIPTION', 'UNIT PRICE', 'AMOUNT']],
+          body: tableData,
+          theme: 'striped',
+          headStyles: {
+            fillColor: primaryColor,
+            textColor: [255, 255, 255],
+            fontSize: 10,
+            fontStyle: 'bold',
+            halign: 'left',
+          },
+          bodyStyles: {
+            fontSize: 9,
+            textColor: [60, 60, 60],
+          },
+          columnStyles: {
+            0: { halign: 'center', cellWidth: 20 },
+            1: { halign: 'left', cellWidth: 'auto' },
+            2: { halign: 'right', cellWidth: 35 },
+            3: { halign: 'right', cellWidth: 35 },
+          },
+          alternateRowStyles: {
+            fillColor: lightGray,
+          },
+          margin: { left: margin, right: margin },
+        });
+
+        yPosition = (doc as any).lastAutoTable.finalY + 10;
+      }
+
+      // Totals Section - simplified (no tax, no discount)
+      const totalsX = pageWidth - margin - 60;
+      const labelsX = totalsX - 40;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+
+      // Subtotal
+      doc.text('Subtotal:', labelsX, yPosition, { align: 'right' });
+      doc.text(`$${subtotal.toFixed(2)}`, totalsX + 60, yPosition, { align: 'right' });
+      yPosition += 8;
+
+      // Total (same as subtotal - no tax, no discount)
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(...primaryColor);
+      doc.text('TOTAL:', labelsX, yPosition, { align: 'right' });
+      doc.text(`$${subtotal.toFixed(2)}`, totalsX + 60, yPosition, { align: 'right' });
+      yPosition += 15;
+
+      // Thank you message
+      doc.setFont('helvetica', 'italic');
+      doc.setFontSize(11);
+      doc.setTextColor(100, 100, 100);
+      doc.text('Thank you for your business!', margin, yPosition);
+
+      // Generate PDF buffer
+      const pdfBuffer = doc.output('arraybuffer');
+
+      // Set headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="Quote-${quoteCode}.pdf"`);
+      res.send(Buffer.from(pdfBuffer));
+
+      console.log(`[PUBLIC QUOTE PDF] Generated quote ${quoteCode} for order ${order.orderCode}`);
+    } catch (error) {
+      console.error("Error generating public order quote:", error);
+      res.status(500).json({ message: "Failed to generate quote" });
+    }
+  });
+
   // PUBLIC: Submit customer order form (no auth required)
   app.post('/api/public/orders/:orderId/submit-form', async (req, res) => {
     try {

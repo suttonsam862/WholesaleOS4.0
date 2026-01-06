@@ -36,6 +36,8 @@ import {
   AlertCircle,
   Image as ImageIcon,
   ExternalLink,
+  Download,
+  Loader2,
 } from "lucide-react";
 
 const SIZE_COLUMNS = [
@@ -570,8 +572,53 @@ export default function CustomerOrderForm() {
 // Step Components
 
 function WelcomeStep({ orderData, onNext }: { orderData: any; onNext: () => void }) {
+  const [isDownloadingQuote, setIsDownloadingQuote] = useState(false);
+  const { toast } = useToast();
   const lineItemsWithImages = orderData.lineItems?.filter((item: any) => item.imageUrl) || [];
   const trackingNumbers = orderData.trackingNumbers || [];
+  
+  const handleDownloadQuote = async () => {
+    if (!orderData.order?.id) {
+      toast({
+        title: "Error",
+        description: "Order information not available",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsDownloadingQuote(true);
+    try {
+      const response = await fetch(`/api/public/orders/${orderData.order.id}/quote`);
+      if (!response.ok) {
+        throw new Error('Failed to generate quote');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Quote-${orderData.order.orderCode}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Quote Downloaded",
+        description: "Your quote PDF has been downloaded successfully.",
+      });
+    } catch (error) {
+      console.error('Error downloading quote:', error);
+      toast({
+        title: "Download Failed",
+        description: "Could not generate the quote PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloadingQuote(false);
+    }
+  };
   
   const getTrackingUrl = (tracking: { trackingNumber: string; carrierCompany: string }) => {
     const carrierLower = (tracking.carrierCompany || '').toLowerCase();
@@ -714,6 +761,36 @@ function WelcomeStep({ orderData, onNext }: { orderData: any; onNext: () => void
             <div className="text-2xl font-bold text-neon-purple">~5</div>
             <div className="text-xs text-white/50">Minutes</div>
           </div>
+        </div>
+
+        {/* Download Quote Button */}
+        <div className="mt-6 pt-6 border-t border-white/10">
+          <button
+            onClick={handleDownloadQuote}
+            disabled={isDownloadingQuote}
+            className={cn(
+              "w-full py-3 rounded-lg flex items-center justify-center gap-2 font-medium transition-all",
+              isDownloadingQuote
+                ? "bg-white/10 text-white/50 cursor-not-allowed"
+                : "bg-white/10 border border-white/20 text-white hover:bg-white/20 hover:border-white/30"
+            )}
+            data-testid="button-download-quote"
+          >
+            {isDownloadingQuote ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Generating Quote...
+              </>
+            ) : (
+              <>
+                <Download className="w-5 h-5" />
+                Download Quote PDF
+              </>
+            )}
+          </button>
+          <p className="text-xs text-white/40 text-center mt-2">
+            Download a price quote for your order items
+          </p>
         </div>
       </div>
 

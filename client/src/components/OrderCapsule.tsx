@@ -1027,7 +1027,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
                   />
                 )}
                 {activeModule === 'design' && (
-                  <DesignModule key="design" designJobs={designJobs} order={order} />
+                  <DesignModule key="design" designJobs={designJobs} order={order} users={users} />
                 )}
                 {activeModule === 'manufacturing' && (
                   <ManufacturingModule key="manufacturing" manufacturing={manufacturing} order={order} />
@@ -2348,7 +2348,7 @@ function LineItemsModule({
   );
 }
 
-function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: any[]; order: any; onDesignJobsChange?: () => void }) {
+function DesignModule({ designJobs, order, onDesignJobsChange, users = [] }: { designJobs: any[]; order: any; onDesignJobsChange?: () => void; users?: any[] }) {
   const [expandedJobs, setExpandedJobs] = useState<Set<number>>(new Set());
   const [showAttachDialog, setShowAttachDialog] = useState(false);
   const [dialogMode, setDialogMode] = useState<'choose' | 'search' | 'create'>('choose');
@@ -2804,7 +2804,19 @@ function DesignModule({ designJobs, order, onDesignJobsChange }: { designJobs: a
                               {job.brief && (
                                 <p className="text-sm text-white/60 line-clamp-2">{job.brief}</p>
                               )}
-                              <div className="flex items-center gap-4 mt-2 text-xs text-white/40">
+                              <div className="flex items-center flex-wrap gap-4 mt-2 text-xs text-white/40">
+                                {job.organization?.name && (
+                                  <span className="flex items-center gap-1">
+                                    <Building2 className="w-3 h-3" />
+                                    {job.organization.name}
+                                  </span>
+                                )}
+                                {job.designer && (
+                                  <span className="flex items-center gap-1">
+                                    <User className="w-3 h-3" />
+                                    {job.designer.firstName} {job.designer.lastName}
+                                  </span>
+                                )}
                                 {job.deadline && (
                                   <span className="flex items-center gap-1">
                                     <Calendar className="w-3 h-3" />

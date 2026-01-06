@@ -215,9 +215,9 @@ export default function CategoryProducts() {
                 >
                   {/* Product Image */}
                   <div className="relative h-56 bg-gradient-to-br from-orange-500/10 to-red-500/10 overflow-hidden">
-                    {product.primaryImageUrl ? (
+                    {product.primaryImageUrl && product.primaryImageUrl.trim() !== '' ? (
                       <img 
-                        src={`/public-objects/${product.primaryImageUrl}`}
+                        src={product.primaryImageUrl.startsWith('/') ? product.primaryImageUrl : `/public-objects/${product.primaryImageUrl}`}
                         alt={product.name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
