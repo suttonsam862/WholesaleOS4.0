@@ -11,12 +11,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest } from "@/lib/queryClient";
-import { insertEventSchema, type Event, type InsertEvent } from "@shared/schema";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { type Event, type InsertEvent, type EventStaff, type EventContractor, type User } from "@shared/schema";
 import { TableSkeleton } from "@/components/ui/loading-skeletons";
 import { Progress } from "@/components/ui/progress";
+import { Trash2, UserPlus, Users } from "lucide-react";
 
 const STAGE_NAMES = [
   "Basic Info",
@@ -32,12 +34,13 @@ const STAGE_NAMES = [
 ];
 
 // Stage 1: Basic Info Schema (omit createdBy as it's auto-populated from auth)
-const stage1Schema = insertEventSchema.omit({ createdBy: true }).extend({
+const stage1Schema = z.object({
   name: z.string().min(1, "Event name is required"),
   eventType: z.enum(["small-scale", "large-scale", "seminar", "clinic", "camp"]),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   location: z.string().optional(),
+  timezone: z.string().optional(),
 });
 
 type Stage1Data = z.infer<typeof stage1Schema>;
@@ -79,6 +82,99 @@ export default function EventWizard() {
   const { data: variants = [] } = useQuery<any[]>({
     queryKey: ["/api/product-variants"],
     retry: false,
+  });
+
+  // Staff and Contractor data
+  const { data: eventStaff = [], refetch: refetchStaff } = useQuery<(EventStaff & { user?: User })[]>({
+    queryKey: ["/api/events", eventId, "staff"],
+    enabled: eventId !== null && currentStage === 2,
+    retry: false,
+  });
+
+  const { data: eventContractors = [], refetch: refetchContractors } = useQuery<EventContractor[]>({
+    queryKey: ["/api/events", eventId, "contractors"],
+    enabled: eventId !== null && currentStage === 3,
+    retry: false,
+  });
+
+  // Dialog states
+  const [showAddStaffDialog, setShowAddStaffDialog] = useState(false);
+  const [showAddContractorDialog, setShowAddContractorDialog] = useState(false);
+  const [staffFormData, setStaffFormData] = useState({ userId: "", role: "" });
+  const [contractorFormData, setContractorFormData] = useState({
+    name: "",
+    role: "",
+    email: "",
+    phone: "",
+    contractType: "flat_fee" as "flat_fee" | "per_day" | "commission",
+    paymentAmount: "",
+  });
+
+  // Staff mutations
+  const addStaffMutation = useMutation({
+    mutationFn: async (data: { userId: string; role: string }) => {
+      return apiRequest(`/api/events/${eventId}/staff`, {
+        method: "POST",
+        body: data,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "staff"] });
+      setShowAddStaffDialog(false);
+      setStaffFormData({ userId: "", role: "" });
+      toast({ title: "Staff member added", description: "The staff member has been assigned to this event." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add staff member", variant: "destructive" });
+    },
+  });
+
+  const deleteStaffMutation = useMutation({
+    mutationFn: async (staffId: number) => {
+      return apiRequest(`/api/events/staff/${staffId}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "staff"] });
+      toast({ title: "Staff removed", description: "The staff member has been removed from this event." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to remove staff member", variant: "destructive" });
+    },
+  });
+
+  // Contractor mutations
+  const addContractorMutation = useMutation({
+    mutationFn: async (data: typeof contractorFormData) => {
+      return apiRequest(`/api/events/${eventId}/contractors`, {
+        method: "POST",
+        body: {
+          ...data,
+          paymentAmount: data.paymentAmount ? parseFloat(data.paymentAmount) : null,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "contractors"] });
+      setShowAddContractorDialog(false);
+      setContractorFormData({ name: "", role: "", email: "", phone: "", contractType: "flat_fee", paymentAmount: "" });
+      toast({ title: "Contractor added", description: "The contractor has been added to this event." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add contractor", variant: "destructive" });
+    },
+  });
+
+  const deleteContractorMutation = useMutation({
+    mutationFn: async (contractorId: number) => {
+      return apiRequest(`/api/events/contractors/${contractorId}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "contractors"] });
+      toast({ title: "Contractor removed", description: "The contractor has been removed from this event." });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to remove contractor", variant: "destructive" });
+    },
   });
 
   // Form for Stage 1
@@ -349,8 +445,46 @@ export default function EventWizard() {
                 {currentStage === 2 && (
                   <div className="space-y-4">
                     <p className="text-muted-foreground">Assign internal staff members to this event with specific roles.</p>
-                    <Button variant="outline" className="w-full" data-testid="button-add-staff">
-                      <i className="fas fa-plus mr-2"></i>
+                    
+                    {eventStaff.length > 0 && (
+                      <div className="space-y-2">
+                        {eventStaff.map((staff) => (
+                          <div key={staff.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50" data-testid={`staff-item-${staff.id}`}>
+                            <div className="flex items-center gap-3">
+                              <Users className="h-5 w-5 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium">{users.find(u => u.id === staff.userId)?.firstName || staff.userId}</p>
+                                <p className="text-sm text-muted-foreground">{staff.role}</p>
+                              </div>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => deleteStaffMutation.mutate(staff.id)}
+                              disabled={deleteStaffMutation.isPending}
+                              data-testid={`button-delete-staff-${staff.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {eventStaff.length === 0 && (
+                      <div className="text-center py-6 text-muted-foreground border border-dashed rounded-lg">
+                        <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No staff assigned yet</p>
+                      </div>
+                    )}
+                    
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={() => setShowAddStaffDialog(true)}
+                      data-testid="button-add-staff"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
                       Add Staff Member
                     </Button>
                   </div>
@@ -360,8 +494,48 @@ export default function EventWizard() {
                 {currentStage === 3 && (
                   <div className="space-y-4">
                     <p className="text-muted-foreground">Add external contractors (clinicians, photographers, MCs, etc.) for your event.</p>
-                    <Button variant="outline" className="w-full" data-testid="button-add-contractor">
-                      <i className="fas fa-plus mr-2"></i>
+                    
+                    {eventContractors.length > 0 && (
+                      <div className="space-y-2">
+                        {eventContractors.map((contractor) => (
+                          <div key={contractor.id} className="flex items-center justify-between p-3 border rounded-lg bg-muted/50" data-testid={`contractor-item-${contractor.id}`}>
+                            <div>
+                              <p className="font-medium">{contractor.name}</p>
+                              <p className="text-sm text-muted-foreground">{contractor.role}</p>
+                              {contractor.paymentAmount && (
+                                <p className="text-sm text-green-600">
+                                  ${Number(contractor.paymentAmount).toFixed(2)} ({contractor.contractType.replace("_", " ")})
+                                </p>
+                              )}
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => deleteContractorMutation.mutate(contractor.id)}
+                              disabled={deleteContractorMutation.isPending}
+                              data-testid={`button-delete-contractor-${contractor.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {eventContractors.length === 0 && (
+                      <div className="text-center py-6 text-muted-foreground border border-dashed rounded-lg">
+                        <UserPlus className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No contractors added yet</p>
+                      </div>
+                    )}
+                    
+                    <Button 
+                      variant="outline" 
+                      className="w-full" 
+                      onClick={() => setShowAddContractorDialog(true)}
+                      data-testid="button-add-contractor"
+                    >
+                      <UserPlus className="h-4 w-4 mr-2" />
                       Add Contractor
                     </Button>
                   </div>
@@ -534,6 +708,175 @@ export default function EventWizard() {
           )}
         </div>
       </div>
+
+      {/* Add Staff Dialog */}
+      <Dialog open={showAddStaffDialog} onOpenChange={setShowAddStaffDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Staff Member</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Staff Member</label>
+              <Select
+                value={staffFormData.userId}
+                onValueChange={(value) => setStaffFormData(prev => ({ ...prev, userId: value }))}
+              >
+                <SelectTrigger data-testid="select-staff-user">
+                  <SelectValue placeholder="Select a team member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((user: any) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.firstName} {user.lastName} - {user.role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Role at Event</label>
+              <Select
+                value={staffFormData.role}
+                onValueChange={(value) => setStaffFormData(prev => ({ ...prev, role: value }))}
+              >
+                <SelectTrigger data-testid="select-staff-role">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Event Director">Event Director</SelectItem>
+                  <SelectItem value="Logistics Lead">Logistics Lead</SelectItem>
+                  <SelectItem value="Sales Lead">Sales Lead</SelectItem>
+                  <SelectItem value="Setup Crew">Setup Crew</SelectItem>
+                  <SelectItem value="Registration">Registration</SelectItem>
+                  <SelectItem value="Merchandise">Merchandise</SelectItem>
+                  <SelectItem value="Photography">Photography</SelectItem>
+                  <SelectItem value="Support Staff">Support Staff</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddStaffDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => addStaffMutation.mutate(staffFormData)}
+              disabled={!staffFormData.userId || !staffFormData.role || addStaffMutation.isPending}
+              data-testid="button-confirm-add-staff"
+            >
+              {addStaffMutation.isPending ? "Adding..." : "Add Staff"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Contractor Dialog */}
+      <Dialog open={showAddContractorDialog} onOpenChange={setShowAddContractorDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Contractor</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Name *</label>
+              <Input
+                placeholder="Contractor name"
+                value={contractorFormData.name}
+                onChange={(e) => setContractorFormData(prev => ({ ...prev, name: e.target.value }))}
+                data-testid="input-contractor-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Role *</label>
+              <Select
+                value={contractorFormData.role}
+                onValueChange={(value) => setContractorFormData(prev => ({ ...prev, role: value }))}
+              >
+                <SelectTrigger data-testid="select-contractor-role">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Clinician">Clinician</SelectItem>
+                  <SelectItem value="MC">MC / Host</SelectItem>
+                  <SelectItem value="Photographer">Photographer</SelectItem>
+                  <SelectItem value="Videographer">Videographer</SelectItem>
+                  <SelectItem value="Referee">Referee</SelectItem>
+                  <SelectItem value="Trainer">Trainer / Coach</SelectItem>
+                  <SelectItem value="DJ">DJ</SelectItem>
+                  <SelectItem value="Security">Security</SelectItem>
+                  <SelectItem value="Catering">Catering</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Email</label>
+                <Input
+                  type="email"
+                  placeholder="email@example.com"
+                  value={contractorFormData.email}
+                  onChange={(e) => setContractorFormData(prev => ({ ...prev, email: e.target.value }))}
+                  data-testid="input-contractor-email"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Phone</label>
+                <Input
+                  type="tel"
+                  placeholder="(555) 123-4567"
+                  value={contractorFormData.phone}
+                  onChange={(e) => setContractorFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  data-testid="input-contractor-phone"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Payment Type</label>
+                <Select
+                  value={contractorFormData.contractType}
+                  onValueChange={(value: "flat_fee" | "per_day" | "commission") => 
+                    setContractorFormData(prev => ({ ...prev, contractType: value }))
+                  }
+                >
+                  <SelectTrigger data-testid="select-contractor-payment-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="flat_fee">Flat Fee</SelectItem>
+                    <SelectItem value="per_day">Per Day</SelectItem>
+                    <SelectItem value="commission">Commission</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Amount ($)</label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={contractorFormData.paymentAmount}
+                  onChange={(e) => setContractorFormData(prev => ({ ...prev, paymentAmount: e.target.value }))}
+                  data-testid="input-contractor-amount"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddContractorDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => addContractorMutation.mutate(contractorFormData)}
+              disabled={!contractorFormData.name || !contractorFormData.role || addContractorMutation.isPending}
+              data-testid="button-confirm-add-contractor"
+            >
+              {addContractorMutation.isPending ? "Adding..." : "Add Contractor"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
