@@ -45,6 +45,22 @@ const stage1Schema = z.object({
 
 type Stage1Data = z.infer<typeof stage1Schema>;
 
+// Staff form schema
+const staffFormSchema = z.object({
+  userId: z.string().min(1, "Please select a staff member"),
+  role: z.string().min(1, "Please select a role"),
+});
+
+// Contractor form schema
+const contractorFormSchema = z.object({
+  name: z.string().min(1, "Contractor name is required"),
+  role: z.string().min(1, "Role is required"),
+  email: z.string().email().optional().or(z.literal("")),
+  phone: z.string().optional(),
+  contractType: z.enum(["flat_fee", "per_day", "commission"]),
+  paymentAmount: z.string().optional(),
+});
+
 export default function EventWizard() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
@@ -84,16 +100,16 @@ export default function EventWizard() {
     retry: false,
   });
 
-  // Staff and Contractor data
-  const { data: eventStaff = [], refetch: refetchStaff } = useQuery<(EventStaff & { user?: User })[]>({
+  // Staff and Contractor data - enable for stages 2-10 to keep data fresh
+  const { data: eventStaff = [] } = useQuery<(EventStaff & { user?: User })[]>({
     queryKey: ["/api/events", eventId, "staff"],
-    enabled: eventId !== null && currentStage === 2,
+    enabled: eventId !== null && currentStage >= 2,
     retry: false,
   });
 
-  const { data: eventContractors = [], refetch: refetchContractors } = useQuery<EventContractor[]>({
+  const { data: eventContractors = [] } = useQuery<EventContractor[]>({
     queryKey: ["/api/events", eventId, "contractors"],
-    enabled: eventId !== null && currentStage === 3,
+    enabled: eventId !== null && currentStage >= 3,
     retry: false,
   });
 
@@ -113,9 +129,10 @@ export default function EventWizard() {
   // Staff mutations
   const addStaffMutation = useMutation({
     mutationFn: async (data: { userId: string; role: string }) => {
+      const validated = staffFormSchema.parse(data);
       return apiRequest(`/api/events/${eventId}/staff`, {
         method: "POST",
-        body: data,
+        body: validated,
       });
     },
     onSuccess: () => {
@@ -124,8 +141,11 @@ export default function EventWizard() {
       setStaffFormData({ userId: "", role: "" });
       toast({ title: "Staff member added", description: "The staff member has been assigned to this event." });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to add staff member", variant: "destructive" });
+    onError: (error) => {
+      const message = error instanceof z.ZodError 
+        ? error.errors[0]?.message || "Validation failed"
+        : "Failed to add staff member";
+      toast({ title: "Error", description: message, variant: "destructive" });
     },
   });
 
@@ -145,11 +165,16 @@ export default function EventWizard() {
   // Contractor mutations
   const addContractorMutation = useMutation({
     mutationFn: async (data: typeof contractorFormData) => {
+      const validated = contractorFormSchema.parse(data);
       return apiRequest(`/api/events/${eventId}/contractors`, {
         method: "POST",
         body: {
-          ...data,
-          paymentAmount: data.paymentAmount ? parseFloat(data.paymentAmount) : null,
+          name: validated.name,
+          role: validated.role,
+          email: validated.email || null,
+          phone: validated.phone || null,
+          contractType: validated.contractType,
+          paymentAmount: validated.paymentAmount ? parseFloat(validated.paymentAmount) : null,
         },
       });
     },
@@ -159,8 +184,11 @@ export default function EventWizard() {
       setContractorFormData({ name: "", role: "", email: "", phone: "", contractType: "flat_fee", paymentAmount: "" });
       toast({ title: "Contractor added", description: "The contractor has been added to this event." });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to add contractor", variant: "destructive" });
+    onError: (error) => {
+      const message = error instanceof z.ZodError 
+        ? error.errors[0]?.message || "Validation failed"
+        : "Failed to add contractor";
+      toast({ title: "Error", description: message, variant: "destructive" });
     },
   });
 
