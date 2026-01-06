@@ -371,6 +371,9 @@ export function registerOrdersRoutes(app: Express): void {
   app.get('/api/orders/:id', isAuthenticated, loadUserData, requirePermission('orders', 'read'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
       const order = await storage.getOrderWithLineItems(id);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
@@ -455,6 +458,9 @@ export function registerOrdersRoutes(app: Express): void {
   app.put('/api/orders/:id', isAuthenticated, loadUserData, requirePermission('orders', 'write'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid order ID" });
+      }
       const validatedData = insertOrderSchema.partial().parse(req.body);
 
       const existingOrder = await storage.getOrder(id);
@@ -472,14 +478,20 @@ export function registerOrdersRoutes(app: Express): void {
         }
 
         // Auto-create manufacturing record if moving to production for first time
-        const existingMfg = await storage.getManufacturingByOrder(id);
-        if (!existingMfg) {
-          // Create manufacturing record automatically
-          await storage.createManufacturing({
-            orderId: id,
-            status: 'awaiting_admin_confirmation',
-            productionNotes: 'Auto-created when order moved to production',
-          });
+        try {
+          const existingMfg = await storage.getManufacturingByOrder(id);
+          if (!existingMfg) {
+            // Create manufacturing record automatically
+            await storage.createManufacturing({
+              orderId: id,
+              status: 'awaiting_admin_confirmation',
+              productionNotes: 'Auto-created when order moved to production',
+            });
+            console.log(`[OrderProduction] Created manufacturing record for order ${id}`);
+          }
+        } catch (mfgError) {
+          // Log but don't fail the order update
+          console.error(`[OrderProduction] Failed to create manufacturing record for order ${id}:`, mfgError);
         }
       }
 
@@ -557,7 +569,9 @@ export function registerOrdersRoutes(app: Express): void {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error updating order:", error);
-      res.status(500).json({ message: "Failed to update order" });
+      // Provide more specific error message
+      const errorMessage = error instanceof Error ? error.message : "Failed to update order";
+      res.status(500).json({ message: errorMessage });
     }
   });
 
