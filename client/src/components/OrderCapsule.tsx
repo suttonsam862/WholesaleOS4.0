@@ -35,6 +35,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { useLocation } from "wouter";
@@ -395,6 +396,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
     yxs: 0, ys: 0, ym: 0, yl: 0, xs: 0, s: 0, m: 0, l: 0, xl: 0, xxl: 0, xxxl: 0, xxxxl: 0,
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [salespersonPopoverOpen, setSalespersonPopoverOpen] = useState(false);
 
   // Fetch order data
   const { data: order, isLoading: orderLoading } = useQuery<any>({
@@ -443,6 +445,13 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
       initializedForOrderId.current = orderId;
     }
   }, [order, isOpen, user?.role, userRole, stage, orderId]);
+
+  // Reset popover states when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSalespersonPopoverOpen(false);
+    }
+  }, [isOpen]);
 
   // Fetch design jobs
   const { data: designJobs = [] } = useQuery<any[]>({
@@ -997,6 +1006,10 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
                     showAdvanced={showAdvanced}
                     setShowAdvanced={setShowAdvanced}
                     userRole={userRole}
+                    users={users}
+                    updateOrderMutation={updateOrderMutation}
+                    salespersonPopoverOpen={salespersonPopoverOpen}
+                    setSalespersonPopoverOpen={setSalespersonPopoverOpen}
                   />
                 )}
                 {activeModule === 'line-items' && (
@@ -1127,7 +1140,11 @@ function OverviewModule({
   contacts,
   showAdvanced,
   setShowAdvanced,
-  userRole
+  userRole,
+  users,
+  updateOrderMutation,
+  salespersonPopoverOpen,
+  setSalespersonPopoverOpen
 }: {
   order: any;
   organization: any;
@@ -1140,6 +1157,10 @@ function OverviewModule({
   showAdvanced: boolean;
   setShowAdvanced: (show: boolean) => void;
   userRole: UserRole;
+  users: any[];
+  updateOrderMutation: any;
+  salespersonPopoverOpen: boolean;
+  setSalespersonPopoverOpen: (open: boolean) => void;
 }) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const lineItemsWithImages = lineItems.filter((item: any) => item.imageUrl);
@@ -1201,14 +1222,63 @@ function OverviewModule({
           {/* Salesperson */}
           <div className="text-center p-3 rounded-lg bg-white/5">
             <div className="text-xs text-white/50 uppercase font-medium mb-2">Salesperson</div>
-            <div className="flex items-center justify-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-neon-purple/20 flex items-center justify-center">
-                <User className="w-4 h-4 text-neon-purple" />
-              </div>
-              <span className="text-sm text-white font-medium">
-                {order.salespersonId ? `ID: ${order.salespersonId.substring(0, 8)}...` : 'Unassigned'}
-              </span>
-            </div>
+            <Popover open={salespersonPopoverOpen} onOpenChange={setSalespersonPopoverOpen}>
+              <PopoverTrigger asChild>
+                <button 
+                  className="flex items-center justify-center gap-2 w-full hover:bg-white/5 rounded-lg p-1 transition-colors cursor-pointer"
+                  data-testid="button-edit-salesperson"
+                >
+                  <div className="w-7 h-7 rounded-full bg-neon-purple/20 flex items-center justify-center">
+                    <User className="w-4 h-4 text-neon-purple" />
+                  </div>
+                  <span className="text-sm text-white font-medium">
+                    {(() => {
+                      if (!order.salespersonId) return 'Unassigned';
+                      const salesperson = users.find((u: any) => u.id === order.salespersonId);
+                      if (salesperson) {
+                        return `${salesperson.firstName || ''} ${salesperson.lastName || ''}`.trim() || salesperson.email || 'Unknown';
+                      }
+                      return 'Unknown';
+                    })()}
+                  </span>
+                  <Edit2 className="w-3 h-3 text-white/40" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-3 bg-slate-800 border-white/10" align="center">
+                <div className="space-y-3">
+                  <div className="text-sm font-medium text-white">Assign Salesperson</div>
+                  <Select
+                    value={order.salespersonId || ""}
+                    onValueChange={(value) => {
+                      const newSalespersonId = value === "unassigned" ? null : value;
+                      updateOrderMutation.mutate({ salespersonId: newSalespersonId });
+                      setSalespersonPopoverOpen(false);
+                    }}
+                    disabled={updateOrderMutation.isPending}
+                  >
+                    <SelectTrigger className="w-full bg-white/5 border-white/10 text-white" data-testid="select-salesperson">
+                      <SelectValue placeholder="Select salesperson" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-800 border-white/10">
+                      <SelectItem value="unassigned" className="text-white/60">Unassigned</SelectItem>
+                      {users
+                        .filter((u: any) => u.role === 'sales' || u.role === 'admin')
+                        .map((u: any) => (
+                          <SelectItem key={u.id} value={u.id} className="text-white">
+                            {`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                  {updateOrderMutation.isPending && (
+                    <div className="flex items-center gap-2 text-xs text-white/60">
+                      <div className="animate-spin rounded-full h-3 w-3 border-b border-neon-blue"></div>
+                      Saving...
+                    </div>
+                  )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
 
           {/* Est. Delivery */}
