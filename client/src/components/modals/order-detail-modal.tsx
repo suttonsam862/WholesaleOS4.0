@@ -4,6 +4,7 @@ import {
   ResponsiveDialogContent, 
   ResponsiveDialogHeader, 
   ResponsiveDialogTitle, 
+  ResponsiveDialogDescription,
   ResponsiveDialogFooter 
 } from "@/components/ui/responsive-dialog";
 import { Button } from "@/components/ui/button";
@@ -742,6 +743,10 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
     return (
       <ResponsiveDialog open={isOpen} onOpenChange={onClose}>
         <ResponsiveDialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle className="sr-only">Loading Order</ResponsiveDialogTitle>
+            <ResponsiveDialogDescription className="sr-only">Loading order details, please wait</ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
           </div>

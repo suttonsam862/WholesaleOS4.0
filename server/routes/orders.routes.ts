@@ -2177,4 +2177,97 @@ export function registerOrdersRoutes(app: Express): void {
       res.status(500).json({ message: "Failed to generate PDF" });
     }
   });
+
+  // Get form submissions for an order
+  app.get('/api/orders/:id/form-submissions', isAuthenticated, loadUserData, requirePermission('orders', 'read'), async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const userRole = (req as AuthenticatedRequest).user.userData!.role as UserRole;
+      if (userRole === 'sales' && order.salespersonId !== (req as AuthenticatedRequest).user.userData!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const submissions = await storage.getOrderFormSubmissions(orderId);
+      
+      const submissionsWithSizes = await Promise.all(
+        submissions.map(async (submission) => {
+          const sizes = await storage.getOrderFormLineItemSizes(submission.id);
+          return { ...submission, lineItemSizes: sizes };
+        })
+      );
+
+      res.json(submissionsWithSizes);
+    } catch (error) {
+      console.error("Error fetching form submissions:", error);
+      res.status(500).json({ message: "Failed to fetch form submissions" });
+    }
+  });
+
+  // Get latest form submission for an order
+  app.get('/api/orders/:id/form-submission/latest', isAuthenticated, loadUserData, requirePermission('orders', 'read'), async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const userRole = (req as AuthenticatedRequest).user.userData!.role as UserRole;
+      if (userRole === 'sales' && order.salespersonId !== (req as AuthenticatedRequest).user.userData!.id) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      const submission = await storage.getOrderFormSubmission(orderId);
+      if (!submission) {
+        return res.json(null);
+      }
+
+      const sizes = await storage.getOrderFormLineItemSizes(submission.id);
+      res.json({ ...submission, lineItemSizes: sizes });
+    } catch (error) {
+      console.error("Error fetching latest form submission:", error);
+      res.status(500).json({ message: "Failed to fetch form submission" });
+    }
+  });
+
+  // Update form submission status (e.g., mark as reviewed)
+  app.patch('/api/orders/:id/form-submission/:submissionId', isAuthenticated, loadUserData, requirePermission('orders', 'write'), async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+      const submissionId = parseInt(req.params.submissionId);
+
+      const order = await storage.getOrder(orderId);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const { status } = req.body;
+      if (!['submitted', 'reviewed', 'approved'].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const userId = (req as AuthenticatedRequest).user.userData!.id;
+      const updated = await storage.updateOrderFormSubmission(submissionId, {
+        status,
+        reviewedAt: status === 'reviewed' || status === 'approved' ? new Date() : undefined,
+        reviewedBy: status === 'reviewed' || status === 'approved' ? userId : undefined,
+      } as any);
+
+      if (!updated) {
+        return res.status(404).json({ message: "Submission not found" });
+      }
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating form submission:", error);
+      res.status(500).json({ message: "Failed to update form submission" });
+    }
+  });
 }

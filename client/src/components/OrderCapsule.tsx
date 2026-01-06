@@ -505,6 +505,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
   });
 
   // Fetch form submissions - API returns { ...submission, lineItemSizes: [...] } or null
+  // Note: 404 is expected when order has no form submissions yet - silently handled
   const { data: formSubmissionData } = useQuery<{
     id: number;
     orderId: number;
@@ -550,6 +551,8 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
   } | null>({
     queryKey: ['/api/orders', orderId, 'form-submission', 'latest'],
     enabled: isOpen && !!orderId,
+    meta: { silent: true },
+    retry: false,
   });
 
   // Initialize form data when order loads
@@ -780,9 +783,10 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
   if (orderLoading) {
     return (
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden bg-transparent border-0" aria-describedby={undefined}>
+        <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden bg-transparent border-0">
           <VisuallyHidden.Root>
             <DialogTitle>Loading Order Details</DialogTitle>
+            <DialogDescription>Loading order details, please wait</DialogDescription>
           </VisuallyHidden.Root>
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-blue"></div>
@@ -799,10 +803,10 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
       <DialogContent
         className="max-w-5xl max-h-[90vh] p-0 overflow-hidden bg-transparent border-0"
         onPointerDownOutside={(e) => e.preventDefault()}
-        aria-describedby={undefined}
       >
         <VisuallyHidden.Root>
           <DialogTitle>Order Details - {order.orderCode}</DialogTitle>
+          <DialogDescription>View and manage order {order.orderCode} details, line items, and status</DialogDescription>
         </VisuallyHidden.Root>
         <motion.div
           className="relative rounded-2xl overflow-hidden"
@@ -2785,7 +2789,7 @@ function DesignModule({ designJobs, order, onDesignJobsChange, users = [] }: { d
       {/* Attach Design Job Dialog */}
       {showAttachDialog && (
         <Dialog open={showAttachDialog} onOpenChange={handleCloseDialog}>
-          <DialogContent className="bg-[#0a0a1f] border-white/10 max-w-2xl max-h-[80vh] overflow-hidden flex flex-col" aria-describedby={undefined}>
+          <DialogContent className="bg-[#0a0a1f] border-white/10 max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle className="text-white flex items-center gap-2">
                 <Palette className="w-5 h-5 text-neon-blue" />
@@ -2793,6 +2797,9 @@ function DesignModule({ designJobs, order, onDesignJobsChange, users = [] }: { d
                 {dialogMode === 'search' && 'Find Existing Design Job'}
                 {dialogMode === 'create' && 'Create New Design Job'}
               </DialogTitle>
+              <DialogDescription className="text-white/60 sr-only">
+                Select or create a design job to attach to this order
+              </DialogDescription>
             </DialogHeader>
 
             {dialogMode === 'choose' && (
