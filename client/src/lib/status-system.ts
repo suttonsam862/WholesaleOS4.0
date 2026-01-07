@@ -10,7 +10,7 @@
 // TYPES
 // =============================================================================
 
-export type OrderStatus = 'new' | 'waiting_sizes' | 'invoiced' | 'production' | 'shipped' | 'completed' | 'cancelled';
+export type OrderStatus = 'new' | 'waiting_sizes' | 'design_created' | 'sizes_validated' | 'invoiced' | 'production' | 'shipped' | 'completed' | 'cancelled';
 
 export type DesignJobStatus = 'pending' | 'assigned' | 'in_progress' | 'review' | 'approved' | 'rejected' | 'completed';
 
@@ -187,6 +187,26 @@ export const ORDER_STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
     zone: 'pending_customer',
     order: 2,
   },
+  design_created: {
+    label: 'Design Created',
+    color: '#8b5cf6',
+    bgClass: 'bg-violet-500/10',
+    textClass: 'text-violet-500',
+    borderClass: 'border-violet-500/30',
+    icon: 'Palette',
+    zone: 'in_design',
+    order: 3,
+  },
+  sizes_validated: {
+    label: 'Sizes Confirmed',
+    color: '#14b8a6',
+    bgClass: 'bg-teal-500/10',
+    textClass: 'text-teal-500',
+    borderClass: 'border-teal-500/30',
+    icon: 'CheckSquare',
+    zone: 'pending_customer',
+    order: 4,
+  },
   invoiced: {
     label: 'Invoiced',
     color: '#3b82f6',
@@ -194,8 +214,8 @@ export const ORDER_STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
     textClass: 'text-blue-500',
     borderClass: 'border-blue-500/30',
     icon: 'Receipt',
-    zone: 'pending_customer',
-    order: 3,
+    zone: 'manufacturing_pre',
+    order: 5,
   },
   production: {
     label: 'Production',
@@ -205,7 +225,7 @@ export const ORDER_STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
     borderClass: 'border-pink-500/30',
     icon: 'Factory',
     zone: 'manufacturing_production',
-    order: 4,
+    order: 6,
   },
   shipped: {
     label: 'Shipped',
@@ -215,7 +235,7 @@ export const ORDER_STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
     borderClass: 'border-emerald-500/30',
     icon: 'Truck',
     zone: 'delivery',
-    order: 5,
+    order: 7,
   },
   completed: {
     label: 'Completed',
@@ -225,7 +245,7 @@ export const ORDER_STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
     borderClass: 'border-green-500/30',
     icon: 'CheckCircle2',
     zone: 'completed',
-    order: 6,
+    order: 8,
   },
   cancelled: {
     label: 'Cancelled',
@@ -235,7 +255,7 @@ export const ORDER_STATUS_CONFIG: Record<OrderStatus, StatusConfig> = {
     borderClass: 'border-red-500/30',
     icon: 'XCircle',
     zone: 'completed',
-    order: 7,
+    order: 9,
   },
 };
 
@@ -644,17 +664,17 @@ export function calculateProgressBlocks(
     currentZone = 'manufacturing_production';
   } else if (manufacturingStatus === 'confirmed_awaiting_manufacturing') {
     currentZone = 'manufacturing_pre';
+  } else if (orderStatus === 'invoiced' || orderStatus === 'sizes_validated') {
+    currentZone = 'manufacturing_pre';
   } else if (
     designStatus === 'in_progress' ||
     designStatus === 'assigned' ||
     designStatus === 'review' ||
-    designStatus === 'rejected'
+    designStatus === 'rejected' ||
+    orderStatus === 'design_created'
   ) {
     currentZone = 'in_design';
-  } else if (
-    orderStatus === 'waiting_sizes' ||
-    orderStatus === 'invoiced'
-  ) {
+  } else if (orderStatus === 'waiting_sizes') {
     currentZone = 'pending_customer';
   }
 

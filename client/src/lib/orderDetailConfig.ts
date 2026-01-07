@@ -107,6 +107,8 @@ function statusToStage(status?: string): StageId | undefined {
   switch (status) {
     case "new": return "drafts";
     case "waiting_sizes": return "awaiting-sizes";
+    case "design_created": return "awaiting-sizes";
+    case "sizes_validated": return "ready-to-invoice";
     case "invoiced": return "ready-for-production";
     case "production": return "in-production";
     case "shipped": return "shipped";

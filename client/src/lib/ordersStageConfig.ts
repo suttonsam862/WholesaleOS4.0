@@ -7,7 +7,7 @@ export interface Order {
   leadId: number | null;
   salespersonId: string | null;
   orderName: string;
-  status: "new" | "waiting_sizes" | "invoiced" | "production" | "shipped" | "completed";
+  status: "new" | "waiting_sizes" | "design_created" | "sizes_validated" | "invoiced" | "production" | "shipped" | "completed" | "cancelled";
   designApproved: boolean;
   sizesValidated: boolean;
   depositReceived: boolean;

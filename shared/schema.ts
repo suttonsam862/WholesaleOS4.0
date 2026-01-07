@@ -302,7 +302,7 @@ export const designJobs = pgTable("design_jobs", {
   jobCode: varchar("job_code").unique().notNull(),
   orgId: integer("org_id").references(() => organizations.id),
   leadId: integer("lead_id").references(() => leads.id),
-  orderId: integer("order_id").references(() => orders.id),
+  orderId: integer("order_id").references(() => orders.id, { onDelete: 'cascade' }),
   salespersonId: varchar("salesperson_id").references(() => users.id),
   brief: text("brief"),
   requirements: text("requirements"),
@@ -335,7 +335,7 @@ export const designJobs = pgTable("design_jobs", {
 // Design job comments
 export const designJobComments = pgTable("design_job_comments", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  jobId: integer("job_id").references(() => designJobs.id).notNull(),
+  jobId: integer("job_id").references(() => designJobs.id, { onDelete: 'cascade' }).notNull(),
   userId: varchar("user_id").references(() => users.id).notNull(),
   comment: text("comment").notNull(),
   isInternal: boolean("is_internal").default(false), 
@@ -404,7 +404,7 @@ export const orders = pgTable("orders", {
 // Order line items with size grid
 export const orderLineItems = pgTable("order_line_items", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  orderId: integer("order_id").references(() => orders.id).notNull(),
+  orderId: integer("order_id").references(() => orders.id, { onDelete: 'cascade' }).notNull(),
   variantId: integer("variant_id").references(() => productVariants.id).notNull(),
   itemName: varchar("item_name"),
   colorNotes: text("color_notes"),
@@ -564,7 +564,7 @@ export const orderFormLineItemSizes = pgTable("order_form_line_item_sizes", {
 // Manufacturing records (main table)
 export const manufacturing = pgTable("manufacturing", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  orderId: integer("order_id").references(() => orders.id).notNull().unique(),
+  orderId: integer("order_id").references(() => orders.id, { onDelete: 'cascade' }).notNull().unique(),
   status: varchar("status").notNull().default("awaiting_admin_confirmation"),
   assignedTo: varchar("assigned_to").references(() => users.id),
   manufacturerId: integer("manufacturer_id").references(() => manufacturers.id),
@@ -602,8 +602,8 @@ export const manufacturing = pgTable("manufacturing", {
 // Manufacturing status updates/history
 export const manufacturingUpdates = pgTable("manufacturing_updates", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id).notNull(),
-  orderId: integer("order_id").references(() => orders.id),
+  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id, { onDelete: 'cascade' }).notNull(),
+  orderId: integer("order_id").references(() => orders.id, { onDelete: 'cascade' }),
   status: varchar("status").notNull(),
   notes: text("notes"),
   updatedBy: varchar("updated_by").references(() => users.id).notNull(),
@@ -685,9 +685,9 @@ export const manufacturingBatches = pgTable("manufacturing_batches", {
 // Manufacturing Batch Items - link orders to batches
 export const manufacturingBatchItems = pgTable("manufacturing_batch_items", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  batchId: integer("batch_id").references(() => manufacturingBatches.id).notNull(),
-  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id).notNull(),
-  orderId: integer("order_id").references(() => orders.id).notNull(),
+  batchId: integer("batch_id").references(() => manufacturingBatches.id, { onDelete: 'cascade' }).notNull(),
+  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id, { onDelete: 'cascade' }).notNull(),
+  orderId: integer("order_id").references(() => orders.id, { onDelete: 'cascade' }).notNull(),
   quantity: integer("quantity").default(1),
   priority: varchar("priority").notNull().$type<"low" | "normal" | "high" | "urgent">().default("normal"),
   notes: text("notes"),
@@ -701,7 +701,7 @@ export const manufacturingBatchItems = pgTable("manufacturing_batch_items", {
 // Manufacturing Quality Control Checkpoints
 export const manufacturingQualityCheckpoints = pgTable("manufacturing_quality_checkpoints", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id).notNull(),
+  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id, { onDelete: 'cascade' }).notNull(),
   checkpointName: varchar("checkpoint_name").notNull(),
   checkpointStage: varchar("checkpoint_stage").notNull().$type<"pending" | "in_progress" | "complete">(),
   status: varchar("status").notNull().$type<"pending" | "passed" | "failed" | "skipped">().default("pending"),
@@ -720,8 +720,8 @@ export const manufacturingQualityCheckpoints = pgTable("manufacturing_quality_ch
 // Manufacturing Notifications
 export const manufacturingNotifications = pgTable("manufacturing_notifications", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id),
-  batchId: integer("batch_id").references(() => manufacturingBatches.id),
+  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id, { onDelete: 'cascade' }),
+  batchId: integer("batch_id").references(() => manufacturingBatches.id, { onDelete: 'cascade' }),
   recipientId: varchar("recipient_id").references(() => users.id).notNull(),
   notificationType: varchar("notification_type").notNull().$type<"status_change" | "deadline_approaching" | "quality_issue" | "batch_complete" | "delay_alert" | "assignment">(),
   title: varchar("title").notNull(),
@@ -742,9 +742,9 @@ export const manufacturingNotifications = pgTable("manufacturing_notifications",
 // Manufacturing File Attachments
 export const manufacturingAttachments = pgTable("manufacturing_attachments", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id),
-  batchId: integer("batch_id").references(() => manufacturingBatches.id),
-  qualityCheckpointId: integer("quality_checkpoint_id").references(() => manufacturingQualityCheckpoints.id),
+  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id, { onDelete: 'cascade' }),
+  batchId: integer("batch_id").references(() => manufacturingBatches.id, { onDelete: 'cascade' }),
+  qualityCheckpointId: integer("quality_checkpoint_id").references(() => manufacturingQualityCheckpoints.id, { onDelete: 'cascade' }),
   fileName: varchar("file_name").notNull(),
   fileType: varchar("file_type").notNull(),
   fileSize: integer("file_size"),
@@ -784,8 +784,8 @@ export const productionSchedules = pgTable("production_schedules", {
 // Manufacturer Jobs - parallel tracking for manufacturer's internal workflow
 export const manufacturerJobs = pgTable("manufacturer_jobs", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id).notNull().unique(),
-  orderId: integer("order_id").references(() => orders.id).notNull(),
+  manufacturingId: integer("manufacturing_id").references(() => manufacturing.id, { onDelete: 'cascade' }).notNull().unique(),
+  orderId: integer("order_id").references(() => orders.id, { onDelete: 'cascade' }).notNull(),
   manufacturerId: integer("manufacturer_id").references(() => manufacturers.id),
   manufacturerStatus: varchar("manufacturer_status").notNull().$type<
     "intake_pending" | "specs_lock_review" | "specs_locked" | "materials_reserved" |
@@ -823,7 +823,7 @@ export const manufacturerJobs = pgTable("manufacturer_jobs", {
 // Manufacturer Events - structured event log replacing chat-based updates
 export const manufacturerEvents = pgTable("manufacturer_events", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  manufacturerJobId: integer("manufacturer_job_id").references(() => manufacturerJobs.id).notNull(),
+  manufacturerJobId: integer("manufacturer_job_id").references(() => manufacturerJobs.id, { onDelete: 'cascade' }).notNull(),
   eventType: varchar("event_type").notNull().$type<
     "status_change" | "spec_update" | "pantone_update" | "sample_approved" | "sample_rejected" |
     "deadline_changed" | "note_added" | "attachment_added" | "shipment_created" | "shipment_split" |
