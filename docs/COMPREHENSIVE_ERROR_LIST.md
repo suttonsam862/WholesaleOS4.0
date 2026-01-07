@@ -121,22 +121,32 @@ These constraints can now be safely added via database migration:
 2. Create migration scripts with rollback capability
 3. Test on staging environment first
 
-### 3.1 Missing Positive Price Constraints
+### 3.1 Price Constraints (IMPLEMENTED)
 
-**Status:** 🔶 DEFERRED  
+**Status:** ✅ FIXED (2025-01-07)  
 **Risk Level:** HIGH  
-**Tables Affected:** `products`, `order_line_items`, `quotes`
+**Tables Affected:** `products`, `order_line_items`, `quote_line_items`
 
-**Required Constraint:**
+**Implemented Constraints:**
 ```sql
+-- Products: base price must be positive (products shouldn't be free by default)
 ALTER TABLE products ADD CONSTRAINT positive_base_price CHECK (base_price > 0);
-ALTER TABLE quote_line_items ADD CONSTRAINT positive_unit_price CHECK (unit_price > 0);
+
+-- Line items: unit price can be zero (samples, freebies, bundled items) but not negative
+ALTER TABLE order_line_items ADD CONSTRAINT oli_positive_unit_price CHECK (unit_price >= 0);
+ALTER TABLE quote_line_items ADD CONSTRAINT qli_positive_unit_price CHECK (unit_price >= 0);
 ```
 
-**Data Assessment Query (Run First):**
+**Note:** Line items allow `unit_price = 0` because:
+- Samples and promotional items may be free
+- Bundled items might have $0 price with value in another line
+- Freebies for loyal customers
+
+**Data Assessment Query (Reference):**
 ```sql
 SELECT id, name, base_price FROM products WHERE base_price IS NOT NULL AND base_price <= 0;
-SELECT id, unit_price FROM quote_line_items WHERE unit_price IS NOT NULL AND unit_price <= 0;
+SELECT id, unit_price FROM order_line_items WHERE unit_price IS NOT NULL AND unit_price < 0;
+SELECT id, unit_price FROM quote_line_items WHERE unit_price IS NOT NULL AND unit_price < 0;
 ```
 
 ### 3.2 Missing Quantity Constraints
