@@ -107,10 +107,13 @@ const SIZE_COLUMNS = [
 const STATUS_WORKFLOW = [
   { value: "new", label: "New", icon: AlertCircle },
   { value: "waiting_sizes", label: "Waiting Sizes", icon: Package },
+  { value: "design_created", label: "Design Created", icon: Palette },
+  { value: "sizes_validated", label: "Sizes Confirmed", icon: UserCheck },
   { value: "invoiced", label: "Invoiced", icon: DollarSign },
-  { value: "production", label: "In Production", icon: Package },
+  { value: "production", label: "In Production", icon: Factory },
   { value: "shipped", label: "Shipped", icon: TruckIcon },
   { value: "completed", label: "Completed", icon: CheckCircle },
+  { value: "cancelled", label: "Cancelled", icon: X },
 ];
 
 export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalProps) {

@@ -230,13 +230,48 @@ export async function apiRequest<T = any>(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
+
+/**
+ * Build a URL from query key segments.
+ * Handles both simple keys like ['/api/orders', 123] and keys with filter objects like ['/api/orders', { salesperson: 'abc' }]
+ * Object segments are converted to query string parameters.
+ */
+function buildUrlFromQueryKey(queryKey: readonly unknown[]): string {
+  const pathSegments: string[] = [];
+  const queryParams = new URLSearchParams();
+  
+  for (const segment of queryKey) {
+    if (segment === null || segment === undefined) {
+      continue;
+    }
+    
+    if (typeof segment === 'object' && !Array.isArray(segment)) {
+      // Object segment - convert to query string parameters
+      const obj = segment as Record<string, unknown>;
+      for (const [key, value] of Object.entries(obj)) {
+        if (value !== null && value !== undefined) {
+          queryParams.append(key, String(value));
+        }
+      }
+    } else {
+      // Primitive segment - add to path
+      pathSegments.push(String(segment));
+    }
+  }
+  
+  const basePath = pathSegments.join('/');
+  const queryString = queryParams.toString();
+  
+  return queryString ? `${basePath}?${queryString}` : basePath;
+}
+
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // Build the URL from query key segments
-    const url = queryKey.join("/");
+    // Build the URL from query key segments, handling object segments as query params
+    const url = buildUrlFromQueryKey(queryKey);
     
     // Validate the URL is a proper API path to prevent accidental root requests
     if (!url || url === "/" || !url.startsWith("/api")) {
