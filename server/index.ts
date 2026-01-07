@@ -70,10 +70,25 @@ app.use((req, res, next) => {
     console.log('✅ Routes registered successfully');
     
     // 404 handler for unknown API routes - MUST be after all API routes but BEFORE Vite
-    app.use('/api/*', notFoundHandler);
+    // Note: We use a simple inline handler here to avoid interfering with SPA fallback
+    app.use('/api/*', (req: Request, res: Response) => {
+      res.status(404).json({ 
+        success: false,
+        error: `API endpoint not found: ${req.method} ${req.path}`,
+        code: 'NOT_FOUND',
+        timestamp: new Date().toISOString()
+      });
+    });
 
-    // Global error handler - MUST be after all routes and middleware
-    app.use(globalErrorHandler);
+    // Global error handler for API errors - catches errors from async route handlers
+    // Must be placed before Vite setup to ensure proper error handling
+    app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+      // Only handle API errors here; let Vite handle frontend errors
+      if (req.path.startsWith('/api')) {
+        return globalErrorHandler(err, req, res, next);
+      }
+      next(err);
+    });
 
     // importantly only setup vite in development and after
     // setting up all the other routes so the catch-all route

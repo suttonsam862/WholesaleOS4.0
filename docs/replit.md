@@ -67,3 +67,33 @@ A comprehensive wholesale management platform designed to streamline wholesale o
 - **Twilio**: For SMS communication.
 - **Outlook/SendGrid**: For email communication.
 - **WebSocket**: For real-time notifications.
+
+## Recent Audit Changes (January 2026)
+
+### Documentation
+- Created API_CONTRACTS.md, NOTIFICATIONS_SPEC.md, and RUNBOOK.md
+
+### Order Status Workflow
+- Added new order statuses: `design_created` and `sizes_validated` to support the canonical order lifecycle
+- Updated frontend status handling in status-system.ts, ordersStageConfig.ts, status-badge.tsx, and orderDetailConfig.ts
+- Stage filters updated to properly route new statuses to correct Kanban columns
+
+### Database Integrity
+- Added cascade delete configurations for critical order relationships (order_line_items, manufacturing, design_jobs)
+- Added 13 database CHECK constraints:
+  - `products.positive_base_price`: base_price > 0
+  - `quote_line_items.qli_positive_unit_price`, `qli_positive_quantity`
+  - `order_line_items.oli_non_negative_sizes`, `oli_positive_unit_price`
+  - `product_variants.non_negative_cost`
+  - `invoices.non_negative_total_amount`, `non_negative_amount_paid`
+  - `commissions.valid_commission_rate`, `positive_base_amount`, `non_negative_commission_amount`
+  - `invoice_payments.positive_payment_amount`
+  - `financial_transactions.positive_transaction_amount`
+
+### Error Handling
+- Registered globalErrorHandler and setupProcessErrorHandlers in server/index.ts
+- Error handling middleware properly catches Zod validation errors, service errors, and unexpected errors
+
+### RBAC System
+- Verified database-first permission system is properly configured with 7 roles, 28 resources, and 189 role permissions
+- Uses `hasPermissionWithOverrides` function for database-first approach with fallback to static permissions
