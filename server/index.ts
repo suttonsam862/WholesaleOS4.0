@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes/index";
 import { setupVite, serveStatic, log } from "./vite";
+import { globalErrorHandler, notFoundHandler, setupProcessErrorHandlers } from "./middleware/errorHandler.middleware";
 
 const app = express();
 
@@ -47,6 +48,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Setup global process error handlers for uncaught exceptions and unhandled rejections
+  setupProcessErrorHandlers();
+  
   try {
     // Environment variable checks
     const nodeEnv = process.env.NODE_ENV || 'development';
@@ -66,21 +70,10 @@ app.use((req, res, next) => {
     console.log('✅ Routes registered successfully');
     
     // 404 handler for unknown API routes - MUST be after all API routes but BEFORE Vite
-    app.use('/api/*', (req: Request, res: Response) => {
-      res.status(404).json({ 
-        message: "API endpoint not found",
-        path: req.path,
-        method: req.method
-      });
-    });
+    app.use('/api/*', notFoundHandler);
 
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
-
-      res.status(status).json({ message });
-      throw err;
-    });
+    // Global error handler - MUST be after all routes and middleware
+    app.use(globalErrorHandler);
 
     // importantly only setup vite in development and after
     // setting up all the other routes so the catch-all route
