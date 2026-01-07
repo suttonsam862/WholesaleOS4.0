@@ -154,10 +154,13 @@ const SIZE_COLUMNS = [
 const STATUS_WORKFLOW = [
   { value: "new", label: "New", icon: AlertTriangle },
   { value: "waiting_sizes", label: "Waiting Sizes", icon: Package },
+  { value: "design_created", label: "Design Created", icon: Palette },
+  { value: "sizes_validated", label: "Sizes Confirmed", icon: CheckCircle2 },
   { value: "invoiced", label: "Invoiced", icon: DollarSign },
   { value: "production", label: "In Production", icon: Factory },
   { value: "shipped", label: "Shipped", icon: Truck },
   { value: "completed", label: "Completed", icon: CheckCircle2 },
+  { value: "cancelled", label: "Cancelled", icon: AlertCircle },
 ];
 
 function ProgressBar({ blocks }: { blocks: ReturnType<typeof calculateProgressBlocks> }) {
