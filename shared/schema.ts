@@ -18,6 +18,8 @@ import {
 export const orderStatusEnum = pgEnum("order_status", [
   "new",
   "waiting_sizes",
+  "design_created",
+  "sizes_validated",
   "invoiced",
   "production",
   "shipped",

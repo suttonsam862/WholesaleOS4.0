@@ -8,12 +8,14 @@ export const USER_ROLES = ['admin', 'sales', 'designer', 'ops', 'manufacturer', 
 export type UserRole = typeof USER_ROLES[number];
 
 // ==================== ORDER STATUS ====================
-export const ORDER_STATUSES = ['new', 'waiting_sizes', 'invoiced', 'production', 'shipped', 'completed', 'cancelled'] as const;
+export const ORDER_STATUSES = ['new', 'waiting_sizes', 'design_created', 'sizes_validated', 'invoiced', 'production', 'shipped', 'completed', 'cancelled'] as const;
 export type OrderStatus = typeof ORDER_STATUSES[number];
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   new: 'New',
   waiting_sizes: 'Waiting for Sizes',
+  design_created: 'Design Created',
+  sizes_validated: 'Sizes Confirmed',
   invoiced: 'Invoiced',
   production: 'In Production',
   shipped: 'Shipped',
@@ -21,10 +23,12 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: 'Cancelled',
 };
 
-// Valid order status transitions
+// Valid order status transitions (per ORDER_STATUS_SPEC.md)
 export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  new: ['waiting_sizes', 'invoiced', 'cancelled'],
-  waiting_sizes: ['invoiced', 'cancelled'],
+  new: ['waiting_sizes', 'design_created', 'cancelled'],
+  waiting_sizes: ['design_created', 'sizes_validated', 'cancelled'],
+  design_created: ['sizes_validated', 'waiting_sizes', 'cancelled'],
+  sizes_validated: ['invoiced', 'cancelled'],
   invoiced: ['production', 'cancelled'],
   production: ['shipped', 'cancelled'],
   shipped: ['completed', 'cancelled'],
