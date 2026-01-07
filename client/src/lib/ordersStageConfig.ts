@@ -57,7 +57,7 @@ function isOverdue(order: Order): boolean {
 function isAtRisk(order: Order): boolean {
   if (order.priority === "high") return true;
   if (isOverdue(order)) return true;
-  if (order.status === "new" || order.status === "waiting_sizes") {
+  if (order.status === "new" || order.status === "waiting_sizes" || order.status === "design_created") {
     const createdDate = new Date(order.createdAt);
     const daysSinceCreated = Math.floor((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
     if (daysSinceCreated > 14) return true;
@@ -84,12 +84,12 @@ export const STAGE_CONFIGS: StageConfig[] = [
   {
     id: "awaiting-sizes",
     label: "Awaiting Sizes",
-    description: "Waiting for customer size submissions",
+    description: "Waiting for customer size submissions or design work",
     icon: Clock,
     colorClass: "text-yellow-500",
     bgColorClass: "bg-yellow-500/10",
     borderColorClass: "border-yellow-500/30",
-    filter: (order) => order.status === "waiting_sizes" && !order.sizesValidated,
+    filter: (order) => (order.status === "waiting_sizes" || order.status === "design_created") && !order.sizesValidated,
     primaryAction: {
       label: "Validate Sizes",
       roles: ["ops", "admin"],
@@ -104,7 +104,7 @@ export const STAGE_CONFIGS: StageConfig[] = [
     colorClass: "text-purple-500",
     bgColorClass: "bg-purple-500/10",
     borderColorClass: "border-purple-500/30",
-    filter: (order) => order.status === "waiting_sizes" && order.sizesValidated && !order.invoiceUrl,
+    filter: (order) => (order.status === "sizes_validated" || (order.status === "waiting_sizes" && order.sizesValidated)) && !order.invoiceUrl,
     primaryAction: {
       label: "Create Invoice",
       roles: ["finance", "admin"],
