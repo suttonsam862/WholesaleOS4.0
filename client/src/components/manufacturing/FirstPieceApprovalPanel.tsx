@@ -331,12 +331,30 @@ export function FirstPieceApprovalPanel({
             <div className="space-y-3">
               <Label className="text-xs text-muted-foreground">Upload Sample Images</Label>
               <ObjectUploader
-                folder={`manufacturing/${manufacturingId}/first-piece`}
                 allowedFileTypes={["image/*"]}
-                maxFiles={5}
+                maxNumberOfFiles={5}
                 maxFileSize={10 * 1024 * 1024}
-                buttonText="Upload Sample Photos"
-                onUploadComplete={(result: UploadResult) => {
+                onGetUploadParameters={async (file: File) => {
+                  const response = await fetch("/api/upload/image", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                      filename: file.name,
+                      size: file.size,
+                      mimeType: file.type,
+                    }),
+                  });
+                  if (!response.ok) throw new Error("Failed to get upload URL");
+                  const data = await response.json();
+                  (file as any).__uploadId = data.uploadId;
+                  return {
+                    method: "PUT" as const,
+                    url: data.uploadURL,
+                    headers: { "Content-Type": file.type },
+                  };
+                }}
+                onComplete={(result) => {
                   const uploadedUrls: string[] = [];
                   result.successful?.forEach((file: any) => {
                     const url = file.response?.body?.url || file.uploadURL;
@@ -353,7 +371,12 @@ export function FirstPieceApprovalPanel({
                     });
                   }
                 }}
-              />
+              >
+                <Button variant="outline" className="gap-2">
+                  <Upload className="w-4 h-4" />
+                  Upload Sample Photos
+                </Button>
+              </ObjectUploader>
               <p className="text-xs text-muted-foreground">
                 Upload photos of the first piece sample for quality approval before bulk production.
               </p>

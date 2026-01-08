@@ -1230,25 +1230,21 @@ function OverviewModule({
             First Piece Approval
           </h3>
           <FirstPieceApprovalPanel
-            manufacturingUpdateId={latestUpdate.id}
-            canEdit={canEdit}
+            manufacturingId={manufacturing.id}
+            firstPieceStatus={latestUpdate.firstPieceStatus || 'pending'}
+            firstPieceImageUrls={latestUpdate.firstPieceImageUrls}
+            firstPieceUploadedAt={latestUpdate.firstPieceUploadedAt}
+            firstPieceUploadedBy={latestUpdate.firstPieceUploadedByUser?.firstName || latestUpdate.firstPieceUploadedByUser?.email}
+            firstPieceApprovedAt={latestUpdate.firstPieceApprovedAt}
+            firstPieceApprovedBy={latestUpdate.firstPieceApprovedByUser?.firstName || latestUpdate.firstPieceApprovedByUser?.email}
+            firstPieceRejectionNotes={latestUpdate.firstPieceRejectionNotes}
+            canUpload={canEdit}
+            canApprove={canEdit}
           />
         </div>
       )}
 
-      {/* Fabric Submission Form */}
-      {order && (
-        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-          <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-            <Layers className="w-4 h-4 text-neon-purple" />
-            Fabric Status
-          </h3>
-          <FabricSubmissionForm
-            orderId={order.id}
-            canEdit={canEdit}
-          />
-        </div>
-      )}
+      {/* Fabric Submissions are managed at the line item level in the Line Items module */}
     </motion.div>
   );
 }

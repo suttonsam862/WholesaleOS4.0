@@ -2062,7 +2062,7 @@ function ManufacturingNotesTab({ orderId, manufacturingLineItems }: Manufacturin
   };
 
   // Get unique categories for filter
-  const uniqueCategories = [...new Set(allNotes.map((n) => n.note.categoryName))].filter(Boolean);
+  const uniqueCategories = Array.from(new Set(allNotes.map((n) => n.note.categoryName))).filter(Boolean);
   
   // Get unique line items for filter
   const uniqueLineItems = orderLineItems.map((li) => ({
