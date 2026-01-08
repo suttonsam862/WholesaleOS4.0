@@ -65,6 +65,7 @@ const DialogContent = React.forwardRef<
         fullScreenMobile && "max-sm:h-full max-sm:max-h-full max-sm:rounded-none",
         className
       )}
+      aria-describedby={props["aria-describedby"] || undefined}
       {...props}
     >
       {children}

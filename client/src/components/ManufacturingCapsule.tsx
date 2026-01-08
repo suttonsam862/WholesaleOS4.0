@@ -644,12 +644,12 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden bg-transparent border-0">
-        <VisuallyHidden.Root>
-          <DialogTitle>Manufacturing Details</DialogTitle>
-          <DialogDescription>View and manage manufacturing record details</DialogDescription>
-        </VisuallyHidden.Root>
+      <VisuallyHidden.Root>
+        <DialogTitle>Manufacturing Details - M-{manufacturing?.id}</DialogTitle>
+        <DialogDescription>View and manage manufacturing record details for order {order?.orderName}</DialogDescription>
+      </VisuallyHidden.Root>
 
-        <motion.div
+      <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}

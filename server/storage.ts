@@ -1755,35 +1755,40 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOrderWithLineItems(id: number): Promise<(Order & { lineItems: (OrderLineItem & { variant?: ProductVariant; product?: Product })[]; salespersonName?: string | null }) | undefined> {
-    const [order] = await db
-      .select({
-        ...getTableColumns(orders),
-        salespersonName: users.name,
-      })
-      .from(orders)
-      .leftJoin(users, eq(orders.salespersonId, users.id))
-      .where(eq(orders.id, id));
+    try {
+      const [order] = await db
+        .select({
+          ...getTableColumns(orders),
+          salespersonName: users.name,
+        })
+        .from(orders)
+        .leftJoin(users, eq(orders.salespersonId, users.id))
+        .where(eq(orders.id, id));
 
-    if (!order) return undefined;
+      if (!order) return undefined;
 
-    const lineItemResults = await db
-      .select({
-        lineItem: orderLineItems,
-        variant: productVariants,
-        product: products,
-      })
-      .from(orderLineItems)
-      .leftJoin(productVariants, eq(orderLineItems.variantId, productVariants.id))
-      .leftJoin(products, eq(productVariants.productId, products.id))
-      .where(eq(orderLineItems.orderId, id));
+      const lineItemResults = await db
+        .select({
+          lineItem: orderLineItems,
+          variant: productVariants,
+          product: products,
+        })
+        .from(orderLineItems)
+        .leftJoin(productVariants, eq(orderLineItems.variantId, productVariants.id))
+        .leftJoin(products, eq(productVariants.productId, products.id))
+        .where(eq(orderLineItems.orderId, id));
 
-    const lineItems = lineItemResults.map(row => ({
-      ...row.lineItem,
-      variant: row.variant || undefined,
-      product: row.product || undefined,
-    }));
+      const lineItems = lineItemResults.map(row => ({
+        ...row.lineItem,
+        variant: row.variant || undefined,
+        product: row.product || undefined,
+      }));
 
-    return { ...order, lineItems };
+      return { ...order, lineItems };
+    } catch (error) {
+      console.error(`Error fetching order ${id} with line items:`, error);
+      throw error;
+    }
   }
 
   // Order line item operations

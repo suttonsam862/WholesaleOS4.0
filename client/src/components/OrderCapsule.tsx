@@ -7,6 +7,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -867,7 +868,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
       <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
         <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden bg-transparent border-0">
           <VisuallyHidden.Root>
-            <DialogTitle>Loading Order Details</DialogTitle>
+            <DialogTitle>Order Details - Loading</DialogTitle>
             <DialogDescription>Loading order details, please wait</DialogDescription>
           </VisuallyHidden.Root>
           <div className="flex items-center justify-center h-64">
@@ -3039,6 +3040,10 @@ function DesignModule({ designJobs, order, onDesignJobsChange, users = [] }: { d
       {showAttachDialog && (
         <Dialog open={showAttachDialog} onOpenChange={handleCloseDialog}>
           <DialogContent className="bg-[#0a0a1f] border-white/10 max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <VisuallyHidden.Root>
+              <DialogTitle>Attach Design Job</DialogTitle>
+              <DialogDescription>Select or create a design job to attach to this order</DialogDescription>
+            </VisuallyHidden.Root>
             <DialogHeader>
               <DialogTitle className="text-white flex items-center gap-2">
                 <Palette className="w-5 h-5 text-neon-blue" />
