@@ -54,6 +54,24 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Permission Error Suppression for Manufacturer Role (January 2026)
+Improved user experience for manufacturer role by suppressing 403 permission errors.
+
+**QueryClient Changes** (`client/src/lib/queryClient.ts`):
+- Suppress 403 (Forbidden) errors in QueryCache - no toast notifications for permission denied
+- Suppress 403 errors in MutationCache - silent handling for mutations that fail due to permissions
+- Consistent with existing 401 (Unauthorized) suppression behavior
+
+**QueueWidget Changes** (`client/src/components/role-home/QueueWidget.tsx`):
+- Import HttpError from queryClient to properly identify 403 errors
+- Treat 403 permission errors as "no access" - show empty state instead of ugly error
+- Users without permission see a clean empty widget instead of error messages
+
+**ManufacturingCapsule Visibility**:
+- Verified admin, ops, and manufacturer roles all receive maximum details via `canEdit` flag
+- All modules (Overview, Line Items, Pantone, Documents, Activity) visible to these roles
+- Full editing capabilities available for authorized roles
+
 ### Universal Dock Padding Fix (January 2026)
 Fixed content being covered by the fixed floating dock across the entire application.
 
