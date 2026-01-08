@@ -152,17 +152,13 @@ export function registerOrdersRoutes(app: Express): void {
         notes: orderData.notes || null,
       };
 
-      console.log('🔍 [DEBUG] Processed order data:', JSON.stringify(processedOrderData, null, 2));
-      console.log('🔍 [DEBUG] Attempting insertOrderSchema.parse()...');
+      // Sales users can only create orders for themselves
+      if ((req as AuthenticatedRequest).user.userData!.role === 'sales') {
+        processedOrderData.salespersonId = (req as AuthenticatedRequest).user.userData!.id;
+      }
 
       const validatedOrder = insertOrderSchema.parse(processedOrderData);
       console.log('🔍 [DEBUG] ✅ Order schema validation passed!');
-      console.log('🔍 [DEBUG] Validated order:', JSON.stringify(validatedOrder, null, 2));
-
-      // Sales users can only create orders for themselves
-      if ((req as AuthenticatedRequest).user.userData!.role === 'sales') {
-        validatedOrder.salespersonId = (req as AuthenticatedRequest).user.userData!.id;
-      }
 
       // If line items are provided, validate and create order with line items
       if (lineItems && Array.isArray(lineItems) && lineItems.length > 0) {

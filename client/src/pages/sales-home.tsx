@@ -48,8 +48,10 @@ export default function SalesHome() {
 
   const myLeads = leads.filter((l: any) => l.ownerUserId === user?.id);
   const hotLeadsCount = myLeads.filter((l: any) => l.stage === 'hot_lead').length;
-  const activeOrdersCount = orders.filter((o: any) => 
-    o.salespersonId === user?.id && o.status !== 'complete' && o.status !== 'cancelled'
+  // Note: Backend already filters orders for sales role, but we keep this for extra safety and clarity
+  const myOrders = user?.role === 'sales' ? orders : orders.filter((o: any) => o.salespersonId === user?.id);
+  const activeOrdersCount = myOrders.filter((o: any) => 
+    o.status !== 'complete' && o.status !== 'cancelled'
   ).length;
 
   const quickActions = [
@@ -307,7 +309,7 @@ export default function SalesHome() {
                 icon={Clock}
                 queryKey={["/api/orders"]}
                 filter={(orders) => orders.filter((o: any) => 
-                  o.salespersonId === user?.id &&
+                  (user?.role !== 'sales' || o.salespersonId === user?.id) &&
                   (o.status === 'waiting_sizes' || !o.designApproved)
                 )}
                 columns={[
