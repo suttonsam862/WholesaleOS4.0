@@ -1563,6 +1563,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOrdersBySalesperson(userId: string): Promise<(Order & { organization?: Organization; contact?: Contact; salespersonName?: string | null })[]> {
+    // Get orders where salesperson_id matches the user's ID
+    // Also check the salespersons table to find orders that might be linked via:
+    // 1. The user's ID directly (orders.salesperson_id = users.id)
+    // 2. The salesperson's numeric ID (orders.salesperson_id = salespersons.id as string)
+    // 3. The salesperson's user_id field (orders.salesperson_id = salespersons.user_id)
+    
+    // Build list of all possible IDs to match
+    const idsToMatch = new Set<string>([userId]);
+    
+    // Get salesperson records for this user to find their numeric ID and user_id
+    const salespersonRecords = await db
+      .select({ 
+        spId: salespersons.id, 
+        spUserId: salespersons.userId 
+      })
+      .from(salespersons)
+      .where(eq(salespersons.userId, userId));
+    
+    // Add both the numeric salesperson ID (as string) and the user_id from salesperson records
+    for (const sp of salespersonRecords) {
+      if (sp.spId) {
+        idsToMatch.add(String(sp.spId)); // Numeric ID as string
+      }
+      if (sp.spUserId) {
+        idsToMatch.add(sp.spUserId);
+      }
+    }
+
     const results = await db
       .select({
         ...getTableColumns(orders),
@@ -1575,7 +1603,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(leads, eq(orders.leadId, leads.id))
       .leftJoin(contacts, eq(leads.contactId, contacts.id))
       .leftJoin(users, eq(orders.salespersonId, users.id))
-      .where(eq(orders.salespersonId, userId));
+      .where(inArray(orders.salespersonId, Array.from(idsToMatch)));
 
     return results.map(row => ({
       ...row,

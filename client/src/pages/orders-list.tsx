@@ -128,9 +128,8 @@ export default function OrdersList() {
   const filteredOrders = useMemo(() => {
     let result = orders;
 
-    if (userRole === "sales") {
-      result = result.filter((order) => order.salespersonId === user?.id);
-    }
+    // Note: For sales users, the backend already filters orders to only return their assigned orders
+    // No additional frontend filtering needed for sales role
 
     if (salespersonParam === "me" && user?.id) {
       result = result.filter((order) => order.salespersonId === user.id);

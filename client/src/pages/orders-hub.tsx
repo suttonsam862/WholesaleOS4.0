@@ -49,12 +49,10 @@ export default function OrdersHub() {
   }, [userRole]);
 
   const stageCounts = useMemo(() => {
-    let filteredOrders = orders;
-    if (userRole === "sales") {
-      filteredOrders = orders.filter((order) => order.salespersonId === user?.id);
-    }
-    return computeStageCounts(filteredOrders, userRole);
-  }, [orders, userRole, user?.id]);
+    // Note: For sales users, the backend already filters orders to only return their assigned orders
+    // No additional frontend filtering needed for sales role
+    return computeStageCounts(orders, userRole);
+  }, [orders, userRole]);
 
   if (ordersLoading) {
     return (
