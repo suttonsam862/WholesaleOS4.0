@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import * as DialogPrimitive from "@radix-ui/react-dialog"
+import * as VisuallyHidden from "@radix-ui/react-visually-hidden"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
@@ -65,10 +66,15 @@ const DialogContent = React.forwardRef<
         fullScreenMobile && "max-sm:h-full max-sm:max-h-full max-sm:rounded-none",
         className
       )}
-      aria-describedby={props["aria-describedby"] || undefined}
+      aria-describedby={props["aria-describedby"] || "dialog-description"}
       {...props}
     >
       {children}
+      <VisuallyHidden.Root>
+        <DialogPrimitive.Description id="dialog-description">
+          Dialog content description for accessibility
+        </DialogPrimitive.Description>
+      </VisuallyHidden.Root>
       <DialogPrimitive.Close 
         className={cn(
           "absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background",
