@@ -57,10 +57,28 @@ export default function ManufacturerHome() {
     localStorage.setItem(VIEW_STORAGE_KEY, view);
   }, [view]);
 
-  const { data: jobs = [] } = useQuery<ManufacturerJob[]>({
+  const { 
+    data: jobs = [], 
+    isLoading,
+    isError,
+    error 
+  } = useQuery<ManufacturerJob[]>({
     queryKey: ["/api/manufacturer-portal/jobs"],
-    retry: false,
+    retry: 1,
+    placeholderData: (previousData) => previousData,
   });
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center bg-white/5 rounded-xl border border-white/10">
+        <AlertTriangle className="w-12 h-12 text-red-400 mb-4" />
+        <h2 className="text-xl font-semibold text-white">Something went wrong</h2>
+        <p className="text-muted-foreground mt-2 max-w-md">
+          {error instanceof Error ? error.message : "Failed to load manufacturer dashboard. Please try refreshing the page."}
+        </p>
+      </div>
+    );
+  }
 
   const zoneCounts = computeZoneCounts(jobs);
 

@@ -1,10 +1,11 @@
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { LucideIcon } from "lucide-react";
+import { LucideIcon, ChevronRight } from "lucide-react";
 import { ProductionUnit } from "./ProductionUnit";
 import { CapacityGauge } from "./CapacityGauge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getStageConfig, type ManufacturerFunnelStatus } from "@/lib/manufacturerFunnelConfig";
+import { useLocation } from "wouter";
 
 interface Job {
   id: number;
@@ -41,6 +42,12 @@ export function ProductionZone({
   maxCapacity = 20,
   className,
 }: ProductionZoneProps) {
+  const [, setLocation] = useLocation();
+  
+  const handleZoneClick = () => {
+    setLocation(`/manufacturer-portal/queue?zone=${id}`);
+  };
+
   const sortedJobs = [...jobs].sort((a, b) => {
     const priorityOrder = { urgent: 0, high: 1, normal: 2, low: 3 };
     const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] ?? 2;
@@ -64,12 +71,14 @@ export function ProductionZone({
       style={{ borderColor: `${color}30` }}
       data-testid={`production-zone-${id}`}
     >
-      <div 
-        className="p-4 border-b"
+      <button 
+        onClick={handleZoneClick}
+        className="p-4 border-b w-full text-left cursor-pointer transition-all hover:brightness-110 active:scale-[0.99] group"
         style={{ 
           background: `linear-gradient(135deg, ${color}15 0%, ${color}05 100%)`,
           borderColor: `${color}20`
         }}
+        data-testid={`button-zone-${id}`}
       >
         <div className="flex items-center gap-3">
           <div 
@@ -79,18 +88,21 @@ export function ProductionZone({
             <Icon className="h-5 w-5" style={{ color }} />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-foreground">{label}</h3>
+            <h3 className="font-semibold text-foreground group-hover:underline">{label}</h3>
             <p className="text-xs text-muted-foreground truncate">{description}</p>
           </div>
-          <div className="text-right">
-            <span className="text-2xl font-bold" style={{ color }}>
-              {jobs.length}
-            </span>
-            <p className="text-xs text-muted-foreground">jobs</p>
+          <div className="text-right flex items-center gap-2">
+            <div>
+              <span className="text-2xl font-bold" style={{ color }}>
+                {jobs.length}
+              </span>
+              <p className="text-xs text-muted-foreground">jobs</p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
           </div>
         </div>
         <CapacityGauge current={jobs.length} max={maxCapacity} className="mt-3" />
-      </div>
+      </button>
 
       <ScrollArea className="flex-1 p-3">
         <div className="space-y-2">

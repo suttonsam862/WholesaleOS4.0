@@ -1,9 +1,9 @@
 import { Link } from "wouter";
 import { cn } from "@/lib/utils";
-import { LucideIcon, ExternalLink, Inbox } from "lucide-react";
+import { LucideIcon, ExternalLink, Inbox, AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface QueueColumn {
   key: string;
@@ -51,10 +51,20 @@ export function QueueWidget({
   viewAllHref,
   className,
 }: QueueWidgetProps) {
-  const { data: rawData = [], isLoading } = useQuery<any[]>({
+  const { 
+    data: rawData = [], 
+    isLoading,
+    isError,
+    error,
+    isPlaceholderData
+  } = useQuery<any[]>({
     queryKey,
     retry: 1,
+    placeholderData: (previousData) => previousData,
   });
+
+  const hasData = rawData.length > 0;
+  const showLoading = isLoading && !hasData;
 
   const data = filter ? filter(rawData) : rawData;
   const displayData = data.slice(0, maxRows);
@@ -98,51 +108,92 @@ export function QueueWidget({
         )}
       </div>
 
-      <div className="divide-y divide-white/5">
-        {isLoading ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="px-5 py-3.5 flex items-center gap-4">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-4 w-20" />
-            </div>
-          ))
-        ) : displayData.length === 0 ? (
-          <div className="px-5 py-10 flex flex-col items-center justify-center text-center">
-            <EmptyIcon className="w-8 h-8 text-muted-foreground/50 mb-3" />
-            <p className="text-sm text-muted-foreground">{emptyState.message}</p>
-          </div>
-        ) : (
-          displayData.map((row, idx) => {
-            const href = typeof rowAction.href === "function" 
-              ? rowAction.href(row) 
-              : rowAction.href;
-
-            return (
-              <Link key={row.id || idx} href={href}>
-                <div
-                  className="px-5 py-3.5 flex items-center gap-4 hover:bg-white/5 transition-colors cursor-pointer group"
-                  data-testid={`queue-row-${id}-${row.id || idx}`}
-                >
-                  {columns.map((col) => (
-                    <div
-                      key={col.key}
-                      className={cn(
-                        "text-sm truncate",
-                        col.className || "flex-1"
-                      )}
-                    >
-                      {col.render
-                        ? col.render(getNestedValue(row, col.key), row)
-                        : getNestedValue(row, col.key)}
-                    </div>
-                  ))}
-                  <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+      <div className="divide-y divide-white/5 relative min-h-[100px]">
+        <AnimatePresence mode="wait">
+          {showLoading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="px-5 py-3.5 flex items-center gap-4">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-4 w-20" />
                 </div>
-              </Link>
-            );
-          })
-        )}
+              ))}
+            </motion.div>
+          ) : isError ? (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="px-5 py-10 flex flex-col items-center justify-center text-center"
+            >
+              <AlertTriangle className="w-8 h-8 text-red-400 mb-3" />
+              <p className="text-sm text-red-400">Failed to load {title.toLowerCase()}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {error instanceof Error ? error.message : "Please try again later"}
+              </p>
+            </motion.div>
+          ) : displayData.length === 0 ? (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="px-5 py-10 flex flex-col items-center justify-center text-center"
+            >
+              <EmptyIcon className="w-8 h-8 text-muted-foreground/50 mb-3" />
+              <p className="text-sm text-muted-foreground">{emptyState.message}</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="content"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="divide-y divide-white/5"
+            >
+              {displayData.map((row, idx) => {
+                const href = typeof rowAction.href === "function" 
+                  ? rowAction.href(row) 
+                  : rowAction.href;
+
+                return (
+                  <Link key={row.id || idx} href={href}>
+                    <div
+                      className="px-5 py-3.5 flex items-center gap-4 hover:bg-white/5 transition-colors cursor-pointer group"
+                      data-testid={`queue-row-${id}-${row.id || idx}`}
+                    >
+                      {columns.map((col) => (
+                        <div
+                          key={col.key}
+                          className={cn(
+                            "text-sm truncate",
+                            col.className || "flex-1"
+                          )}
+                        >
+                          {col.render
+                            ? col.render(getNestedValue(row, col.key), row)
+                            : getNestedValue(row, col.key)}
+                        </div>
+                      ))}
+                      <ExternalLink className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                    </div>
+                  </Link>
+                );
+              })}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {hasMore && viewAllHref && (
