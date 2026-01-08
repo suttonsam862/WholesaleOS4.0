@@ -62,11 +62,6 @@ export default function ManufacturerHome() {
     retry: false,
   });
 
-  const { data: manufacturing = [] } = useQuery<any[]>({
-    queryKey: ["/api/manufacturing"],
-    retry: false,
-  });
-
   const zoneCounts = computeZoneCounts(jobs);
 
   const urgentJobsCount = jobs.filter((j) => j.priority === "urgent" || j.priority === "high").length;

@@ -35,13 +35,13 @@ export function registerManufacturerPortalRoutes(app: Express): void {
   );
 
   // Helper to get manufacturer ID for the current user (manufacturers only)
-  async function getManufacturerIdForUser(userId: number): Promise<number | null> {
+  async function getManufacturerIdForUser(userId: string): Promise<number | null> {
     const associations = await storage.getUserManufacturerAssociations(userId);
     return associations.length > 0 ? associations[0].manufacturerId : null;
   }
 
   // Helper to check if user can access a specific job
-  async function canAccessJob(job: any, userRole: string, userId: number): Promise<boolean> {
+  async function canAccessJob(job: any, userRole: string, userId: string): Promise<boolean> {
     if (['admin', 'ops'].includes(userRole)) {
       return true;
     }
@@ -370,7 +370,12 @@ export function registerManufacturerPortalRoutes(app: Express): void {
           return res.status(400).json({ error: 'Invalid data', details: validationResult.error.issues });
         }
 
-        const updatedJob = await storage.updateManufacturerJob(jobId, validationResult.data);
+        // Filter out null values for optional fields
+        const updateData = { ...validationResult.data };
+        if (updateData.printMethod === null) {
+          updateData.printMethod = undefined;
+        }
+        const updatedJob = await storage.updateManufacturerJob(jobId, updateData as any);
         res.json(updatedJob);
       } catch (error) {
         console.error('Error updating manufacturer job:', error);
