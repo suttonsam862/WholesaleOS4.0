@@ -54,6 +54,22 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
 
+### Universal Dock Padding Fix (January 2026)
+Fixed content being covered by the fixed floating dock across the entire application.
+
+**CSS Variables** (`client/src/index.css`):
+- Added `--dock-height-desktop: 80px` and `--dock-height-mobile: 100px`
+- Added `--dock-safe-padding-desktop` and `--dock-safe-padding-mobile` calculated values
+- Created `.pb-dock` utility class for bottom padding that accounts for dock height
+- Created `.bottom-above-dock` utility class for fixed elements that need to sit above the dock
+
+**Universal Application**:
+- AppLayout's `<main>` element now uses `.pb-dock` class for consistent padding
+- ActionPageShell's fixed footer uses `.bottom-above-dock` to sit above the dock
+- PermissionManagement's floating save bar uses `.bottom-above-dock`
+
+**Best Practice**: Any new page with scrollable content automatically gets dock-safe padding via AppLayout. Any fixed bottom elements (save bars, action footers) should use the `.bottom-above-dock` class to position above the dock.
+
 ### Error Remediation Phase 1 (December 2024)
 Systematic error elimination for improved stability and security.
 

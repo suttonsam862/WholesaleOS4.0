@@ -207,9 +207,9 @@ export function ActionPageShell({ hubId, actionId, children }: ActionPageShellPr
         </Card>
       </div>
 
-      {/* Bottom fixed footer navigation */}
+      {/* Bottom fixed footer navigation - positioned above the dock */}
       {currentStep.type !== "done" && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 border-t border-border bg-background/95 backdrop-blur-sm">
+        <div className="fixed left-0 right-0 p-4 border-t border-border bg-background/95 backdrop-blur-sm z-40 bottom-above-dock">
           <div className="max-w-4xl mx-auto flex justify-between items-center">
             <Button
               variant="outline"

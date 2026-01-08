@@ -860,9 +860,9 @@ export default function PermissionManagement() {
           </TabsContent>
         </Tabs>
 
-        {/* Floating Save Bar */}
+        {/* Floating Save Bar - positioned above the dock */}
         {hasActualChanges && (
-          <div className="fixed bottom-0 left-0 right-0 bg-background border-t shadow-lg z-50">
+          <div className="fixed left-0 right-0 bg-background border-t shadow-lg z-40 bottom-above-dock">
             <div className="container mx-auto px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <AlertCircle className="h-5 w-5 text-amber-500" />

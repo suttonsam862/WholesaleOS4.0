@@ -78,10 +78,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         />
         
         <main 
-          className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent touch-pan-y"
-          style={{
-            paddingBottom: isMobile ? 'calc(100px + env(safe-area-inset-bottom))' : '128px',
-          }}
+          className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent touch-pan-y pb-dock"
         >
           <motion.div
             initial={{ opacity: 0, y: 20 }}
