@@ -2528,7 +2528,7 @@ function LineItemsModule({
                                       <Label className="text-xs text-white/50 mb-1.5 block">Category</Label>
                                       <Select
                                         value={newManufacturingNote.categoryId}
-                                        onValueChange={(value) => setNewManufacturingNote(prev => ({ ...prev, categoryId: value }))}
+                                        onValueChange={(value) => setNewManufacturingNote((prev: { categoryId: string; note: string }) => ({ ...prev, categoryId: value }))}
                                       >
                                         <SelectTrigger 
                                           className="bg-white/5 border-white/10 text-white"
@@ -2537,7 +2537,7 @@ function LineItemsModule({
                                           <SelectValue placeholder="Select category" />
                                         </SelectTrigger>
                                         <SelectContent className="bg-gray-900 border-white/10">
-                                          {manufacturingNoteCategories.filter(c => c.isActive !== false).map((category) => {
+                                          {manufacturingNoteCategories.filter((c: ManufacturingNoteCategory) => c.isActive !== false).map((category: ManufacturingNoteCategory) => {
                                             const CategoryIcon = getCategoryIcon(category.icon);
                                             return (
                                               <SelectItem 
@@ -2564,7 +2564,7 @@ function LineItemsModule({
                                       <Label className="text-xs text-white/50 mb-1.5 block">Note</Label>
                                       <Textarea
                                         value={newManufacturingNote.note}
-                                        onChange={(e) => setNewManufacturingNote(prev => ({ ...prev, note: e.target.value }))}
+                                        onChange={(e) => setNewManufacturingNote((prev: { categoryId: string; note: string }) => ({ ...prev, note: e.target.value }))}
                                         placeholder="Enter manufacturing note..."
                                         className="bg-white/5 border-white/10 text-white min-h-[80px] resize-none"
                                         data-testid={`input-note-text-${item.id}`}
@@ -2607,7 +2607,7 @@ function LineItemsModule({
                             {item.manufacturingNotes && item.manufacturingNotes.length > 0 ? (
                               <div className="flex flex-wrap gap-2" data-testid={`manufacturing-notes-list-${item.id}`}>
                                 {item.manufacturingNotes.map((note: ManufacturingNote) => {
-                                  const category = manufacturingNoteCategories.find(c => c.id === note.categoryId);
+                                  const category = manufacturingNoteCategories.find((c: ManufacturingNoteCategory) => c.id === note.categoryId);
                                   const NoteIcon = getCategoryIcon(category?.icon);
                                   const categoryColor = category?.color || '#6366f1';
                                   
