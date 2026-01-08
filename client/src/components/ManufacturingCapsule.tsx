@@ -36,6 +36,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PantonePicker, PantoneAssignment } from "@/components/manufacturing/pantone-picker";
 import { PantoneSummarySection, PantoneDisplayItem } from "@/components/shared/PantoneSummarySection";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import { FirstPieceApprovalPanel } from "@/components/manufacturing/FirstPieceApprovalPanel";
+import { FabricSubmissionForm, FabricStatusIndicator } from "@/components/FabricSubmissionForm";
 import {
   ManufacturingStatus,
   MANUFACTURING_STATUS_CONFIG,
@@ -80,6 +83,9 @@ import {
   Archive,
   ArchiveRestore,
   Download,
+  Pencil,
+  Layers,
+  Camera,
 } from "lucide-react";
 
 interface ManufacturingCapsuleProps {
@@ -284,6 +290,11 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
   const [expandedItems, setExpandedItems] = useState<Set<number>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPantonePicker, setShowPantonePicker] = useState<number | null>(null);
+  const [editingDescriptors, setEditingDescriptors] = useState<number | null>(null);
+  const [newDescriptor, setNewDescriptor] = useState("");
+  const [editingLineItemId, setEditingLineItemId] = useState<number | null>(null);
+  const [editedItemName, setEditedItemName] = useState("");
+  const [selectedAttachmentCategory, setSelectedAttachmentCategory] = useState<string>("logos");
 
   const canEdit = user?.role === 'admin' || user?.role === 'ops' || user?.role === 'manufacturer';
 
@@ -507,6 +518,95 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
     },
   });
 
+  // Update line item descriptors mutation
+  const updateDescriptorsMutation = useMutation({
+    mutationFn: async ({ lineItemId, descriptors }: { lineItemId: number; descriptors: string[] }) => {
+      const response = await fetch(`/api/manufacturing-update-line-items/${lineItemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ descriptors }),
+      });
+      if (!response.ok) throw new Error('Failed to update descriptors');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturing-update-line-items'] });
+      toast({ title: "Success", description: "Descriptors updated successfully" });
+      setEditingDescriptors(null);
+      setNewDescriptor("");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update descriptors", variant: "destructive" });
+    },
+  });
+
+  // Update line item name mutation
+  const updateLineItemNameMutation = useMutation({
+    mutationFn: async ({ lineItemId, itemName }: { lineItemId: number; itemName: string }) => {
+      const response = await fetch(`/api/order-line-items/${lineItemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ itemName }),
+      });
+      if (!response.ok) throw new Error('Failed to update item name');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturing-update-line-items'] });
+      toast({ title: "Success", description: "Product name updated successfully" });
+      setEditingLineItemId(null);
+      setEditedItemName("");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update product name", variant: "destructive" });
+    },
+  });
+
+  // Update completed product images mutation
+  const updateCompletedImagesMutation = useMutation({
+    mutationFn: async (images: string[]) => {
+      const response = await fetch(`/api/manufacturing/${manufacturingId}/completed-images`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ completedProductImages: images }),
+      });
+      if (!response.ok) throw new Error('Failed to update completed images');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturing', manufacturingId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturing'] });
+      toast({ title: "Success", description: "Completed product images updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update completed product images", variant: "destructive" });
+    },
+  });
+
+  // Helper functions for line item editing
+  const handleAddDescriptor = (lineItemId: number, currentDescriptors: string[] = []) => {
+    if (!newDescriptor.trim()) return;
+    const updatedDescriptors = [...currentDescriptors, newDescriptor.trim()];
+    updateDescriptorsMutation.mutate({ lineItemId, descriptors: updatedDescriptors });
+  };
+
+  const handleRemoveDescriptor = (lineItemId: number, currentDescriptors: string[], index: number) => {
+    const updatedDescriptors = currentDescriptors.filter((_, i) => i !== index);
+    updateDescriptorsMutation.mutate({ lineItemId, descriptors: updatedDescriptors });
+  };
+
+  const handleSaveItemName = (lineItemId: number) => {
+    if (!editedItemName.trim()) {
+      setEditingLineItemId(null);
+      setEditedItemName("");
+      return;
+    }
+    updateLineItemNameMutation.mutate({ lineItemId, itemName: editedItemName.trim() });
+  };
+
   const toggleItem = (id: number) => {
     setExpandedItems((prev) => {
       const next = new Set(prev);
@@ -710,6 +810,8 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
                           setFormData={setFormData}
                           orderTrackingNumbers={orderTrackingNumbers}
                           pantoneAssignments={pantoneAssignments}
+                          latestUpdate={latestUpdate}
+                          canEdit={canEdit}
                         />
                       )}
                       {activeModule === 'line-items' && (
@@ -724,6 +826,18 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
                           canEdit={canEdit}
                           refreshLineItemsMutation={refreshLineItemsMutation}
                           onPantoneClick={(lineItemId) => setShowPantonePicker(lineItemId)}
+                          editingDescriptors={editingDescriptors}
+                          setEditingDescriptors={setEditingDescriptors}
+                          newDescriptor={newDescriptor}
+                          setNewDescriptor={setNewDescriptor}
+                          editingLineItemId={editingLineItemId}
+                          setEditingLineItemId={setEditingLineItemId}
+                          editedItemName={editedItemName}
+                          setEditedItemName={setEditedItemName}
+                          handleAddDescriptor={handleAddDescriptor}
+                          handleRemoveDescriptor={handleRemoveDescriptor}
+                          handleSaveItemName={handleSaveItemName}
+                          updateDescriptorsMutation={updateDescriptorsMutation}
                         />
                       )}
                       {activeModule === 'pantone' && (
@@ -745,6 +859,8 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
                           key="documents"
                           manufacturing={manufacturing}
                           canEdit={canEdit}
+                          latestUpdate={latestUpdate}
+                          setSelectedImage={setSelectedImage}
                         />
                       )}
                       {activeModule === 'activity' && (
@@ -833,6 +949,8 @@ function OverviewModule({
   setFormData,
   orderTrackingNumbers,
   pantoneAssignments,
+  latestUpdate,
+  canEdit,
 }: {
   manufacturing: any;
   order: any;
@@ -843,6 +961,8 @@ function OverviewModule({
   setFormData: (data: any) => void;
   orderTrackingNumbers: any[];
   pantoneAssignments: any[];
+  latestUpdate: any;
+  canEdit: boolean;
 }) {
   const handleFormChange = (field: string, value: any) => {
     setFormData((prev: any) => ({ ...prev, [field]: value }));
@@ -1101,6 +1221,34 @@ function OverviewModule({
           )}
         </div>
       </div>
+
+      {/* First Piece Approval Panel - Show when status is cutting_sewing or later */}
+      {latestUpdate && ['cutting_sewing', 'printing', 'final_packing_press', 'shipped', 'complete'].includes(manufacturing.status) && (
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+          <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-neon-blue" />
+            First Piece Approval
+          </h3>
+          <FirstPieceApprovalPanel
+            manufacturingUpdateId={latestUpdate.id}
+            canEdit={canEdit}
+          />
+        </div>
+      )}
+
+      {/* Fabric Submission Form */}
+      {order && (
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+          <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
+            <Layers className="w-4 h-4 text-neon-purple" />
+            Fabric Status
+          </h3>
+          <FabricSubmissionForm
+            orderId={order.id}
+            canEdit={canEdit}
+          />
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -1115,6 +1263,18 @@ function LineItemsModule({
   canEdit,
   refreshLineItemsMutation,
   onPantoneClick,
+  editingDescriptors,
+  setEditingDescriptors,
+  newDescriptor,
+  setNewDescriptor,
+  editingLineItemId,
+  setEditingLineItemId,
+  editedItemName,
+  setEditedItemName,
+  handleAddDescriptor,
+  handleRemoveDescriptor,
+  handleSaveItemName,
+  updateDescriptorsMutation,
 }: {
   manufacturingLineItems: any[];
   expandedItems: Set<number>;
@@ -1125,6 +1285,18 @@ function LineItemsModule({
   canEdit: boolean;
   refreshLineItemsMutation: any;
   onPantoneClick: (lineItemId: number) => void;
+  editingDescriptors: number | null;
+  setEditingDescriptors: (id: number | null) => void;
+  newDescriptor: string;
+  setNewDescriptor: (value: string) => void;
+  editingLineItemId: number | null;
+  setEditingLineItemId: (id: number | null) => void;
+  editedItemName: string;
+  setEditedItemName: (value: string) => void;
+  handleAddDescriptor: (lineItemId: number, currentDescriptors: string[]) => void;
+  handleRemoveDescriptor: (lineItemId: number, currentDescriptors: string[], index: number) => void;
+  handleSaveItemName: (lineItemId: number) => void;
+  updateDescriptorsMutation: any;
 }) {
   return (
     <motion.div
@@ -1251,6 +1423,138 @@ function LineItemsModule({
 
                   <CollapsibleContent>
                     <div className="p-4 pt-0 border-t border-white/10 space-y-4">
+                      {/* Product Name Editing */}
+                      {canEdit && (
+                        <div className="border-b border-white/10 pb-4">
+                          <div className="flex items-center justify-between mb-2">
+                            <p className="text-xs text-white/50 flex items-center gap-1.5">
+                              <Pencil className="w-3 h-3" />
+                              Product Name
+                            </p>
+                            {editingLineItemId === item.orderLineItemId ? (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 text-green-400 hover:text-green-300"
+                                  onClick={() => handleSaveItemName(item.orderLineItemId)}
+                                  data-testid={`button-save-name-${item.id}`}
+                                >
+                                  <Save className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 px-2 text-red-400 hover:text-red-300"
+                                  onClick={() => {
+                                    setEditingLineItemId(null);
+                                    setEditedItemName("");
+                                  }}
+                                  data-testid={`button-cancel-name-${item.id}`}
+                                >
+                                  <X className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-6 px-2 text-white/60 hover:text-white"
+                                onClick={() => {
+                                  setEditingLineItemId(item.orderLineItemId);
+                                  setEditedItemName(item.productName || "");
+                                }}
+                                data-testid={`button-edit-name-${item.id}`}
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </Button>
+                            )}
+                          </div>
+                          {editingLineItemId === item.orderLineItemId ? (
+                            <Input
+                              value={editedItemName}
+                              onChange={(e) => setEditedItemName(e.target.value)}
+                              placeholder="Enter product name"
+                              className="bg-white/5 border-white/10 text-sm"
+                              data-testid={`input-name-${item.id}`}
+                            />
+                          ) : (
+                            <p className="text-sm text-white">{item.productName || 'No product name'}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Descriptors Section */}
+                      <div className="border-b border-white/10 pb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-xs text-white/50 flex items-center gap-1.5">
+                            <Layers className="w-3 h-3" />
+                            Descriptors
+                          </p>
+                          {canEdit && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-white/60 hover:text-white"
+                              onClick={() => setEditingDescriptors(editingDescriptors === item.id ? null : item.id)}
+                              data-testid={`button-toggle-descriptors-${item.id}`}
+                            >
+                              {editingDescriptors === item.id ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                            </Button>
+                          )}
+                        </div>
+                        {item.descriptors && item.descriptors.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {item.descriptors.map((desc: string, idx: number) => (
+                              <Badge
+                                key={idx}
+                                variant="outline"
+                                className="text-xs text-white/80 border-white/20 flex items-center gap-1"
+                              >
+                                {desc}
+                                {canEdit && (
+                                  <button
+                                    onClick={() => handleRemoveDescriptor(item.id, item.descriptors, idx)}
+                                    className="ml-1 hover:text-red-400"
+                                    data-testid={`button-remove-descriptor-${item.id}-${idx}`}
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        {editingDescriptors === item.id && (
+                          <div className="flex gap-2 mt-2">
+                            <Input
+                              value={newDescriptor}
+                              onChange={(e) => setNewDescriptor(e.target.value)}
+                              placeholder="Add descriptor..."
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newDescriptor.trim()) {
+                                  handleAddDescriptor(item.id, item.descriptors || []);
+                                }
+                              }}
+                              className="text-xs h-8 bg-white/5 border-white/10"
+                              data-testid={`input-new-descriptor-${item.id}`}
+                            />
+                            <Button
+                              size="sm"
+                              className="h-8"
+                              onClick={() => handleAddDescriptor(item.id, item.descriptors || [])}
+                              disabled={!newDescriptor.trim()}
+                              data-testid={`button-add-descriptor-${item.id}`}
+                            >
+                              Add
+                            </Button>
+                          </div>
+                        )}
+                        {(!item.descriptors || item.descriptors.length === 0) && editingDescriptors !== item.id && (
+                          <p className="text-xs text-white/40">No descriptors</p>
+                        )}
+                      </div>
+
                       {/* Size Breakdown */}
                       <div>
                         <p className="text-xs text-white/50 mb-2">Size Breakdown</p>
@@ -1426,14 +1730,60 @@ function PantoneModule({
 function DocumentsModule({
   manufacturing,
   canEdit,
+  latestUpdate,
+  setSelectedImage,
 }: {
   manufacturing: any;
   canEdit: boolean;
+  latestUpdate: any;
+  setSelectedImage: (url: string) => void;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [selectedCategory, setSelectedCategory] = useState<string>("logos");
 
   const completedImages = manufacturing.completedProductImages || [];
+
+  const categories = [
+    { value: "logos", label: "Logos", icon: ImageIcon },
+    { value: "psds", label: "PSDs", icon: FileText },
+    { value: "mockups", label: "Mockups", icon: ImageIcon },
+    { value: "production_files", label: "Production Files", icon: FileText },
+    { value: "other", label: "Other", icon: FileText },
+  ];
+
+  // Fetch attachments for this manufacturing record
+  const { data: attachments = [], isLoading: attachmentsLoading } = useQuery<any[]>({
+    queryKey: ['/api/manufacturing', latestUpdate?.id, 'attachments'],
+    queryFn: async () => {
+      if (!latestUpdate?.id) return [];
+      const response = await fetch(`/api/manufacturing/${latestUpdate.id}/attachments`, {
+        credentials: 'include',
+      });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!latestUpdate?.id,
+  });
+
+  const filteredAttachments = attachments.filter((att: any) => att.category === selectedCategory);
+
+  const getAllowedFileTypes = () => {
+    switch (selectedCategory) {
+      case 'psds':
+        return ['.psd', '.psb', 'image/vnd.adobe.photoshop', 'application/x-photoshop'];
+      case 'logos':
+        return ['image/*', '.zip', 'application/zip', 'application/x-zip-compressed'];
+      case 'mockups':
+        return ['image/*'];
+      case 'production_files':
+        return ['image/*', '.pdf', 'application/pdf', '.zip', 'application/zip'];
+      case 'other':
+        return ['image/*', '.pdf', 'application/pdf', '.zip', 'application/zip', '.doc', '.docx'];
+      default:
+        return ['image/*', '.pdf', '.zip'];
+    }
+  };
 
   const updateCompletedImagesMutation = useMutation({
     mutationFn: async (images: string[]) => {
@@ -1455,6 +1805,40 @@ function DocumentsModule({
     },
   });
 
+  const uploadAttachmentMutation = useMutation({
+    mutationFn: async (data: { fileName: string; fileUrl: string; fileSize: number; fileType: string }) => {
+      return apiRequest('POST', `/api/manufacturing/${latestUpdate.id}/attachments`, {
+        fileName: data.fileName,
+        fileUrl: data.fileUrl,
+        category: selectedCategory,
+        fileSize: data.fileSize,
+        fileType: data.fileType,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturing', latestUpdate?.id, 'attachments'] });
+      toast({ title: "Success", description: "File uploaded successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to upload file", variant: "destructive" });
+    },
+  });
+
+  const deleteAttachmentMutation = useMutation({
+    mutationFn: async (attachmentId: number) => {
+      return apiRequest('DELETE', `/api/manufacturing/attachments/${attachmentId}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturing', latestUpdate?.id, 'attachments'] });
+      toast({ title: "Success", description: "File deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to delete file", variant: "destructive" });
+    },
+  });
+
+  const isImageFile = (fileType: string) => fileType?.startsWith('image/');
+
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -1467,18 +1851,213 @@ function DocumentsModule({
         Documents & Images
       </h3>
 
+      {/* File Categories */}
+      {latestUpdate && (
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+          <h4 className="text-sm font-semibold text-white/80 mb-4">File Categories</h4>
+          <div className="grid grid-cols-5 gap-2">
+            {categories.map((cat) => {
+              const Icon = cat.icon;
+              const count = attachments.filter((att: any) => att.category === cat.value).length;
+              return (
+                <Button
+                  key={cat.value}
+                  variant={selectedCategory === cat.value ? "default" : "outline"}
+                  className={cn(
+                    "flex flex-col h-auto py-3",
+                    selectedCategory === cat.value
+                      ? "bg-neon-blue/20 border-neon-blue text-neon-blue"
+                      : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
+                  )}
+                  onClick={() => setSelectedCategory(cat.value)}
+                  data-testid={`button-category-${cat.value}`}
+                >
+                  <Icon className="w-5 h-5 mb-1" />
+                  <span className="text-xs">{cat.label}</span>
+                  {count > 0 && (
+                    <Badge variant="secondary" className="mt-1 text-xs bg-white/10">
+                      {count}
+                    </Badge>
+                  )}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Upload Section */}
+      {canEdit && latestUpdate && (
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+          <h4 className="text-sm font-semibold text-white/80 mb-4">
+            Upload {categories.find(c => c.value === selectedCategory)?.label}
+          </h4>
+          <ObjectUploader
+            allowedFileTypes={getAllowedFileTypes()}
+            maxNumberOfFiles={10}
+            maxFileSize={104857600}
+            onGetUploadParameters={async (file: any) => {
+              try {
+                const response = await apiRequest("POST", "/api/upload/file", {
+                  filename: file.name,
+                  size: file.size,
+                  mimeType: file.type
+                }) as any;
+                file.__uploadId = response.uploadId;
+                return { method: "PUT" as const, url: response.uploadURL };
+              } catch (error) {
+                console.error("Failed to get upload URL:", error);
+                throw error;
+              }
+            }}
+            onComplete={(result) => {
+              result.successful?.forEach((file: any) => {
+                const uploadId = file.__uploadId;
+                if (uploadId) {
+                  uploadAttachmentMutation.mutate({
+                    fileName: file.name,
+                    fileUrl: `/public-objects/${uploadId}`,
+                    fileSize: file.size,
+                    fileType: file.type,
+                  });
+                }
+              });
+            }}
+            buttonClassName="w-full"
+          >
+            <div className="flex items-center justify-center gap-2 py-2" data-testid={`uploader-${selectedCategory}`}>
+              <Upload className="w-4 h-4" />
+              Upload {categories.find(c => c.value === selectedCategory)?.label}
+            </div>
+          </ObjectUploader>
+        </div>
+      )}
+
+      {/* Files List */}
+      {latestUpdate && (
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+          <h4 className="text-sm font-semibold text-white/80 mb-4">
+            {categories.find(c => c.value === selectedCategory)?.label} ({filteredAttachments.length})
+          </h4>
+          {attachmentsLoading ? (
+            <div className="text-center py-8 text-white/50">
+              <p className="text-sm">Loading files...</p>
+            </div>
+          ) : filteredAttachments.length === 0 ? (
+            <div className="text-center py-8 text-white/50">
+              <FileText className="w-12 h-12 mx-auto mb-2 opacity-20" />
+              <p className="text-sm">No {categories.find(c => c.value === selectedCategory)?.label.toLowerCase()} uploaded yet</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredAttachments.map((attachment: any) => (
+                <div
+                  key={attachment.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"
+                  data-testid={`file-${attachment.id}`}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    {isImageFile(attachment.fileType) ? (
+                      <img
+                        src={attachment.fileUrl}
+                        alt={attachment.fileName}
+                        className="w-10 h-10 object-cover rounded cursor-pointer border border-white/10"
+                        onClick={() => setSelectedImage(attachment.fileUrl)}
+                        data-testid={`img-preview-${attachment.id}`}
+                      />
+                    ) : (
+                      <FileText className="w-10 h-10 text-white/40" />
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{attachment.fileName}</p>
+                      <p className="text-xs text-white/50">
+                        {(attachment.fileSize / 1024 / 1024).toFixed(2)} MB
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-white/5 border-white/10 text-white hover:bg-white/10"
+                      onClick={() => window.open(attachment.fileUrl, '_blank')}
+                      data-testid={`button-download-${attachment.id}`}
+                    >
+                      <Download className="w-4 h-4" />
+                    </Button>
+                    {canEdit && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30"
+                        onClick={() => deleteAttachmentMutation.mutate(attachment.id)}
+                        data-testid={`button-delete-${attachment.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Completed Product Images */}
       <div className="p-4 rounded-xl bg-white/5 border border-white/10">
         <h4 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-          <ImageIcon className="w-4 h-4 text-neon-blue" />
+          <Camera className="w-4 h-4 text-neon-blue" />
           Completed Product Images ({completedImages.length})
         </h4>
 
+        {canEdit && (
+          <div className="mb-4">
+            <ObjectUploader
+              maxNumberOfFiles={10}
+              maxFileSize={10485760}
+              onGetUploadParameters={async (file: any) => {
+                try {
+                  const response = await apiRequest("POST", "/api/upload/image", {
+                    filename: file.name,
+                    size: file.size,
+                    mimeType: file.type
+                  }) as any;
+                  file.__uploadId = response.uploadId;
+                  return { method: "PUT" as const, url: response.uploadURL };
+                } catch (error) {
+                  console.error("Failed to get upload URL:", error);
+                  throw error;
+                }
+              }}
+              onComplete={(result) => {
+                const uploadedUrls = result.successful?.map((file: any) => {
+                  const uploadId = file.__uploadId;
+                  return uploadId ? `/public-objects/${uploadId}` : null;
+                }).filter(Boolean) || [];
+                updateCompletedImagesMutation.mutate([...completedImages, ...uploadedUrls]);
+              }}
+              buttonClassName="w-full"
+            >
+              <div className="flex items-center justify-center gap-2 py-2" data-testid="uploader-completed-images">
+                <Upload className="w-4 h-4" />
+                Upload Completed Product Images
+              </div>
+            </ObjectUploader>
+          </div>
+        )}
+
         {completedImages.length > 0 ? (
-          <div className="grid grid-cols-4 gap-3 mb-4">
+          <div className="grid grid-cols-4 gap-3">
             {completedImages.map((url: string, index: number) => (
               <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-white/10">
-                <img src={url} alt={`Completed ${index + 1}`} className="w-full h-full object-cover" />
+                <img
+                  src={url}
+                  alt={`Completed ${index + 1}`}
+                  className="w-full h-full object-cover cursor-pointer"
+                  onClick={() => setSelectedImage(url)}
+                  data-testid={`img-completed-${index}`}
+                />
                 {canEdit && (
                   <button
                     onClick={() => {
@@ -1486,6 +2065,7 @@ function DocumentsModule({
                       updateCompletedImagesMutation.mutate(newImages);
                     }}
                     className="absolute top-1 right-1 p-1 rounded bg-red-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                    data-testid={`button-remove-completed-${index}`}
                   >
                     <X className="w-3 h-3" />
                   </button>
@@ -1494,15 +2074,9 @@ function DocumentsModule({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-white/50 mb-4">No completed product images yet</p>
-        )}
-
-        {canEdit && completedImages.length === 0 && (
-          <div className="p-4 rounded-lg border border-dashed border-white/20 text-center">
-            <Upload className="w-8 h-8 text-white/30 mx-auto mb-2" />
-            <p className="text-sm text-white/50">
-              Upload completed product images from the manufacturing portal
-            </p>
+          <div className="text-center py-6 text-white/50">
+            <Package className="w-10 h-10 mx-auto mb-2 opacity-20" />
+            <p className="text-sm">No completed product images uploaded yet</p>
           </div>
         )}
       </div>
