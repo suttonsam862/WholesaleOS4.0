@@ -10,9 +10,7 @@ import { storage } from "./storage";
 
 // Check if Replit Auth is enabled and configured
 // Default to enabled if REPL_ID is present, even if ENABLE_REPLIT_AUTH is not explicitly set
-const isReplitAuthEnabled = (process.env.ENABLE_REPLIT_AUTH === 'true' || !!process.env.REPL_ID) && 
-                            !!process.env.REPL_ID && 
-                            !!process.env.REPLIT_DOMAINS;
+const isReplitAuthEnabled = process.env.ENABLE_REPLIT_AUTH === 'true';
 
 if (!process.env.REPLIT_DOMAINS) {
   console.warn("⚠️  REPLIT_DOMAINS not set - Replit Auth will be disabled");
@@ -173,8 +171,7 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Only set up Replit Auth if enabled
-  if (!isReplitAuthEnabled) {
+  if (!isReplitAuthEnabled || !process.env.REPL_ID || !process.env.REPLIT_DOMAINS) {
     console.log("ℹ️  Replit Auth disabled - using local auth only");
     // Set up basic passport serialization for local auth
     passport.serializeUser((user: Express.User, cb) => cb(null, user));
@@ -210,7 +207,7 @@ export async function setupAuth(app: Express) {
     }
   };
 
-  const domains = process.env.REPLIT_DOMAINS!.split(",");
+  const domains = (process.env.REPLIT_DOMAINS || "localhost").split(",");
   
   // In development, ensure localhost is included
   if (process.env.NODE_ENV === "development" && !domains.includes("localhost")) {

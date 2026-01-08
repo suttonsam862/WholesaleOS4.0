@@ -39,3 +39,6 @@ integrations = ["javascript_log_in_with_replit:1.0.0", "javascript_openai_ai_int
 
 [userenv.production]
 PORT = "5000"
+
+[userenv.shared]
+ENABLE_REPLIT_AUTH = "true"
