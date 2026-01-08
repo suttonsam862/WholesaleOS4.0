@@ -37,6 +37,7 @@ const OrdersList = lazy(() => import("@/pages/orders-list"));
 const OrderDetail = lazy(() => import("@/pages/order-detail"));
 const OrdersLegacy = lazy(() => import("@/pages/orders"));
 const ManufacturingHub = lazy(() => import("@/pages/manufacturing-hub"));
+const ManufacturingList = lazy(() => import("@/pages/manufacturing-list"));
 const Manufacturing = lazy(() => import("@/pages/manufacturing"));
 const TeamStoresHub = lazy(() => import("@/pages/team-stores-hub"));
 const TeamStores = lazy(() => import("@/pages/team-stores"));
@@ -187,7 +188,8 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/orders/:id", title: "Order Detail", component: OrderDetail, requiresAuth: true, requiresLayout: false, resource: "orders" },
   { path: "/orders/legacy", title: "Orders (Legacy)", component: OrdersLegacy, requiresAuth: true, requiresLayout: true, resource: "orders" },
   { path: "/manufacturing", title: "Manufacturing Hub", component: ManufacturingHub, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
-  { path: "/manufacturing/list", title: "Manufacturing List", component: Manufacturing, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
+  { path: "/manufacturing/list", title: "Manufacturing List", component: ManufacturingList, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
+  { path: "/manufacturing/board", title: "Manufacturing Board", component: Manufacturing, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
   { path: "/manufacturing/actions", title: "Manufacturing Actions", component: ManufacturingActions, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
   { path: "/manufacturing/actions/:actionId", title: "Manufacturing Action", component: ManufacturingActionDetail, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
   { path: "/team-stores", title: "Team Stores Hub", component: TeamStoresHub, requiresAuth: true, requiresLayout: true, resource: "teamStores" },

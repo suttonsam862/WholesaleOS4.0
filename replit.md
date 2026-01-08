@@ -169,3 +169,23 @@ Simplified the manufacturing pages for non-technical manufacturer role users.
 **Removed Unnecessary Cache Invalidations**:
 - Cleaned up `/api/manufacturing` cache invalidations from manufacturer-portal.tsx and manufacturer-job-detail.tsx
 - These were attempting to invalidate endpoints that manufacturer role cannot access
+
+### Manufacturing Hub & List UX Update (January 2026)
+Redesigned manufacturing pages to match orders-hub/orders-list pattern per user preference for list-based views over column/board layouts.
+
+**Manufacturing Hub** (`client/src/pages/manufacturing-hub.tsx`):
+- Added "All Items" aggregate card at the beginning of the pipeline
+- Derived pipeline stages from MANUFACTURING_STATUS_CONFIG for status consistency
+- Matches orders-hub styling with pipeline cards and navigation
+
+**Manufacturing List** (`client/src/pages/manufacturing-list.tsx`):
+- Simple list view (no column/board layout) matching orders-list.tsx pattern
+- Navigates to order detail page (/orders/:id) instead of using modal
+- Role-based filtering: Sales users only see manufacturing for their assigned orders
+- Status filter dropdown using MANUFACTURING_STATUS_CONFIG keys
+
+**Route Updates** (`client/src/lib/routesConfig.ts`):
+- /manufacturing/list uses new list component
+- Board view moved to /manufacturing/board
+
+**Architecture Note**: Manufacturing records are linked to orders. Clicking on a manufacturing record navigates to the associated order detail page which contains the Manufacturing tab with full context.
