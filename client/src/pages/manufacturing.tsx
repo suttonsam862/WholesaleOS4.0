@@ -64,7 +64,7 @@ import { format } from "date-fns";
 import type { Manufacturing, Order } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import { PantonePicker } from "@/components/manufacturing/pantone-picker";
-import { ManufacturingDetailModal } from "@/components/modals/manufacturing-detail-modal";
+import { ManufacturingCapsule } from "@/components/ManufacturingCapsule";
 import { CreateManufacturingModal } from "@/components/modals/create-manufacturing-modal";
 import { DataCapsule } from "@/components/DataCapsule";
 import { OrgLogo } from "@/components/ui/org-logo";
@@ -757,16 +757,14 @@ export default function Manufacturing() {
         onClose={() => setIsCreateModalOpen(false)}
       />
 
-      {selectedManufacturing && (
-        <ManufacturingDetailModal
-          isOpen={isDetailModalOpen}
-          onClose={() => {
-            setIsDetailModalOpen(false);
-            setSelectedManufacturing(null);
-          }}
-          manufacturingUpdate={selectedManufacturing}
-        />
-      )}
+      <ManufacturingCapsule
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedManufacturing(null);
+        }}
+        manufacturingId={selectedManufacturing?.id || null}
+      />
 
       <DataCapsule
         isOpen={isQuickViewOpen && quickViewRecord !== null}
