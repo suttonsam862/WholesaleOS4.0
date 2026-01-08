@@ -175,7 +175,6 @@ export default function ManufacturerPortal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/manufacturer-portal/jobs"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/manufacturing"] });
       toast({ title: "Status updated", description: "Job status has been updated successfully." });
       setPendingStatus(null);
       setStatusChangeNotes("");

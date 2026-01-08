@@ -135,10 +135,10 @@ export default function ManufacturerQueue() {
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link href="/manufacturer-portal">
+            <Link href="/manufacturer/home">
               <Button variant="ghost" size="sm" className="text-white/60 hover:text-white" data-testid="button-back">
                 <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Portal
+                Back to Home
               </Button>
             </Link>
             <div>
