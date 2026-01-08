@@ -2692,7 +2692,6 @@ function DesignModule({ designJobs, order, onDesignJobsChange, users = [] }: { d
     job.jobCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     job.brief?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     job.status?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    job.organization?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     job.organization?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
