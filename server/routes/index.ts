@@ -34,6 +34,7 @@ import { registerFinancialMatchingRoutes } from "./financial-matching.routes";
 import { registerManufacturerPortalRoutes } from "./manufacturer-portal.routes";
 import { registerRequestsRoutes } from "./requests.routes";
 import { registerAIRoutes } from "./ai.routes";
+import { registerManufacturingNotesRoutes, seedDefaultManufacturingNoteCategories } from "./manufacturing-notes.routes";
 import salesMapRoutes from "./sales-map.routes";
 
 import { csrfProtection } from '../middleware/csrf.middleware';
@@ -87,6 +88,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.error('❌ Error checking/seeding permissions:', error);
   }
 
+  // Seed default manufacturing note categories if needed
+  await seedDefaultManufacturingNoteCategories();
+
   // Register health check routes (BEFORE auth - no authentication required)
   registerHealthRoutes(app);
   
@@ -119,6 +123,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerManufacturerPortalRoutes(app);
   registerRequestsRoutes(app);
   registerAIRoutes(app);
+  registerManufacturingNotesRoutes(app);
   
   // Sales Map routes (mounted as router)
   app.use("/api/sales-map", salesMapRoutes);

@@ -221,6 +221,10 @@ import {
   tourMerchBundles,
   type TourMerchBundle,
   type InsertTourMerchBundle,
+  manufacturingNoteCategories,
+  type ManufacturingNoteCategory,
+  type InsertManufacturingNoteCategory,
+  type ManufacturingNote,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, like, or, and, sql, count, getTableColumns, gte, lte, lt, inArray, isNotNull, isNull } from "drizzle-orm";
@@ -795,6 +799,13 @@ export interface IStorage {
   getPrintfulSyncRecordByOrderId(orderId: number): Promise<PrintfulSyncRecord | undefined>;
   createPrintfulSyncRecord(record: InsertPrintfulSyncRecord): Promise<PrintfulSyncRecord>;
   updatePrintfulSyncRecord(id: number, record: Partial<InsertPrintfulSyncRecord>): Promise<PrintfulSyncRecord>;
+
+  // Manufacturing Note Category operations
+  getManufacturingNoteCategories(): Promise<ManufacturingNoteCategory[]>;
+  getManufacturingNoteCategory(id: number): Promise<ManufacturingNoteCategory | undefined>;
+  createManufacturingNoteCategory(category: InsertManufacturingNoteCategory): Promise<ManufacturingNoteCategory>;
+  updateManufacturingNoteCategory(id: number, category: Partial<InsertManufacturingNoteCategory>): Promise<ManufacturingNoteCategory>;
+  deleteManufacturingNoteCategory(id: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1488,7 +1499,7 @@ export class DatabaseStorage implements IStorage {
           const [createdLineItem] = await tx.insert(orderLineItems).values({
             ...lineItem,
             orderId: createdOrder.id,
-          }).returning();
+          } as any).returning();
           createdLineItems.push(createdLineItem);
 
           // Auto-assign manufacturer from variant's defaultManufacturerId if it exists
@@ -1847,7 +1858,7 @@ export class DatabaseStorage implements IStorage {
   async updateOrderLineItem(id: number, lineItem: Partial<InsertOrderLineItem>): Promise<OrderLineItem> {
     const [updated] = await db
       .update(orderLineItems)
-      .set({ ...lineItem, updatedAt: new Date() })
+      .set({ ...lineItem, updatedAt: new Date() } as any)
       .where(eq(orderLineItems.id, id))
       .returning();
     return updated;
@@ -6252,6 +6263,48 @@ export class DatabaseStorage implements IStorage {
       .returning();
     if (!updated) throw new Error(`Printful sync record with id ${id} not found`);
     return updated;
+  }
+
+  // Manufacturing Note Category operations
+  async getManufacturingNoteCategories(): Promise<ManufacturingNoteCategory[]> {
+    return await db
+      .select()
+      .from(manufacturingNoteCategories)
+      .where(eq(manufacturingNoteCategories.isActive, true))
+      .orderBy(asc(manufacturingNoteCategories.sortOrder), asc(manufacturingNoteCategories.name));
+  }
+
+  async getManufacturingNoteCategory(id: number): Promise<ManufacturingNoteCategory | undefined> {
+    const [category] = await db
+      .select()
+      .from(manufacturingNoteCategories)
+      .where(eq(manufacturingNoteCategories.id, id));
+    return category;
+  }
+
+  async createManufacturingNoteCategory(category: InsertManufacturingNoteCategory): Promise<ManufacturingNoteCategory> {
+    const [created] = await db
+      .insert(manufacturingNoteCategories)
+      .values(category as any)
+      .returning();
+    return created;
+  }
+
+  async updateManufacturingNoteCategory(id: number, category: Partial<InsertManufacturingNoteCategory>): Promise<ManufacturingNoteCategory> {
+    const [updated] = await db
+      .update(manufacturingNoteCategories)
+      .set({ ...category, updatedAt: new Date() })
+      .where(eq(manufacturingNoteCategories.id, id))
+      .returning();
+    if (!updated) throw new Error(`Manufacturing note category with id ${id} not found`);
+    return updated;
+  }
+
+  async deleteManufacturingNoteCategory(id: number): Promise<void> {
+    await db
+      .update(manufacturingNoteCategories)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(manufacturingNoteCategories.id, id));
   }
 }
 

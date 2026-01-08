@@ -425,6 +425,31 @@ export const orderLineItems = pgTable("order_line_items", {
   qtyTotal: integer("qty_total").generatedAlwaysAs(sql`yxs + ys + ym + yl + xs + s + m + l + xl + xxl + xxxl + xxxxl`),
   lineTotal: decimal("line_total", { precision: 10, scale: 2 }).generatedAlwaysAs(sql`unit_price * (yxs + ys + ym + yl + xs + s + m + l + xl + xxl + xxxl + xxxxl)`),
   notes: text("notes"),
+  manufacturingNotes: jsonb("manufacturing_notes").$type<ManufacturingNote[]>().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Manufacturing Note type for order line items
+export interface ManufacturingNote {
+  id: string;
+  categoryId: number;
+  categoryName: string;
+  note: string;
+  createdAt: string;
+  createdBy: string;
+  createdByName: string;
+}
+
+// Manufacturing Note Categories - admin-configurable categories for notes
+export const manufacturingNoteCategories = pgTable("manufacturing_note_categories", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  color: varchar("color").default("#6366f1"),
+  icon: varchar("icon").default("MessageSquare"),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -2241,6 +2266,18 @@ export const insertQuoteLineItemSchema = createInsertSchema(quoteLineItems, {
   unitPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid price"),
 }).omit({ quoteId: true }); // Exclude quoteId since it's assigned when creating the quote
 
+export const insertManufacturingNoteCategorySchema = createInsertSchema(manufacturingNoteCategories).omit({
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  name: z.string().min(1, "Category name is required"),
+  description: z.string().optional().nullable(),
+  color: z.string().optional().nullable(),
+  icon: z.string().optional().nullable(),
+  isActive: z.boolean().optional().nullable(),
+  sortOrder: z.number().int().optional().nullable(),
+});
+
 export const insertUserManufacturerAssociationSchema = createInsertSchema(userManufacturerAssociations, {
   userId: z.string().min(1, "User ID is required"),
   manufacturerId: z.number().int().positive("Manufacturer ID is required"),
@@ -2368,6 +2405,8 @@ export type Quote = typeof quotes.$inferSelect;
 export type InsertQuote = z.infer<typeof insertQuoteSchema>;
 export type QuoteLineItem = typeof quoteLineItems.$inferSelect;
 export type InsertQuoteLineItem = z.infer<typeof insertQuoteLineItemSchema>;
+export type ManufacturingNoteCategory = typeof manufacturingNoteCategories.$inferSelect;
+export type InsertManufacturingNoteCategory = z.infer<typeof insertManufacturingNoteCategorySchema>;
 export type UserManufacturerAssociation = typeof userManufacturerAssociations.$inferSelect;
 export type InsertUserManufacturerAssociation = z.infer<typeof insertUserManufacturerAssociationSchema>;
 export type Invitation = typeof invitations.$inferSelect;
