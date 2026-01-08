@@ -142,3 +142,30 @@ Fixed cache invalidation "drift" across all CRUD operations by standardizing que
 - `salesperson-action-panel.tsx`, `salesperson-workflow-dashboard.tsx` - 4 fixes
 
 **Best Practice**: Always use array segment format for React Query keys to ensure cache invalidation works correctly with prefix matching.
+
+### Manufacturer Role UX Simplification (January 2026)
+Simplified the manufacturing pages for non-technical manufacturer role users.
+
+**Query Errors Fixed** (`client/src/pages/manufacturer-home.tsx`):
+- Removed unused `/api/manufacturing` query that caused 403 errors for manufacturer role users
+- Manufacturer pages now only use `/api/manufacturer-portal/*` endpoints which are scoped to their permissions
+
+**Navigation Improvements** (`client/src/pages/manufacturer-queue.tsx`, `manufacturer-job-detail.tsx`):
+- All back buttons now consistently navigate to `/manufacturer/home`
+- Removed confusing navigation to `/manufacturer-portal` which was a different view
+- Clear, consistent navigation flow: Home → Queue → Job Detail → Home
+
+**Large CTAs for Non-Tech Users** (`client/src/pages/manufacturer-job-detail.tsx`):
+- Action buttons now 64px tall with full color backgrounds
+- Grid layout (1-2 columns) for clear visibility
+- Larger icons (w-6 h-6) and text (text-lg font-semibold)
+- Active state with scale transform for touch feedback
+- Improved "Job Complete" state with green success styling
+
+**Type Fixes** (`server/routes/manufacturer-portal.routes.ts`):
+- Fixed userId type from number to string for manufacturer associations
+- Fixed printMethod null vs undefined type mismatch
+
+**Removed Unnecessary Cache Invalidations**:
+- Cleaned up `/api/manufacturing` cache invalidations from manufacturer-portal.tsx and manufacturer-job-detail.tsx
+- These were attempting to invalidate endpoints that manufacturer role cannot access
