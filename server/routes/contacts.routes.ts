@@ -3,7 +3,7 @@ import { storage } from "../storage";
 import { db } from "../db";
 import { leads, quotes } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
+import { isAuthenticated, loadUserData, requirePermission, requirePermissionOr, type AuthenticatedRequest } from "./shared/middleware";
 import { insertContactSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -112,7 +112,7 @@ export function registerContactRoutes(app: Express): void {
   });
 
   // Organization-specific contact routes
-  app.get('/api/organizations/:id/contacts', isAuthenticated, loadUserData, requirePermission('contacts', 'read'), async (req, res) => {
+  app.get('/api/organizations/:id/contacts', isAuthenticated, loadUserData, requirePermissionOr({ resource: 'contacts', permission: 'read' }, { resource: 'manufacturing', permission: 'read' }), async (req, res) => {
     try {
       const orgId = parseInt(req.params.id);
       const contacts = await storage.getContactsByOrganization(orgId);
@@ -123,7 +123,7 @@ export function registerContactRoutes(app: Express): void {
     }
   });
 
-  app.get('/api/organizations/:id/contacts/customers', isAuthenticated, loadUserData, requirePermission('contacts', 'read'), async (req, res) => {
+  app.get('/api/organizations/:id/contacts/customers', isAuthenticated, loadUserData, requirePermissionOr({ resource: 'contacts', permission: 'read' }, { resource: 'manufacturing', permission: 'read' }), async (req, res) => {
     try {
       const orgId = parseInt(req.params.id);
       const customers = await storage.getCustomerContactsByOrganization(orgId);

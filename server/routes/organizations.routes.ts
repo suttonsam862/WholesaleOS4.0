@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../storage";
-import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
+import { isAuthenticated, loadUserData, requirePermission, requirePermissionOr, type AuthenticatedRequest } from "./shared/middleware";
 import { insertOrganizationSchema } from "@shared/schema";
 import { z } from "zod";
 import { geocodeUSCity } from "../utils/geocoding";
@@ -61,7 +61,7 @@ export function registerOrganizationRoutes(app: Express): void {
     }
   });
 
-  app.get('/api/organizations/:id', isAuthenticated, loadUserData, requirePermission('organizations', 'read'), async (req, res) => {
+  app.get('/api/organizations/:id', isAuthenticated, loadUserData, requirePermissionOr({ resource: 'organizations', permission: 'read' }, { resource: 'manufacturing', permission: 'read' }), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const organization = await storage.getOrganization(id);

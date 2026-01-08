@@ -125,14 +125,16 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
 
       <div className="w-[1px] h-8 bg-white/10 mx-1 self-center" />
 
-      <DockGroupItem
-        mouseX={mouseX}
-        href="/settings"
-        icon={Settings}
-        label="Settings"
-        isActive={location === "/settings" || location.startsWith("/settings/")}
-        testId="dock-settings"
-      />
+      {user?.role !== 'manufacturer' && (
+        <DockGroupItem
+          mouseX={mouseX}
+          href="/settings"
+          icon={Settings}
+          label="Settings"
+          isActive={location === "/settings" || location.startsWith("/settings/")}
+          testId="dock-settings"
+        />
+      )}
 
       <Popover open={isMoreOpen} onOpenChange={setIsMoreOpen}>
         <PopoverTrigger asChild>
@@ -210,20 +212,22 @@ export function FloatingDock({ onSearchClick, user }: FloatingDockProps) {
                   );
                 })}
 
-                <Link href="/settings" onClick={() => setIsMoreOpen(false)}>
-                  <div
-                    className={cn(
-                      "flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all overflow-hidden",
-                      location === "/settings" || location.startsWith("/settings/")
-                        ? "bg-neon-blue/20 text-neon-blue border border-neon-blue/30"
-                        : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
-                    )}
-                    data-testid="more-settings"
-                  >
-                    <Settings className="w-5 h-5" />
-                    <span className="text-xs font-medium truncate px-1 max-w-full">Settings</span>
-                  </div>
-                </Link>
+                {user?.role !== 'manufacturer' && (
+                  <Link href="/settings" onClick={() => setIsMoreOpen(false)}>
+                    <div
+                      className={cn(
+                        "flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all overflow-hidden",
+                        location === "/settings" || location.startsWith("/settings/")
+                          ? "bg-neon-blue/20 text-neon-blue border border-neon-blue/30"
+                          : "bg-white/5 text-white/70 hover:bg-white/10 hover:text-white"
+                      )}
+                      data-testid="more-settings"
+                    >
+                      <Settings className="w-5 h-5" />
+                      <span className="text-xs font-medium truncate px-1 max-w-full">Settings</span>
+                    </div>
+                  </Link>
+                )}
               </div>
 
               <div className="border-t border-white/10 pt-4 space-y-3">

@@ -69,14 +69,25 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, onOpen
   const [, setLocation] = useLocation();
   const { isEnabled } = useFeatureFlags();
   const enableRoleHome = isEnabled("enableRoleHome");
+  const { user } = useAuth();
 
   const filteredPages = useMemo(() => {
     if (searchQuery.length < 2) return [];
     const query = searchQuery.toLowerCase();
-    return NAV_PAGES.filter(page => 
+    
+    // Role-based filtering for search results
+    const allowedPages = NAV_PAGES.filter(page => {
+      if (user?.role === 'manufacturer') {
+        const restricted = ["Leads", "Salespeople", "Designer Management", "Manufacturer Management", "Finance", "User Management", "Permissions", "Settings"];
+        return !restricted.includes(page.name);
+      }
+      return true;
+    });
+
+    return allowedPages.filter(page => 
       page.name.toLowerCase().includes(query)
     );
-  }, [searchQuery]);
+  }, [searchQuery, user?.role]);
 
   const handleResultClick = (type: string, id?: number, href?: string) => {
     setShowSearchResults(false);
@@ -146,7 +157,7 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, onOpen
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onOpenQuickCreate]);
 
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { toast } = useToast();
 
   if (!isAuthenticated || !user) {
@@ -351,7 +362,7 @@ export function Header({ title, onOpenQuickCreate, onToggleMobileSidebar, onOpen
               data-testid="button-go-to-home"
             >
               <Home className="h-4 w-4 mr-2" />
-              Home
+              {user.role === 'admin' ? 'Admin' : 'Home'}
             </Button>
           )}
 

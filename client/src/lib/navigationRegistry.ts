@@ -110,7 +110,9 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 101,
     sortOrderInGroup: 2,
-    resourceKey: "leads"
+    resourceKey: "leads",
+    roles: ["admin", "sales", "ops"],
+    pageVisibleByRole: { admin: true, sales: true, ops: true }
   },
   {
     id: "leads-list",
@@ -120,7 +122,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 102,
     sortOrderInGroup: 3,
-    resourceKey: "leads"
+    resourceKey: "leads",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "leads-actions",
@@ -130,7 +133,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 103,
     sortOrderInGroup: 4,
-    resourceKey: "leads"
+    resourceKey: "leads",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "completed-leads",
@@ -140,7 +144,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 104,
     sortOrderInGroup: 5,
-    resourceKey: "leads"
+    resourceKey: "leads",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "organizations-hub",
@@ -150,7 +155,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 110,
     sortOrderInGroup: 10,
-    resourceKey: "organizations"
+    resourceKey: "organizations",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "organizations-list",
@@ -160,7 +166,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 111,
     sortOrderInGroup: 11,
-    resourceKey: "organizations"
+    resourceKey: "organizations",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "organizations-actions",
@@ -170,7 +177,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 112,
     sortOrderInGroup: 12,
-    resourceKey: "organizations"
+    resourceKey: "organizations",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "contacts-hub",
@@ -180,7 +188,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 120,
     sortOrderInGroup: 20,
-    resourceKey: "contacts"
+    resourceKey: "contacts",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "contacts-list",
@@ -190,7 +199,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 121,
     sortOrderInGroup: 21,
-    resourceKey: "contacts"
+    resourceKey: "contacts",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "contacts-actions",
@@ -200,7 +210,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 122,
     sortOrderInGroup: 22,
-    resourceKey: "contacts"
+    resourceKey: "contacts",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "sales-tracker",
@@ -221,7 +232,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 140,
     sortOrderInGroup: 40,
-    resourceKey: "salespeople"
+    resourceKey: "salespeople",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "salespeople-list",
@@ -231,7 +243,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 141,
     sortOrderInGroup: 41,
-    resourceKey: "salespeople"
+    resourceKey: "salespeople",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "events-hub",
@@ -241,7 +254,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 150,
     sortOrderInGroup: 50,
-    resourceKey: "events"
+    resourceKey: "events",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "events-list",
@@ -251,7 +265,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 151,
     sortOrderInGroup: 51,
-    resourceKey: "events"
+    resourceKey: "events",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "events-actions",
@@ -261,7 +276,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 152,
     sortOrderInGroup: 52,
-    resourceKey: "events"
+    resourceKey: "events",
+    roles: ["admin", "sales", "ops"]
   },
   {
     id: "notifications-hub",
@@ -616,7 +632,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 504,
     sortOrderInGroup: 5,
-    resourceKey: "catalog"
+    resourceKey: "catalog",
+    roles: ["admin", "ops"]
   },
   {
     id: "archived-products",
@@ -626,7 +643,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 505,
     sortOrderInGroup: 6,
-    resourceKey: "catalog"
+    resourceKey: "catalog",
+    roles: ["admin", "ops"]
   },
   {
     id: "archived-variants",
@@ -636,7 +654,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 506,
     sortOrderInGroup: 7,
-    resourceKey: "catalog"
+    resourceKey: "catalog",
+    roles: ["admin", "ops"]
   },
   {
     id: "fabric-management-hub",
@@ -646,7 +665,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 510,
     sortOrderInGroup: 10,
-    resourceKey: "catalog"
+    resourceKey: "catalog",
+    roles: ["admin", "ops"]
   },
   {
     id: "fabric-management-list",
@@ -656,7 +676,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 511,
     sortOrderInGroup: 11,
-    resourceKey: "catalog"
+    resourceKey: "catalog",
+    roles: ["admin", "ops"]
   },
 
   // ============ Finance & Reporting Group ============
@@ -668,7 +689,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: true,
     sortOrderGlobal: 600,
     sortOrderInGroup: 1,
-    resourceKey: "finance"
+    resourceKey: "finance",
+    roles: ["admin", "ops"]
   },
   {
     id: "finance-overview",
@@ -678,7 +700,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 601,
     sortOrderInGroup: 2,
-    resourceKey: "finance"
+    resourceKey: "finance",
+    roles: ["admin", "ops"]
   },
   {
     id: "finance-invoices",
@@ -688,7 +711,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 602,
     sortOrderInGroup: 3,
-    resourceKey: "finance"
+    resourceKey: "finance",
+    roles: ["admin", "ops"]
   },
   {
     id: "finance-payments",
@@ -698,7 +722,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 603,
     sortOrderInGroup: 4,
-    resourceKey: "finance"
+    resourceKey: "finance",
+    roles: ["admin", "ops"]
   },
   {
     id: "finance-commissions",
@@ -708,7 +733,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 604,
     sortOrderInGroup: 5,
-    resourceKey: "finance"
+    resourceKey: "finance",
+    roles: ["admin", "ops"]
   },
   {
     id: "finance-matching",
@@ -718,7 +744,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 605,
     sortOrderInGroup: 6,
-    resourceKey: "finance"
+    resourceKey: "finance",
+    roles: ["admin", "ops"]
   },
   {
     id: "finance-expenses",
@@ -728,7 +755,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 606,
     sortOrderInGroup: 7,
-    resourceKey: "finance"
+    resourceKey: "finance",
+    roles: ["admin", "ops"]
   },
   {
     id: "finance-legacy",
@@ -739,7 +767,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     sortOrderGlobal: 607,
     sortOrderInGroup: 8,
     resourceKey: "finance",
-    hideFromMoreMenu: true
+    hideFromMoreMenu: true,
+    roles: ["admin", "ops"]
   },
   {
     id: "sales-analytics",
@@ -795,7 +824,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 710,
     sortOrderInGroup: 10,
-    resourceKey: "designerManagement"
+    resourceKey: "designerManagement",
+    roles: ["admin", "ops"]
   },
   {
     id: "designer-management-list",
@@ -805,7 +835,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 711,
     sortOrderInGroup: 11,
-    resourceKey: "designerManagement"
+    resourceKey: "designerManagement",
+    roles: ["admin", "ops"]
   },
   {
     id: "manufacturer-management-hub",
@@ -815,7 +846,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 720,
     sortOrderInGroup: 20,
-    resourceKey: "manufacturerManagement"
+    resourceKey: "manufacturerManagement",
+    roles: ["admin", "ops"]
   },
   {
     id: "manufacturer-management-list",
@@ -825,7 +857,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 721,
     sortOrderInGroup: 21,
-    resourceKey: "manufacturerManagement"
+    resourceKey: "manufacturerManagement",
+    roles: ["admin", "ops"]
   },
   {
     id: "permission-management",
@@ -868,7 +901,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 740,
     sortOrderInGroup: 40,
-    resourceKey: "settings"
+    resourceKey: "settings",
+    roles: ["admin", "ops"]
   },
   {
     id: "settings-account",
@@ -878,7 +912,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 741,
     sortOrderInGroup: 41,
-    resourceKey: "settings"
+    resourceKey: "settings",
+    roles: ["admin", "ops"]
   },
   {
     id: "tasks-hub",
@@ -888,7 +923,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 750,
     sortOrderInGroup: 50,
-    resourceKey: "tasks"
+    resourceKey: "tasks",
+    roles: ["admin", "ops", "sales", "designer"]
   },
   {
     id: "tasks-list",
@@ -898,7 +934,8 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
     isGroupLanding: false,
     sortOrderGlobal: 751,
     sortOrderInGroup: 51,
-    resourceKey: "tasks"
+    resourceKey: "tasks",
+    roles: ["admin", "ops", "sales", "designer"]
   },
 
   // ============ Additional Pages (Dashboard, Role Homes, Customer Portal, etc.) ============

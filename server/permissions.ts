@@ -127,8 +127,8 @@ export const PERMISSIONS = {
     // Manufacturer-specific permissions
     dashboard: { read: true, write: false },
     leads: { read: false, write: false, delete: false, viewAll: false },
-    organizations: { read: false, write: false, delete: false },
-    contacts: { read: false, write: false, delete: false },
+    organizations: { read: true, write: false, delete: false },
+    contacts: { read: true, write: false, delete: false },
     catalog: { read: true, write: false, delete: false }, // View products only
     designJobs: { read: false, write: false, delete: false, viewAll: false },
     orders: { read: true, write: false, delete: false, viewAll: false }, // Limited view
