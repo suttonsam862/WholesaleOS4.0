@@ -18,7 +18,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import * as VisuallyHidden from "@radix-ui/react-visually-hidden";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -1124,6 +1123,13 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
                     addLineItemMutation={addLineItemMutation}
                     calculateTotalQuantity={calculateTotalQuantity}
                     calculatePrice={calculatePrice}
+                    addNoteOpenFor={addNoteOpenFor}
+                    setAddNoteOpenFor={setAddNoteOpenFor}
+                    newManufacturingNote={newManufacturingNote}
+                    setNewManufacturingNote={setNewManufacturingNote}
+                    manufacturingNoteCategories={manufacturingNoteCategories}
+                    addManufacturingNoteMutation={addManufacturingNoteMutation}
+                    removeManufacturingNoteMutation={removeManufacturingNoteMutation}
                   />
                 )}
                 {activeModule === 'design' && (
@@ -1824,6 +1830,13 @@ function LineItemsModule({
   addLineItemMutation,
   calculateTotalQuantity,
   calculatePrice,
+  addNoteOpenFor,
+  setAddNoteOpenFor,
+  newManufacturingNote,
+  setNewManufacturingNote,
+  manufacturingNoteCategories,
+  addManufacturingNoteMutation,
+  removeManufacturingNoteMutation,
 }: any) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -3155,43 +3168,6 @@ function DesignModule({ designJobs, order, onDesignJobsChange, users = [] }: { d
                                 )}
                               </div>
                             </div>
-                            <button
-                              className="px-3 py-1.5 rounded-lg bg-neon-blue/20 border border-neon-blue/50 text-neon-blue text-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                attachJobMutation.mutate(job.id);
-                              }}
-                              disabled={attachJobMutation.isPending}
-                            >
-                              {attachJobMutation.isPending ? (
-                                <div className="w-4 h-4 border-2 border-neon-blue border-t-transparent rounded-full animate-spin" />
-                              ) : (
-                                <>
-                                  <Plus className="w-3 h-3" />
-                                  Attach
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </motion.div>
-                      );
-                    })
-                  ) : (
-                    <div className="text-center py-8 text-white/40">
-                      <Palette className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                      <p className="mb-2">No unattached design jobs found</p>
-                      <p className="text-sm text-white/30">
-                        {searchQuery ? 'Try a different search term' : 'All design jobs are already attached to orders'}
-                      </p>
-                      <button
-                        onClick={() => setDialogMode('create')}
-                        className="mt-4 text-neon-blue hover:underline text-sm"
-                      >
-                        Create a new design job instead
-                      </button>
-                    </div>
-                  )}
-                </div>
                             <button
                               className="px-3 py-1.5 rounded-lg bg-neon-blue/20 border border-neon-blue/50 text-neon-blue text-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
                               onClick={(e) => {
