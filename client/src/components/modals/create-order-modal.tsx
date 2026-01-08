@@ -473,7 +473,10 @@ export function CreateOrderModal({ isOpen, onClose }: CreateOrderModalProps) {
                             <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                           </GlassButton>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[400px] p-0 bg-black/90 border-white/10 backdrop-blur-xl">
+                        <PopoverContent 
+                          className="w-[400px] p-0 bg-black/90 border-white/10 backdrop-blur-xl"
+                          style={{ maxHeight: '400px' }}
+                        >
                           <Command className="bg-transparent">
                             <CommandInput
                               placeholder="Search organizations..."
@@ -481,7 +484,7 @@ export function CreateOrderModal({ isOpen, onClose }: CreateOrderModalProps) {
                               onValueChange={setOrgSearch}
                               className="text-white"
                             />
-                            <CommandList>
+                            <CommandList className="max-h-[350px] overflow-y-auto overscroll-contain">
                               <CommandEmpty>No organization found.</CommandEmpty>
                               <CommandGroup>
                                 {organizations.map((org) => (
@@ -646,7 +649,10 @@ export function CreateOrderModal({ isOpen, onClose }: CreateOrderModalProps) {
                               <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </GlassButton>
                           </PopoverTrigger>
-                          <PopoverContent className="w-[500px] p-0 bg-black/90 border-white/10 backdrop-blur-xl">
+                          <PopoverContent 
+                            className="w-[500px] p-0 bg-black/90 border-white/10 backdrop-blur-xl"
+                            style={{ maxHeight: '400px' }}
+                          >
                             <Command className="bg-transparent" shouldFilter={false}>
                               <CommandInput
                                 placeholder="Search by product name, variant, color, or category..."
@@ -655,7 +661,7 @@ export function CreateOrderModal({ isOpen, onClose }: CreateOrderModalProps) {
                                 className="text-white"
                                 data-testid="input-variant-search"
                               />
-                              <CommandList className="max-h-[300px] overflow-y-auto">
+                              <CommandList className="max-h-[350px] overflow-y-auto overscroll-contain">
                                 <CommandEmpty>No products found.</CommandEmpty>
                                 <CommandGroup>
                                   {filteredVariants.map((variant) => {
