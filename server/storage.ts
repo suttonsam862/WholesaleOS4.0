@@ -225,6 +225,9 @@ import {
   type ManufacturingNoteCategory,
   type InsertManufacturingNoteCategory,
   type ManufacturingNote,
+  manufacturingFinishedImages,
+  type ManufacturingFinishedImage,
+  type InsertManufacturingFinishedImage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, like, or, and, sql, count, getTableColumns, gte, lte, lt, inArray, isNotNull, isNull } from "drizzle-orm";
@@ -393,6 +396,12 @@ export interface IStorage {
   createManufacturingAttachment(attachment: InsertManufacturingAttachment): Promise<ManufacturingAttachment>;
   updateManufacturingAttachment(id: number, attachment: Partial<InsertManufacturingAttachment>): Promise<ManufacturingAttachment>;
   deleteManufacturingAttachment(id: number): Promise<void>;
+
+  // Manufacturing Finished Images operations
+  getFinishedImages(lineItemId: number): Promise<ManufacturingFinishedImage[]>;
+  createFinishedImage(image: InsertManufacturingFinishedImage): Promise<ManufacturingFinishedImage>;
+  deleteFinishedImage(id: number): Promise<void>;
+  getFinishedImage(id: number): Promise<ManufacturingFinishedImage | undefined>;
 
   // Order Line Item Manufacturer operations
   getLineItemManufacturers(lineItemId: number): Promise<(OrderLineItemManufacturer & { manufacturer?: Manufacturer })[]>;
@@ -2596,6 +2605,32 @@ export class DatabaseStorage implements IStorage {
 
   async deleteManufacturingAttachment(id: number): Promise<void> {
     await db.delete(manufacturingAttachments).where(eq(manufacturingAttachments.id, id));
+  }
+
+  // Manufacturing Finished Images operations
+  async getFinishedImages(lineItemId: number): Promise<ManufacturingFinishedImage[]> {
+    return await db
+      .select()
+      .from(manufacturingFinishedImages)
+      .where(eq(manufacturingFinishedImages.manufacturingUpdateLineItemId, lineItemId))
+      .orderBy(desc(manufacturingFinishedImages.uploadedAt));
+  }
+
+  async createFinishedImage(image: InsertManufacturingFinishedImage): Promise<ManufacturingFinishedImage> {
+    const [created] = await db.insert(manufacturingFinishedImages).values(image).returning();
+    return created;
+  }
+
+  async deleteFinishedImage(id: number): Promise<void> {
+    await db.delete(manufacturingFinishedImages).where(eq(manufacturingFinishedImages.id, id));
+  }
+
+  async getFinishedImage(id: number): Promise<ManufacturingFinishedImage | undefined> {
+    const [result] = await db
+      .select()
+      .from(manufacturingFinishedImages)
+      .where(eq(manufacturingFinishedImages.id, id));
+    return result;
   }
 
   // Production Schedule operations

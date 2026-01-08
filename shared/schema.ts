@@ -684,6 +684,18 @@ export const manufacturingUpdateLineItems = pgTable("manufacturing_update_line_i
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// Manufacturing Finished Images - stores finished product photos per line item
+export const manufacturingFinishedImages = pgTable("manufacturing_finished_images", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  manufacturingUpdateLineItemId: integer("manufacturing_update_line_item_id").references(() => manufacturingUpdateLineItems.id, { onDelete: 'cascade' }).notNull(),
+  imageUrl: text("image_url").notNull(),
+  uploadedBy: varchar("uploaded_by").references(() => users.id).notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_finished_images_line_item").on(table.manufacturingUpdateLineItemId),
+]);
+
 // Manufacturing Batches - for batch tracking and scheduling
 export const manufacturingBatches = pgTable("manufacturing_batches", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -2106,6 +2118,13 @@ export const insertManufacturingUpdateLineItemSchema = createInsertSchema(manufa
   descriptors: z.array(z.string()).optional(),
 });
 
+export const insertManufacturingFinishedImageSchema = createInsertSchema(manufacturingFinishedImages, {
+  imageUrl: z.string().min(1, "Image URL is required"),
+}).omit({
+  createdAt: true,
+  uploadedAt: true,
+});
+
 export const insertOrderLineItemManufacturerSchema = createInsertSchema(orderLineItemManufacturers, {
   status: z.enum(["pending", "in_progress", "completed"]).optional(),
   notes: z.string().optional(),
@@ -2395,6 +2414,8 @@ export type ManufacturingUpdate = typeof manufacturingUpdates.$inferSelect;
 export type InsertManufacturingUpdate = z.infer<typeof insertManufacturingUpdateSchema>;
 export type ManufacturingUpdateLineItem = typeof manufacturingUpdateLineItems.$inferSelect;
 export type InsertManufacturingUpdateLineItem = z.infer<typeof insertManufacturingUpdateLineItemSchema>;
+export type ManufacturingFinishedImage = typeof manufacturingFinishedImages.$inferSelect;
+export type InsertManufacturingFinishedImage = z.infer<typeof insertManufacturingFinishedImageSchema>;
 export type OrderLineItemManufacturer = typeof orderLineItemManufacturers.$inferSelect;
 export type InsertOrderLineItemManufacturer = z.infer<typeof insertOrderLineItemManufacturerSchema>;
 export type OrderLineItem = typeof orderLineItems.$inferSelect;

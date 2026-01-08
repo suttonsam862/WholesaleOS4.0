@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
 import PANTONE_COLORS from "@/data/pantone-colors.json";
 
@@ -88,6 +89,7 @@ export function PantonePicker({
   const [usageLocation, setUsageLocation] = useState<PantoneAssignment["usageLocation"]>("main_body");
   const [usageNotes, setUsageNotes] = useState("");
   const [pantoneType, setPantoneType] = useState<"C" | "TCX">("C");
+  const [stepDistance, setStepDistance] = useState(5);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
@@ -172,7 +174,7 @@ export function PantonePicker({
     setStep("confirm_match");
   };
 
-  const findMatches = (hex: string) => {
+  const findMatches = (hex: string, steps: number = stepDistance) => {
     const withDistances = (PANTONE_COLORS as PantoneColor[]).map(pantone => {
       const distance = getColorDistance(hex, pantone.hex);
       return {
@@ -183,11 +185,20 @@ export function PantonePicker({
     });
     
     const sorted = withDistances.sort((a, b) => a.distance - b.distance);
-    setMatchedPantones(sorted.slice(0, 24));
-    if (sorted.length > 0) {
-      setSelectedPantone(sorted[0]);
+    const maxDistance = steps * 15;
+    const filtered = sorted.filter(p => p.distance <= maxDistance);
+    const results = filtered.length > 0 ? filtered : sorted.slice(0, Math.max(steps, 3));
+    setMatchedPantones(results.slice(0, Math.max(steps * 3, 6)));
+    if (results.length > 0 && !selectedPantone) {
+      setSelectedPantone(results[0]);
     }
   };
+
+  useEffect(() => {
+    if (pickedColor) {
+      findMatches(pickedColor, stepDistance);
+    }
+  }, [stepDistance]);
 
   const handleConfirmAssignment = () => {
     if (!selectedPantone || !pickedColor) return;
@@ -244,6 +255,7 @@ export function PantonePicker({
                 setUsageNotes("");
                 setIsDropperActive(false);
                 setShowImageSelector(false);
+                setStepDistance(5);
               }
               else if (s.key === "pick_color" && imageSrc) setStep("pick_color");
               else if (s.key === "confirm_match" && pickedColor) setStep("confirm_match");
@@ -454,6 +466,7 @@ export function PantonePicker({
                   setUsageNotes("");
                   setIsDropperActive(false);
                   setShowImageSelector(false);
+                  setStepDistance(5);
                 }}
                 data-testid="button-back-to-images"
               >
@@ -490,26 +503,49 @@ export function PantonePicker({
 
             {pickedColor && (
               <GlassCard variant="neon" className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-14 h-14 rounded-xl border-2 border-white/20 shadow-lg"
-                      style={{ backgroundColor: pickedColor }}
-                    />
-                    <div>
-                      <p className="text-sm text-muted-foreground">Sampled Color</p>
-                      <p className="text-xl font-mono font-bold text-white">{pickedColor}</p>
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="w-14 h-14 rounded-xl border-2 border-white/20 shadow-lg"
+                        style={{ backgroundColor: pickedColor }}
+                      />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Sampled Color</p>
+                        <p className="text-xl font-mono font-bold text-white">{pickedColor}</p>
+                      </div>
                     </div>
+                    <GlassButton
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setStep("pick_color")}
+                      data-testid="button-repick-color"
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Pick Again
+                    </GlassButton>
                   </div>
-                  <GlassButton
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setStep("pick_color")}
-                    data-testid="button-repick-color"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Pick Again
-                  </GlassButton>
+                  <div className="border-t border-white/10 pt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-sm font-medium text-white flex items-center gap-2">
+                        <Layers className="w-4 h-4 text-neon-purple" />
+                        Step Distance
+                      </label>
+                      <span className="text-sm font-bold text-neon-purple">{stepDistance}</span>
+                    </div>
+                    <Slider
+                      value={[stepDistance]}
+                      onValueChange={(v) => setStepDistance(v[0])}
+                      min={1}
+                      max={10}
+                      step={1}
+                      className="w-full"
+                      data-testid="slider-step-distance"
+                    />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Adjust to show more or fewer similar Pantone colors ({matchedPantones.length} shown)
+                    </p>
+                  </div>
                 </div>
               </GlassCard>
             )}

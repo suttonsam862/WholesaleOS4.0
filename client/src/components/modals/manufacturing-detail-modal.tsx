@@ -14,8 +14,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { Order, Organization, Manufacturer, ManufacturingUpdateLineItem } from "@shared/schema";
-import { CheckCircle2, Clock, Package, Printer, Scissors, Shirt, ShipIcon, AlertCircle, Upload, Calendar, User, Building2, Phone, Mail, FileText, Trash2, DollarSign, Image as ImageIcon, Plus, X, Pencil, Archive, ArchiveRestore, Download, FileArchive, PackageCheck, Truck, RefreshCcw, Copy, Edit2, Save, ChevronRight } from "lucide-react";
+import { Order, Organization, Manufacturer, ManufacturingUpdateLineItem, ManufacturingFinishedImage } from "@shared/schema";
+import { CheckCircle2, Clock, Package, Printer, Scissors, Shirt, ShipIcon, AlertCircle, Upload, Calendar, User, Building2, Phone, Mail, FileText, Trash2, DollarSign, Image as ImageIcon, Plus, X, Pencil, Archive, ArchiveRestore, Download, FileArchive, PackageCheck, Truck, RefreshCcw, Copy, Edit2, Save, ChevronRight, StickyNote, MessageSquare, Ruler, Zap, AlertTriangle, Filter, List, LayoutGrid } from "lucide-react";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import { FullScreenImageViewer } from "@/components/FullScreenImageViewer";
 import { FabricSubmissionForm, FabricStatusIndicator } from "@/components/FabricSubmissionForm";
@@ -51,6 +51,120 @@ interface ManufacturingStageConfig {
   icon: string;
   order: number;
   allowedRoles: string[];
+}
+
+interface FinishedProductImagesProps {
+  lineItemId: number;
+  canEdit: boolean;
+  onImageClick: (url: string) => void;
+  createMutation: any;
+  deleteMutation: any;
+}
+
+function FinishedProductImages({ lineItemId, canEdit, onImageClick, createMutation, deleteMutation }: FinishedProductImagesProps) {
+  const { data: finishedImages = [], isLoading } = useQuery<ManufacturingFinishedImage[]>({
+    queryKey: ['/api/manufacturing-line-items', lineItemId, 'finished-images'],
+    queryFn: async () => {
+      const response = await fetch(`/api/manufacturing-line-items/${lineItemId}/finished-images`, {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch finished images');
+      return response.json();
+    },
+  });
+
+  return (
+    <div className="border-t pt-3 mt-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-medium flex items-center gap-1.5">
+          <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+          Finished Product Images
+        </p>
+      </div>
+      
+      {isLoading ? (
+        <div className="text-xs text-muted-foreground">Loading images...</div>
+      ) : (
+        <>
+          {finishedImages.length > 0 && (
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {finishedImages.map((image) => (
+                <div key={image.id} className="relative group">
+                  <div 
+                    className="border rounded-lg overflow-hidden cursor-pointer hover:opacity-90 transition-opacity aspect-square"
+                    onClick={() => onImageClick(image.imageUrl)}
+                  >
+                    <img
+                      src={image.imageUrl}
+                      alt="Finished product"
+                      className="w-full h-full object-cover"
+                      data-testid={`img-finished-${image.id}`}
+                    />
+                  </div>
+                  {canEdit && (
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5 p-0"
+                      onClick={() => deleteMutation.mutate({ imageId: image.id, lineItemId })}
+                      data-testid={`button-delete-finished-${image.id}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {canEdit && (
+            <ObjectUploader
+              allowedFileTypes={['image/*']}
+              onGetUploadParameters={async (file: File) => {
+                try {
+                  const response = await apiRequest("POST", "/api/upload/image", {
+                    filename: file.name,
+                    size: file.size,
+                    mimeType: file.type
+                  }) as any;
+                  (file as any).__uploadId = response.uploadId;
+                  return { 
+                    method: "PUT" as const, 
+                    url: response.uploadURL,
+                    headers: {
+                      'Content-Type': file.type
+                    }
+                  };
+                } catch (error) {
+                  console.error("Failed to get upload URL:", error);
+                  throw error;
+                }
+              }}
+              onComplete={(result) => {
+                if (result.successful?.[0]) {
+                  const file = result.successful[0] as any;
+                  const uploadId = file.__uploadId;
+                  if (uploadId) {
+                    createMutation.mutate({ lineItemId, imageUrl: uploadId });
+                  }
+                }
+              }}
+              buttonClassName="w-full"
+            >
+              <div className="flex items-center justify-center gap-2 text-xs" data-testid={`uploader-finished-${lineItemId}`}>
+                <Upload className="w-3 h-3" />
+                {finishedImages.length > 0 ? 'Add More Images' : 'Upload Finished Product'}
+              </div>
+            </ObjectUploader>
+          )}
+          
+          {!canEdit && finishedImages.length === 0 && (
+            <div className="text-xs text-muted-foreground">No finished product images</div>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate }: ManufacturingDetailModalProps) {
@@ -566,6 +680,60 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
     },
   });
 
+  // Create finished product image mutation
+  const createFinishedImageMutation = useMutation({
+    mutationFn: async ({ lineItemId, imageUrl }: { lineItemId: number; imageUrl: string }) => {
+      const response = await fetch(`/api/manufacturing-line-items/${lineItemId}/finished-images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ imageUrl }),
+      });
+      if (!response.ok) throw new Error('Failed to create finished image');
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturing-line-items', variables.lineItemId, 'finished-images'] });
+      toast({
+        title: "Success",
+        description: "Finished product image uploaded successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to upload finished product image",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete finished product image mutation
+  const deleteFinishedImageMutation = useMutation({
+    mutationFn: async ({ imageId, lineItemId }: { imageId: number; lineItemId: number }) => {
+      const response = await fetch(`/api/manufacturing-finished-images/${imageId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to delete finished image');
+      return { imageId, lineItemId };
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturing-line-items', variables.lineItemId, 'finished-images'] });
+      toast({
+        title: "Success",
+        description: "Finished product image deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete finished product image",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Create Pantone assignment mutation
   const createPantoneAssignmentMutation = useMutation({
     mutationFn: async (assignment: PantoneAssignment & { lineItemId: number }) => {
@@ -839,10 +1007,11 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
             <TabsTrigger value="lineitems" data-testid="tab-lineitems">Line Items</TabsTrigger>
-            <TabsTrigger value="documents" data-testid="tab-documents">Documents & Notes</TabsTrigger>
+            <TabsTrigger value="notes" data-testid="tab-notes">Notes</TabsTrigger>
+            <TabsTrigger value="documents" data-testid="tab-documents">Documents</TabsTrigger>
           </TabsList>
 
           <div className="flex-1 overflow-y-auto p-4">
@@ -1478,6 +1647,15 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                                 )}
                               </div>
 
+                              {/* Finished Product Images */}
+                              <FinishedProductImages 
+                                lineItemId={item.id}
+                                canEdit={canEdit}
+                                onImageClick={setFullScreenImage}
+                                createMutation={createFinishedImageMutation}
+                                deleteMutation={deleteFinishedImageMutation}
+                              />
+
                               {/* Descriptors */}
                               <div>
                                 <div className="flex items-center justify-between mb-2">
@@ -1642,6 +1820,13 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
               </Card>
             </TabsContent>
 
+            <TabsContent value="notes" className="space-y-4 mt-0">
+              <ManufacturingNotesTab
+                orderId={manufacturingUpdate?.orderId}
+                manufacturingLineItems={manufacturingLineItems}
+              />
+            </TabsContent>
+
             <TabsContent value="documents" className="space-y-4 mt-0">
               {/* Production Notes */}
               <Card className="glass-card border-white/10">
@@ -1784,6 +1969,314 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
         onClose={() => setFullScreenImage(null)}
       />
     </Dialog>
+  );
+}
+
+// Icon mapping for note categories
+const noteCategoryIconMap: Record<string, any> = {
+  Scissors,
+  Ruler,
+  Zap,
+  AlertTriangle,
+  MessageSquare,
+};
+
+interface ManufacturingNotesTabProps {
+  orderId: number | undefined;
+  manufacturingLineItems: any[];
+}
+
+function ManufacturingNotesTab({ orderId, manufacturingLineItems }: ManufacturingNotesTabProps) {
+  const [groupBy, setGroupBy] = useState<"category" | "lineItem">("category");
+  const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [filterLineItem, setFilterLineItem] = useState<number | null>(null);
+
+  // Fetch note categories
+  const { data: noteCategories = [] } = useQuery<any[]>({
+    queryKey: ['/api/manufacturing-note-categories'],
+  });
+
+  // Fetch order line items directly to get manufacturing notes
+  const { data: orderLineItems = [], isLoading } = useQuery<any[]>({
+    queryKey: ['/api/orders', orderId, 'line-items'],
+    enabled: !!orderId,
+  });
+
+  // Extract all notes from line items with line item info
+  const allNotes: Array<{
+    note: any;
+    lineItemId: number;
+    lineItemName: string;
+    variantCode: string;
+  }> = [];
+
+  orderLineItems.forEach((lineItem) => {
+    const notes = lineItem.manufacturingNotes || [];
+    const lineItemName = lineItem.itemName || `Item #${lineItem.id}`;
+    const variantCode = lineItem.variant?.variantCode || '';
+    
+    notes.forEach((note: any) => {
+      allNotes.push({
+        note,
+        lineItemId: lineItem.id,
+        lineItemName,
+        variantCode,
+      });
+    });
+  });
+
+  // Sort notes by creation date (newest first)
+  allNotes.sort((a, b) => new Date(b.note.createdAt).getTime() - new Date(a.note.createdAt).getTime());
+
+  // Apply filters
+  const filteredNotes = allNotes.filter((item) => {
+    if (filterCategory && item.note.categoryName !== filterCategory) return false;
+    if (filterLineItem && item.lineItemId !== filterLineItem) return false;
+    return true;
+  });
+
+  // Group notes based on groupBy setting
+  const groupedNotes: Record<string, typeof filteredNotes> = {};
+  
+  if (groupBy === "category") {
+    filteredNotes.forEach((item) => {
+      const key = item.note.categoryName || "Uncategorized";
+      if (!groupedNotes[key]) groupedNotes[key] = [];
+      groupedNotes[key].push(item);
+    });
+  } else {
+    filteredNotes.forEach((item) => {
+      const key = `${item.lineItemName} (${item.variantCode || 'No variant'})`;
+      if (!groupedNotes[key]) groupedNotes[key] = [];
+      groupedNotes[key].push(item);
+    });
+  }
+
+  // Get category info (color, icon) by name
+  const getCategoryInfo = (categoryName: string) => {
+    const category = noteCategories.find((c: any) => c.name === categoryName);
+    return {
+      color: category?.color || "#6366f1",
+      icon: category?.icon || "MessageSquare",
+    };
+  };
+
+  // Get unique categories for filter
+  const uniqueCategories = [...new Set(allNotes.map((n) => n.note.categoryName))].filter(Boolean);
+  
+  // Get unique line items for filter
+  const uniqueLineItems = orderLineItems.map((li) => ({
+    id: li.id,
+    name: li.itemName || `Item #${li.id}`,
+  }));
+
+  if (isLoading) {
+    return (
+      <Card className="glass-card border-white/10">
+        <CardContent className="py-8 text-center text-muted-foreground">
+          Loading notes...
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Controls: Group By Toggle and Filters */}
+      <Card className="glass-card border-white/10">
+        <CardContent className="py-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Group By Toggle */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Group by:</span>
+              <div className="flex border rounded-lg overflow-hidden">
+                <Button
+                  variant={groupBy === "category" ? "default" : "ghost"}
+                  size="sm"
+                  className="rounded-none"
+                  onClick={() => setGroupBy("category")}
+                  data-testid="button-group-by-category"
+                >
+                  <LayoutGrid className="w-4 h-4 mr-1" />
+                  Category
+                </Button>
+                <Button
+                  variant={groupBy === "lineItem" ? "default" : "ghost"}
+                  size="sm"
+                  className="rounded-none"
+                  onClick={() => setGroupBy("lineItem")}
+                  data-testid="button-group-by-lineitem"
+                >
+                  <List className="w-4 h-4 mr-1" />
+                  Line Item
+                </Button>
+              </div>
+            </div>
+
+            {/* Category Filter */}
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-muted-foreground" />
+              <Select 
+                value={filterCategory || "all"} 
+                onValueChange={(val) => setFilterCategory(val === "all" ? null : val)}
+              >
+                <SelectTrigger className="w-[180px]" data-testid="select-filter-category">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {uniqueCategories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Line Item Filter */}
+            <div className="flex items-center gap-2">
+              <Package className="w-4 h-4 text-muted-foreground" />
+              <Select 
+                value={filterLineItem?.toString() || "all"} 
+                onValueChange={(val) => setFilterLineItem(val === "all" ? null : parseInt(val))}
+              >
+                <SelectTrigger className="w-[200px]" data-testid="select-filter-lineitem">
+                  <SelectValue placeholder="All Line Items" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Line Items</SelectItem>
+                  {uniqueLineItems.map((li) => (
+                    <SelectItem key={li.id} value={li.id.toString()}>{li.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Clear Filters */}
+            {(filterCategory || filterLineItem) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setFilterCategory(null);
+                  setFilterLineItem(null);
+                }}
+                data-testid="button-clear-filters"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Clear
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notes Summary */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <StickyNote className="w-4 h-4" />
+        <span>{filteredNotes.length} note{filteredNotes.length !== 1 ? 's' : ''} found</span>
+        {allNotes.length !== filteredNotes.length && (
+          <span>(filtered from {allNotes.length} total)</span>
+        )}
+      </div>
+
+      {/* Notes Display */}
+      {filteredNotes.length === 0 ? (
+        <Card className="glass-card border-white/10">
+          <CardContent className="py-12 text-center">
+            <StickyNote className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-30" />
+            <p className="text-muted-foreground">
+              {allNotes.length === 0 
+                ? "No manufacturing notes have been added yet"
+                : "No notes match the current filters"
+              }
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {Object.entries(groupedNotes).map(([groupName, notes]) => {
+            const categoryInfo = groupBy === "category" ? getCategoryInfo(groupName) : null;
+            const CategoryIcon = categoryInfo ? (noteCategoryIconMap[categoryInfo.icon] || MessageSquare) : Package;
+            
+            return (
+              <Card key={groupName} className="glass-card border-white/10 overflow-hidden">
+                <CardHeader 
+                  className="pb-2"
+                  style={groupBy === "category" ? { borderLeft: `4px solid ${categoryInfo?.color}` } : undefined}
+                >
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <CategoryIcon 
+                      className="w-4 h-4" 
+                      style={groupBy === "category" ? { color: categoryInfo?.color } : undefined}
+                    />
+                    {groupName}
+                    <Badge variant="secondary" className="ml-2">
+                      {notes.length}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {notes.map((item, index) => {
+                    const itemCategoryInfo = getCategoryInfo(item.note.categoryName);
+                    const ItemIcon = noteCategoryIconMap[itemCategoryInfo.icon] || MessageSquare;
+                    
+                    return (
+                      <div
+                        key={item.note.id || index}
+                        className="p-3 rounded-lg bg-muted/50 border space-y-2"
+                        data-testid={`note-${item.note.id || index}`}
+                      >
+                        {/* Note Header */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Show category badge when grouped by line item */}
+                            {groupBy === "lineItem" && (
+                              <Badge 
+                                variant="outline" 
+                                className="flex items-center gap-1"
+                                style={{ borderColor: itemCategoryInfo.color, color: itemCategoryInfo.color }}
+                              >
+                                <ItemIcon className="w-3 h-3" />
+                                {item.note.categoryName}
+                              </Badge>
+                            )}
+                            
+                            {/* Show line item badge when grouped by category */}
+                            {groupBy === "category" && (
+                              <Badge variant="secondary" className="flex items-center gap-1">
+                                <Package className="w-3 h-3" />
+                                {item.lineItemName}
+                                {item.variantCode && (
+                                  <span className="text-xs opacity-70">({item.variantCode})</span>
+                                )}
+                              </Badge>
+                            )}
+                          </div>
+                          
+                          {/* Creator and Date */}
+                          <div className="text-xs text-muted-foreground text-right whitespace-nowrap">
+                            <div className="flex items-center gap-1 justify-end">
+                              <User className="w-3 h-3" />
+                              {item.note.createdByName || "Unknown"}
+                            </div>
+                            <div>
+                              {item.note.createdAt && format(new Date(item.note.createdAt), "MMM d, yyyy 'at' h:mm a")}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Note Text */}
+                        <p className="text-sm whitespace-pre-wrap">{item.note.note}</p>
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 

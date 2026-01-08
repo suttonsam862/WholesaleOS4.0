@@ -25,6 +25,8 @@ import {
   designJobs,
   userManufacturerAssociations,
   orderTrackingNumbers,
+  manufacturingFinishedImages,
+  insertManufacturingFinishedImageSchema,
 } from '@shared/schema';
 import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from './shared/middleware';
 import { stripFinancialData } from './shared/utils';
@@ -159,6 +161,121 @@ export function registerManufacturingRoutes(app: Express): void {
       }
       console.error("Error updating manufacturing update line item:", error);
       res.status(500).json({ message: "Failed to update line item" });
+    }
+  });
+
+  // Manufacturing Finished Images API
+  // Get finished images for a line item
+  app.get('/api/manufacturing-line-items/:id/finished-images', isAuthenticated, loadUserData, requirePermission('manufacturing', 'read'), async (req, res) => {
+    try {
+      const lineItemId = parseInt(req.params.id);
+      
+      if (isNaN(lineItemId)) {
+        return res.status(400).json({ message: "Invalid line item ID" });
+      }
+
+      const images = await storage.getFinishedImages(lineItemId);
+      res.json(images);
+    } catch (error) {
+      console.error("Error fetching finished images:", error);
+      res.status(500).json({ message: "Failed to fetch finished images" });
+    }
+  });
+
+  // Create a finished image record (after upload)
+  app.post('/api/manufacturing-line-items/:id/finished-images', isAuthenticated, loadUserData, requirePermission('manufacturing', 'write'), async (req, res) => {
+    try {
+      const lineItemId = parseInt(req.params.id);
+      const user = (req as AuthenticatedRequest).user.userData!;
+      
+      if (isNaN(lineItemId)) {
+        return res.status(400).json({ message: "Invalid line item ID" });
+      }
+
+      // Verify the line item exists
+      const [lineItem] = await db
+        .select()
+        .from(manufacturingUpdateLineItems)
+        .where(eq(manufacturingUpdateLineItems.id, lineItemId))
+        .limit(1);
+
+      if (!lineItem) {
+        return res.status(404).json({ message: "Line item not found" });
+      }
+
+      // Authorization check for manufacturer users
+      if (user.role === 'manufacturer') {
+        const [userManufacturer] = await db
+          .select()
+          .from(userManufacturerAssociations)
+          .where(eq(userManufacturerAssociations.userId, user.id))
+          .limit(1);
+
+        if (!userManufacturer) {
+          return res.status(403).json({ message: "Not authorized to upload images for this line item" });
+        }
+
+        // Verify manufacturer is assigned to this line item
+        const [assignment] = await db
+          .select()
+          .from(orderLineItemManufacturers)
+          .where(and(
+            eq(orderLineItemManufacturers.lineItemId, lineItem.lineItemId),
+            eq(orderLineItemManufacturers.manufacturerId, userManufacturer.manufacturerId)
+          ))
+          .limit(1);
+
+        if (!assignment) {
+          return res.status(403).json({ message: "Not authorized to upload images for this line item" });
+        }
+      }
+
+      const { imageUrl } = req.body;
+      
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        return res.status(400).json({ message: "imageUrl is required" });
+      }
+
+      const finishedImage = await storage.createFinishedImage({
+        manufacturingUpdateLineItemId: lineItemId,
+        imageUrl,
+        uploadedBy: user.id,
+      });
+
+      res.status(201).json(finishedImage);
+    } catch (error) {
+      console.error("Error creating finished image:", error);
+      res.status(500).json({ message: "Failed to create finished image" });
+    }
+  });
+
+  // Delete a finished image
+  app.delete('/api/manufacturing-finished-images/:id', isAuthenticated, loadUserData, requirePermission('manufacturing', 'write'), async (req, res) => {
+    try {
+      const imageId = parseInt(req.params.id);
+      const user = (req as AuthenticatedRequest).user.userData!;
+      
+      if (isNaN(imageId)) {
+        return res.status(400).json({ message: "Invalid image ID" });
+      }
+
+      // Get the image first to check authorization
+      const image = await storage.getFinishedImage(imageId);
+      
+      if (!image) {
+        return res.status(404).json({ message: "Finished image not found" });
+      }
+
+      // Authorization check for manufacturer users - can only delete their own uploads
+      if (user.role === 'manufacturer' && image.uploadedBy !== user.id) {
+        return res.status(403).json({ message: "Not authorized to delete this image" });
+      }
+
+      await storage.deleteFinishedImage(imageId);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting finished image:", error);
+      res.status(500).json({ message: "Failed to delete finished image" });
     }
   });
   
