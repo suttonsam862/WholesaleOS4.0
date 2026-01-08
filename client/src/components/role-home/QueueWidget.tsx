@@ -4,6 +4,7 @@ import { LucideIcon, ExternalLink, Inbox, AlertTriangle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
+import { HttpError } from "@/lib/queryClient";
 
 interface QueueColumn {
   key: string;
@@ -65,6 +66,10 @@ export function QueueWidget({
 
   const hasData = rawData.length > 0;
   const showLoading = isLoading && !hasData;
+  
+  // Treat 403 permission errors as "no access" - show empty state, not error
+  const isPermissionDenied = isError && error instanceof HttpError && error.status === 403;
+  const showError = isError && !isPermissionDenied;
 
   const data = filter ? filter(rawData) : rawData;
   const displayData = data.slice(0, maxRows);
@@ -126,7 +131,7 @@ export function QueueWidget({
                 </div>
               ))}
             </motion.div>
-          ) : isError ? (
+          ) : showError ? (
             <motion.div
               key="error"
               initial={{ opacity: 0 }}
@@ -141,7 +146,7 @@ export function QueueWidget({
                 {error instanceof Error ? error.message : "Please try again later"}
               </p>
             </motion.div>
-          ) : displayData.length === 0 ? (
+          ) : displayData.length === 0 || isPermissionDenied ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0 }}

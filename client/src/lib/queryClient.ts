@@ -308,11 +308,13 @@ export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
       // Don't show toast for 401s as they are handled by auth logic
+      // Don't show toast for 403s as they are permission-based (user doesn't have access)
       // and don't show toast if explicitly disabled for this query
       const isUnauthorized = error instanceof HttpError && error.status === 401;
+      const isForbidden = error instanceof HttpError && error.status === 403;
       const isSilent = query.meta?.silent || query.options.meta?.silent;
       
-      if (isUnauthorized || isSilent) {
+      if (isUnauthorized || isForbidden || isSilent) {
         return;
       }
 
@@ -326,7 +328,11 @@ export const queryClient = new QueryClient({
   mutationCache: new MutationCache({
     onError: (error, _variables, _context, mutation) => {
       // Don't show toast if explicitly disabled for this mutation
-      if (mutation.meta?.silent || mutation.options.meta?.silent) {
+      // Don't show toast for 403 permission errors (user simply doesn't have access)
+      const isForbidden = error instanceof HttpError && error.status === 403;
+      const isSilent = mutation.meta?.silent || mutation.options.meta?.silent;
+      
+      if (isForbidden || isSilent) {
         return;
       }
 
