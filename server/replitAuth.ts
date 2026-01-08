@@ -9,8 +9,9 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
 // Check if Replit Auth is enabled and configured
-// Default to enabled if REPL_ID is present, even if ENABLE_REPLIT_AUTH is not explicitly set
-const isReplitAuthEnabled = process.env.ENABLE_REPLIT_AUTH === 'true';
+// Auto-enable if REPL_ID and REPLIT_DOMAINS are present, or if explicitly enabled
+const isReplitAuthEnabled = process.env.ENABLE_REPLIT_AUTH === 'true' || 
+  (!!process.env.REPL_ID && !!process.env.REPLIT_DOMAINS);
 
 if (!process.env.REPLIT_DOMAINS) {
   console.warn("⚠️  REPLIT_DOMAINS not set - Replit Auth will be disabled");
