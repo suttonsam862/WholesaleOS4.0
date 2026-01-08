@@ -238,7 +238,7 @@ export default function ManufacturerJobDetail() {
               </CardHeader>
               <CardContent className="space-y-4">
                 {allowedTransitions.length > 0 ? (
-                  <div className="flex flex-wrap gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {allowedTransitions.map((transition) => {
                       const TransIcon = transition.icon;
                       return (
@@ -248,25 +248,26 @@ export default function ManufacturerJobDetail() {
                             setPendingStatus(transition.value);
                             setIsStatusDialogOpen(true);
                           }}
-                          className="flex items-center gap-2"
+                          className="flex items-center justify-center gap-3 h-16 text-lg font-semibold rounded-xl shadow-lg active:scale-[0.98] transition-transform"
                           style={{
-                            backgroundColor: `${transition.color}20`,
-                            color: transition.color,
-                            borderColor: `${transition.color}50`,
+                            backgroundColor: transition.color,
+                            color: "#fff",
+                            borderColor: transition.color,
                           }}
-                          variant="outline"
+                          variant="default"
+                          size="lg"
                           data-testid={`button-transition-${transition.value}`}
                         >
-                          <TransIcon className="w-4 h-4" />
-                          Move to {transition.label}
+                          <TransIcon className="w-6 h-6" />
+                          {transition.label}
                         </Button>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3 text-white/60">
-                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                    <span>This job has reached its final state.</span>
+                  <div className="flex items-center gap-3 p-4 bg-green-500/10 rounded-xl border border-green-500/30">
+                    <CheckCircle2 className="w-8 h-8 text-green-500" />
+                    <span className="text-white text-lg font-medium">Job Complete</span>
                   </div>
                 )}
 
