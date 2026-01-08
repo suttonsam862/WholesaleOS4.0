@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
 import { LandingHub, hubColors, type HubCardConfig } from "@/components/LandingHub";
-import { User, Bell, Laptop, Link, Shield } from "lucide-react";
+import { User, Bell, Laptop, Link, Shield, Factory } from "lucide-react";
 
 const settingsCards: HubCardConfig[] = [
   {
@@ -49,6 +49,15 @@ const settingsCards: HubCardConfig[] = [
     ...hubColors.amber,
     count: 0,
     href: "/admin/permissions",
+  },
+  {
+    id: "manufacturing-categories",
+    label: "Manufacturing Categories",
+    description: "Configure note categories for manufacturing",
+    icon: Factory,
+    ...hubColors.cyan,
+    count: 0,
+    href: "/settings/manufacturing-categories",
   },
 ];
 

@@ -94,6 +94,10 @@ import {
   Paperclip,
   Lock,
   Search,
+  Ruler,
+  Zap,
+  Tag,
+  type LucideIcon,
 } from "lucide-react";
 
 import type { StageId, UserRole } from "@/lib/ordersStageConfig";
@@ -109,6 +113,26 @@ interface OrderCapsuleProps {
   orderId: number | null;
   /** Stage context from URL - used for stage-aware defaults */
   stage?: StageId;
+}
+
+interface ManufacturingNote {
+  id: string;
+  categoryId: number;
+  categoryName: string;
+  note: string;
+  createdAt: string;
+  createdBy: string;
+  createdByName: string;
+}
+
+interface ManufacturingNoteCategory {
+  id: number;
+  name: string;
+  description: string | null;
+  color: string | null;
+  icon: string | null;
+  isActive: boolean | null;
+  sortOrder: number | null;
 }
 
 interface OrderLineItem {
@@ -134,6 +158,7 @@ interface OrderLineItem {
   qtyTotal: number;
   lineTotal: string;
   notes?: string;
+  manufacturingNotes?: ManufacturingNote[];
 }
 
 const SIZE_COLUMNS = [
@@ -162,6 +187,23 @@ const STATUS_WORKFLOW = [
   { value: "completed", label: "Completed", icon: CheckCircle2 },
   { value: "cancelled", label: "Cancelled", icon: AlertCircle },
 ];
+
+const CATEGORY_ICON_MAP: Record<string, LucideIcon> = {
+  Scissors: Scissors,
+  Ruler: Ruler,
+  Zap: Zap,
+  AlertTriangle: AlertTriangle,
+  MessageSquare: MessageSquare,
+  Package: Package,
+  Tag: Tag,
+  Factory: Factory,
+  Settings: Settings,
+  FileText: FileText,
+};
+
+function getCategoryIcon(iconName: string | null | undefined): LucideIcon {
+  return (iconName && CATEGORY_ICON_MAP[iconName]) || MessageSquare;
+}
 
 function ProgressBar({ blocks }: { blocks: ReturnType<typeof calculateProgressBlocks> }) {
   return (
@@ -400,6 +442,8 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [salespersonPopoverOpen, setSalespersonPopoverOpen] = useState(false);
+  const [addNoteOpenFor, setAddNoteOpenFor] = useState<number | null>(null);
+  const [newManufacturingNote, setNewManufacturingNote] = useState({ categoryId: "", note: "" });
 
   // Fetch order data
   const { data: order, isLoading: orderLoading } = useQuery<any>({
@@ -504,6 +548,12 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
   // Fetch users (for designer names)
   const { data: users = [] } = useQuery<any[]>({
     queryKey: ["/api/users"],
+    enabled: isOpen,
+  });
+
+  // Fetch manufacturing note categories
+  const { data: manufacturingNoteCategories = [] } = useQuery<ManufacturingNoteCategory[]>({
+    queryKey: ["/api/manufacturing-note-categories"],
     enabled: isOpen,
   });
 
@@ -664,6 +714,35 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to delete order", variant: "destructive" });
+    },
+  });
+
+  const addManufacturingNoteMutation = useMutation({
+    mutationFn: ({ lineItemId, categoryId, note }: { lineItemId: number; categoryId: number; note: string }) =>
+      apiRequest(`/api/order-line-items/${lineItemId}/manufacturing-notes`, { 
+        method: "PATCH", 
+        body: { categoryId, note } 
+      }),
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ['/api/orders', orderId, 'line-items'] });
+      toast({ title: "Success", description: "Manufacturing note added" });
+      setAddNoteOpenFor(null);
+      setNewManufacturingNote({ categoryId: "", note: "" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to add manufacturing note", variant: "destructive" });
+    },
+  });
+
+  const removeManufacturingNoteMutation = useMutation({
+    mutationFn: ({ lineItemId, noteId }: { lineItemId: number; noteId: string }) =>
+      apiRequest(`/api/order-line-items/${lineItemId}/manufacturing-notes/${noteId}`, { method: "DELETE" }),
+    onSuccess: async () => {
+      await queryClient.refetchQueries({ queryKey: ['/api/orders', orderId, 'line-items'] });
+      toast({ title: "Success", description: "Manufacturing note removed" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to remove manufacturing note", variant: "destructive" });
     },
   });
 
@@ -2395,6 +2474,173 @@ function LineItemsModule({
                             </div>
                           </div>
                         )}
+
+                        {/* Manufacturing Notes Section */}
+                        {!isItemEditing && (
+                          <div className="mt-3 pt-3 border-t border-white/10" data-testid={`manufacturing-notes-section-${item.id}`}>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="text-xs text-white/50 flex items-center gap-1.5">
+                                <Factory className="w-3 h-3" />
+                                Manufacturing Notes
+                              </div>
+                              <Popover 
+                                open={addNoteOpenFor === item.id} 
+                                onOpenChange={(open) => {
+                                  if (open) {
+                                    setAddNoteOpenFor(item.id);
+                                  } else {
+                                    setAddNoteOpenFor(null);
+                                    setNewManufacturingNote({ categoryId: "", note: "" });
+                                  }
+                                }}
+                              >
+                                <PopoverTrigger asChild>
+                                  <button
+                                    className="flex items-center gap-1 px-2 py-1 text-xs rounded bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+                                    data-testid={`btn-add-manufacturing-note-${item.id}`}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                    Add Note
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent 
+                                  className="w-80 bg-gray-900/95 backdrop-blur-xl border border-white/10 p-4"
+                                  align="end"
+                                >
+                                  <div className="space-y-3">
+                                    <div className="text-sm font-medium text-white">Add Manufacturing Note</div>
+                                    
+                                    <div>
+                                      <Label className="text-xs text-white/50 mb-1.5 block">Category</Label>
+                                      <Select
+                                        value={newManufacturingNote.categoryId}
+                                        onValueChange={(value) => setNewManufacturingNote(prev => ({ ...prev, categoryId: value }))}
+                                      >
+                                        <SelectTrigger 
+                                          className="bg-white/5 border-white/10 text-white"
+                                          data-testid={`select-note-category-${item.id}`}
+                                        >
+                                          <SelectValue placeholder="Select category" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-gray-900 border-white/10">
+                                          {manufacturingNoteCategories.filter(c => c.isActive !== false).map((category) => {
+                                            const CategoryIcon = getCategoryIcon(category.icon);
+                                            return (
+                                              <SelectItem 
+                                                key={category.id} 
+                                                value={category.id.toString()}
+                                                className="text-white hover:bg-white/10"
+                                              >
+                                                <div className="flex items-center gap-2">
+                                                  <div 
+                                                    className="w-3 h-3 rounded-full" 
+                                                    style={{ backgroundColor: category.color || '#6366f1' }} 
+                                                  />
+                                                  <CategoryIcon className="w-3 h-3" style={{ color: category.color || '#6366f1' }} />
+                                                  <span>{category.name}</span>
+                                                </div>
+                                              </SelectItem>
+                                            );
+                                          })}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+
+                                    <div>
+                                      <Label className="text-xs text-white/50 mb-1.5 block">Note</Label>
+                                      <Textarea
+                                        value={newManufacturingNote.note}
+                                        onChange={(e) => setNewManufacturingNote(prev => ({ ...prev, note: e.target.value }))}
+                                        placeholder="Enter manufacturing note..."
+                                        className="bg-white/5 border-white/10 text-white min-h-[80px] resize-none"
+                                        data-testid={`input-note-text-${item.id}`}
+                                      />
+                                    </div>
+
+                                    <div className="flex justify-end gap-2 pt-2">
+                                      <button
+                                        onClick={() => {
+                                          setAddNoteOpenFor(null);
+                                          setNewManufacturingNote({ categoryId: "", note: "" });
+                                        }}
+                                        className="px-3 py-1.5 text-xs rounded bg-white/5 border border-white/10 text-white/60 hover:text-white"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          if (newManufacturingNote.categoryId && newManufacturingNote.note.trim()) {
+                                            addManufacturingNoteMutation.mutate({
+                                              lineItemId: item.id,
+                                              categoryId: parseInt(newManufacturingNote.categoryId),
+                                              note: newManufacturingNote.note.trim(),
+                                            });
+                                          }
+                                        }}
+                                        disabled={!newManufacturingNote.categoryId || !newManufacturingNote.note.trim() || addManufacturingNoteMutation.isPending}
+                                        className="px-3 py-1.5 text-xs rounded bg-neon-blue/20 border border-neon-blue/50 text-neon-blue hover:bg-neon-blue/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        data-testid={`btn-save-manufacturing-note-${item.id}`}
+                                      >
+                                        {addManufacturingNoteMutation.isPending ? 'Saving...' : 'Save'}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+
+                            {/* Display existing manufacturing notes */}
+                            {item.manufacturingNotes && item.manufacturingNotes.length > 0 ? (
+                              <div className="flex flex-wrap gap-2" data-testid={`manufacturing-notes-list-${item.id}`}>
+                                {item.manufacturingNotes.map((note: ManufacturingNote) => {
+                                  const category = manufacturingNoteCategories.find(c => c.id === note.categoryId);
+                                  const NoteIcon = getCategoryIcon(category?.icon);
+                                  const categoryColor = category?.color || '#6366f1';
+                                  
+                                  return (
+                                    <div
+                                      key={note.id}
+                                      className="group relative flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs"
+                                      style={{
+                                        backgroundColor: `${categoryColor}15`,
+                                        borderColor: `${categoryColor}40`,
+                                      }}
+                                      data-testid={`manufacturing-note-badge-${note.id}`}
+                                    >
+                                      <NoteIcon className="w-3 h-3 flex-shrink-0" style={{ color: categoryColor }} />
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="font-medium text-white/90 truncate max-w-[200px]">
+                                          {note.note}
+                                        </span>
+                                        <span className="text-[10px] text-white/40">
+                                          {note.categoryName} • {note.createdByName}
+                                        </span>
+                                      </div>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          removeManufacturingNoteMutation.mutate({
+                                            lineItemId: item.id,
+                                            noteId: note.id,
+                                          });
+                                        }}
+                                        className="opacity-0 group-hover:opacity-100 ml-1 p-0.5 rounded hover:bg-red-500/20 text-white/40 hover:text-red-400 transition-all"
+                                        data-testid={`btn-remove-note-${note.id}`}
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <div className="text-xs text-white/30 italic">
+                                No manufacturing notes
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {item.notes && !isItemEditing && (
                           <div className="mt-3 pt-3 border-t border-white/10">
                             <div className="text-xs text-white/50 mb-1">Notes</div>

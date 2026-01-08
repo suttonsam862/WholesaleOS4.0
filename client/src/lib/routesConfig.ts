@@ -49,6 +49,7 @@ const SalespeopleHub = lazy(() => import("@/pages/salespeople-hub"));
 const SalespeopleList = lazy(() => import("@/pages/salespeople"));
 const SettingsHub = lazy(() => import("@/pages/settings-hub"));
 const Settings = lazy(() => import("@/pages/settings"));
+const ManufacturingCategoriesSettings = lazy(() => import("@/pages/settings-manufacturing-categories"));
 const NotificationsHub = lazy(() => import("@/pages/notifications-hub"));
 const Notifications = lazy(() => import("@/pages/notifications"));
 const DesignerManagementHub = lazy(() => import("@/pages/designer-management-hub"));
@@ -204,6 +205,7 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/salespeople/list", title: "Salespeople List", component: SalespeopleList, requiresAuth: true, requiresLayout: true, resource: "salespeople" },
   { path: "/settings", title: "Settings Hub", component: SettingsHub, requiresAuth: true, requiresLayout: true, resource: "settings" },
   { path: "/settings/account", title: "Account Settings", component: Settings, requiresAuth: true, requiresLayout: true, resource: "settings" },
+  { path: "/settings/manufacturing-categories", title: "Manufacturing Categories", component: ManufacturingCategoriesSettings, requiresAuth: true, requiresLayout: true, roles: ["admin", "ops"], resource: "manufacturing" },
   { path: "/notifications", title: "Notifications Hub", component: NotificationsHub, requiresAuth: true, requiresLayout: true },
   { path: "/notifications/list", title: "Notifications", component: Notifications, requiresAuth: true, requiresLayout: true },
   { path: "/designer-management", title: "Designer Management Hub", component: DesignerManagementHub, requiresAuth: true, requiresLayout: true, resource: "designerManagement" },
