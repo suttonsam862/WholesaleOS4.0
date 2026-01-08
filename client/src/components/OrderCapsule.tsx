@@ -2691,7 +2691,9 @@ function DesignModule({ designJobs, order, onDesignJobsChange, users = [] }: { d
     !searchQuery ||
     job.jobCode?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     job.brief?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    job.status?.toLowerCase().includes(searchQuery.toLowerCase())
+    job.status?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    job.organization?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    job.organization?.name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const attachJobMutation = useMutation({
@@ -3085,7 +3087,7 @@ function DesignModule({ designJobs, order, onDesignJobsChange, users = [] }: { d
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10 bg-white/5 border-white/10"
-                    placeholder="Search by job code, brief, or status..."
+                    placeholder="Search by organization, job code, or brief..."
                     data-testid="input-design-job-search"
                     autoFocus
                   />
@@ -3117,7 +3119,7 @@ function DesignModule({ designJobs, order, onDesignJobsChange, users = [] }: { d
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="text-white font-medium">{job.jobCode || `Job #${job.id}`}</span>
+                                <span className="text-white font-medium">{job.organization?.name || "No Organization"}</span>
                                 <span className={cn(
                                   "px-2 py-0.5 rounded text-xs font-medium border",
                                   statusConfig?.bgClass,
@@ -3132,16 +3134,11 @@ function DesignModule({ designJobs, order, onDesignJobsChange, users = [] }: { d
                                   </span>
                                 )}
                               </div>
+                              <div className="text-xs text-neon-blue font-mono mb-1">{job.jobCode || `Job #${job.id}`}</div>
                               {job.brief && (
                                 <p className="text-sm text-white/60 line-clamp-2">{job.brief}</p>
                               )}
                               <div className="flex items-center flex-wrap gap-4 mt-2 text-xs text-white/40">
-                                {job.organization?.name && (
-                                  <span className="flex items-center gap-1">
-                                    <Building2 className="w-3 h-3" />
-                                    {job.organization.name}
-                                  </span>
-                                )}
                                 {job.designer && (
                                   <span className="flex items-center gap-1">
                                     <User className="w-3 h-3" />
@@ -3159,6 +3156,43 @@ function DesignModule({ designJobs, order, onDesignJobsChange, users = [] }: { d
                                 )}
                               </div>
                             </div>
+                            <button
+                              className="px-3 py-1.5 rounded-lg bg-neon-blue/20 border border-neon-blue/50 text-neon-blue text-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                attachJobMutation.mutate(job.id);
+                              }}
+                              disabled={attachJobMutation.isPending}
+                            >
+                              {attachJobMutation.isPending ? (
+                                <div className="w-4 h-4 border-2 border-neon-blue border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <>
+                                  <Plus className="w-3 h-3" />
+                                  Attach
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </motion.div>
+                      );
+                    })
+                  ) : (
+                    <div className="text-center py-8 text-white/40">
+                      <Palette className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                      <p className="mb-2">No unattached design jobs found</p>
+                      <p className="text-sm text-white/30">
+                        {searchQuery ? 'Try a different search term' : 'All design jobs are already attached to orders'}
+                      </p>
+                      <button
+                        onClick={() => setDialogMode('create')}
+                        className="mt-4 text-neon-blue hover:underline text-sm"
+                      >
+                        Create a new design job instead
+                      </button>
+                    </div>
+                  )}
+                </div>
                             <button
                               className="px-3 py-1.5 rounded-lg bg-neon-blue/20 border border-neon-blue/50 text-neon-blue text-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1"
                               onClick={(e) => {
