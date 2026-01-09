@@ -72,6 +72,7 @@ import {
   Save,
   X,
   Copy,
+  ChevronLeft,
   ChevronRight,
   ChevronDown,
   Image as ImageIcon,
@@ -916,19 +917,44 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
                     <ManufacturingStageIndicator status={manufacturing.status} />
                   </div>
 
-                  {/* ========== MODULE TABS ========== */}
+                  {/* ========== MODULE TABS WITH SCROLL BUTTONS ========== */}
                   <div className="px-6 py-3 border-b border-white/10 max-w-full overflow-hidden">
-                  <div className="flex items-center gap-2 overflow-x-auto max-w-full scrollbar-thin scrollbar-thumb-white/20">
-                    <ModuleTab label="Overview" icon={FileText} active={activeModule === 'overview'} onClick={() => setActiveModule('overview')} />
-                    <ModuleTab label="Line Items" icon={Package} active={activeModule === 'line-items'} onClick={() => setActiveModule('line-items')} badge={manufacturingLineItems.length} />
-                    <ModuleTab label="Pantone" icon={Palette} active={activeModule === 'pantone'} onClick={() => setActiveModule('pantone')} badge={pantoneAssignments.length} />
-                    <ModuleTab label="Documents" icon={Paperclip} active={activeModule === 'documents'} onClick={() => setActiveModule('documents')} />
-                    <ModuleTab label="Activity" icon={MessageSquare} active={activeModule === 'activity'} onClick={() => setActiveModule('activity')} />
-                    <ModuleTab label="Materials" icon={ClipboardCheck} active={activeModule === 'materials'} onClick={() => setActiveModule('materials')} />
-                    <ModuleTab label="QC" icon={ShieldCheck} active={activeModule === 'qc'} onClick={() => setActiveModule('qc')} />
-                    <ModuleTab label="Timeline" icon={Timer} active={activeModule === 'timeline'} onClick={() => setActiveModule('timeline')} />
-                    <ModuleTab label="Shipping" icon={Truck} active={activeModule === 'shipping'} onClick={() => setActiveModule('shipping')} />
-                  </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => {
+                          const container = document.getElementById('module-tabs-scroll');
+                          if (container) container.scrollBy({ left: -150, behavior: 'smooth' });
+                        }}
+                        className="p-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-colors flex-shrink-0"
+                        data-testid="button-scroll-tabs-left"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                      </button>
+                      <div 
+                        id="module-tabs-scroll"
+                        className="flex items-center gap-2 overflow-x-auto max-w-full flex-1 scrollbar-thin scrollbar-thumb-white/20 scroll-smooth"
+                      >
+                        <ModuleTab label="Overview" icon={FileText} active={activeModule === 'overview'} onClick={() => setActiveModule('overview')} />
+                        <ModuleTab label="Line Items" icon={Package} active={activeModule === 'line-items'} onClick={() => setActiveModule('line-items')} badge={manufacturingLineItems.length} />
+                        <ModuleTab label="Pantone" icon={Palette} active={activeModule === 'pantone'} onClick={() => setActiveModule('pantone')} badge={pantoneAssignments.length} />
+                        <ModuleTab label="Documents" icon={Paperclip} active={activeModule === 'documents'} onClick={() => setActiveModule('documents')} />
+                        <ModuleTab label="Activity" icon={MessageSquare} active={activeModule === 'activity'} onClick={() => setActiveModule('activity')} />
+                        <ModuleTab label="Materials" icon={ClipboardCheck} active={activeModule === 'materials'} onClick={() => setActiveModule('materials')} />
+                        <ModuleTab label="QC" icon={ShieldCheck} active={activeModule === 'qc'} onClick={() => setActiveModule('qc')} />
+                        <ModuleTab label="Timeline" icon={Timer} active={activeModule === 'timeline'} onClick={() => setActiveModule('timeline')} />
+                        <ModuleTab label="Shipping" icon={Truck} active={activeModule === 'shipping'} onClick={() => setActiveModule('shipping')} />
+                      </div>
+                      <button
+                        onClick={() => {
+                          const container = document.getElementById('module-tabs-scroll');
+                          if (container) container.scrollBy({ left: 150, behavior: 'smooth' });
+                        }}
+                        className="p-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-colors flex-shrink-0"
+                        data-testid="button-scroll-tabs-right"
+                      >
+                        <ChevronRight className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
                   {/* ========== MODULE CONTENT ========== */}
