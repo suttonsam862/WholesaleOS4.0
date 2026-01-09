@@ -740,10 +740,10 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
           transition={{ duration: 0.2 }}
-          className="relative w-full"
+          className="relative w-full max-w-full min-w-0 overflow-hidden"
         >
           {/* Glass Container */}
-          <div className="relative rounded-2xl overflow-hidden w-full">
+          <div className="relative rounded-2xl overflow-hidden w-full max-w-full min-w-0">
             {/* Background Gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl" />
             <div className="absolute inset-0 bg-gradient-to-br from-neon-blue/5 via-transparent to-neon-purple/5" />
@@ -887,7 +887,8 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
                   </div>
 
                   {/* ========== MODULE TABS ========== */}
-                  <div className="px-6 py-3 border-b border-white/10 flex items-center gap-2 overflow-x-auto">
+                  <div className="px-6 py-3 border-b border-white/10 max-w-full overflow-hidden">
+                  <div className="flex items-center gap-2 overflow-x-auto max-w-full scrollbar-thin scrollbar-thumb-white/20">
                     <ModuleTab label="Overview" icon={FileText} active={activeModule === 'overview'} onClick={() => setActiveModule('overview')} />
                     <ModuleTab label="Line Items" icon={Package} active={activeModule === 'line-items'} onClick={() => setActiveModule('line-items')} badge={manufacturingLineItems.length} />
                     <ModuleTab label="Pantone" icon={Palette} active={activeModule === 'pantone'} onClick={() => setActiveModule('pantone')} badge={pantoneAssignments.length} />
@@ -898,9 +899,10 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
                     <ModuleTab label="Timeline" icon={Timer} active={activeModule === 'timeline'} onClick={() => setActiveModule('timeline')} />
                     <ModuleTab label="Shipping" icon={Truck} active={activeModule === 'shipping'} onClick={() => setActiveModule('shipping')} />
                   </div>
+                  </div>
 
                   {/* ========== MODULE CONTENT ========== */}
-                  <div className="flex-1 overflow-y-auto p-6">
+                  <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 min-w-0 max-w-full">
                     <AnimatePresence mode="wait">
                       {activeModule === 'overview' && (
                         <OverviewModule
@@ -1122,9 +1124,9 @@ function OverviewModule({
     >
       {/* Key Status Header */}
       <div className="p-4 rounded-xl bg-gradient-to-r from-neon-blue/5 via-neon-purple/5 to-neon-cyan/5 border border-white/10">
-        <div className="grid grid-cols-4 gap-4">
+        <div className="flex flex-wrap gap-3">
           {/* Status */}
-          <div className="text-center p-3 rounded-lg bg-white/5">
+          <div className="flex-1 min-w-[150px] text-center p-3 rounded-lg bg-white/5">
             <div className="text-xs text-white/50 uppercase font-medium mb-2">Status</div>
             {isEditing ? (
               <Select value={formData.status} onValueChange={(v) => handleFormChange('status', v)}>
@@ -1150,23 +1152,23 @@ function OverviewModule({
           </div>
 
           {/* Manufacturer */}
-          <div className="text-center p-3 rounded-lg bg-white/5">
+          <div className="flex-1 min-w-[150px] text-center p-3 rounded-lg bg-white/5">
             <div className="text-xs text-white/50 uppercase font-medium mb-2">Manufacturer</div>
-            <div className="flex items-center justify-center gap-2">
-              <Factory className="w-4 h-4 text-neon-purple" />
-              <span className="text-sm text-white font-medium">
+            <div className="flex items-center justify-center gap-2 overflow-hidden">
+              <Factory className="w-4 h-4 text-neon-purple flex-shrink-0" />
+              <span className="text-sm text-white font-medium truncate">
                 {manufacturer?.name || 'Not assigned'}
               </span>
             </div>
           </div>
 
           {/* Est. Completion */}
-          <div className="text-center p-3 rounded-lg bg-white/5">
+          <div className="flex-1 min-w-[150px] text-center p-3 rounded-lg bg-white/5">
             <div className="text-xs text-white/50 uppercase font-medium mb-2">Est. Completion</div>
-            <div className="flex items-center justify-center gap-2">
-              <Calendar className="w-4 h-4 text-neon-cyan" />
+            <div className="flex items-center justify-center gap-2 overflow-hidden">
+              <Calendar className="w-4 h-4 text-neon-cyan flex-shrink-0" />
               <span className={cn(
-                "text-sm font-medium",
+                "text-sm font-medium truncate",
                 manufacturing.estCompletion && new Date(manufacturing.estCompletion) < new Date() ? "text-red-400" : "text-white"
               )}>
                 {manufacturing.estCompletion ? format(new Date(manufacturing.estCompletion), 'MMM d, yyyy') : 'Not set'}
@@ -1175,11 +1177,11 @@ function OverviewModule({
           </div>
 
           {/* Duration */}
-          <div className="text-center p-3 rounded-lg bg-white/5">
+          <div className="flex-1 min-w-[150px] text-center p-3 rounded-lg bg-white/5">
             <div className="text-xs text-white/50 uppercase font-medium mb-2">Duration</div>
-            <div className="flex items-center justify-center gap-2">
-              <Clock className="w-4 h-4 text-white/60" />
-              <span className="text-sm text-white font-medium">
+            <div className="flex items-center justify-center gap-2 overflow-hidden">
+              <Clock className="w-4 h-4 text-white/60 flex-shrink-0" />
+              <span className="text-sm text-white font-medium truncate">
                 {manufacturing.createdAt
                   ? `${Math.ceil((new Date().getTime() - new Date(manufacturing.createdAt).getTime()) / (1000 * 60 * 60 * 24))} days`
                   : '—'
@@ -1220,11 +1222,11 @@ function OverviewModule({
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0 max-w-full">
         {/* Order & Organization Details */}
-        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
           <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-            <Package className="w-4 h-4 text-neon-blue" />
+            <Package className="w-4 h-4 text-neon-blue flex-shrink-0" />
             Order Details
           </h3>
           <div className="space-y-2">
@@ -1236,9 +1238,9 @@ function OverviewModule({
         </div>
 
         {/* Timeline */}
-        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
           <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-neon-cyan" />
+            <Clock className="w-4 h-4 text-neon-cyan flex-shrink-0" />
             Timeline
           </h3>
           <div className="space-y-2">
@@ -1261,9 +1263,9 @@ function OverviewModule({
         </div>
 
         {/* Tracking */}
-        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
           <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-            <Truck className="w-4 h-4 text-neon-purple" />
+            <Truck className="w-4 h-4 text-neon-purple flex-shrink-0" />
             Tracking
             {orderTrackingNumbers.length > 0 && (
               <Badge variant="outline" className="ml-2 text-green-400 border-green-400/30">
@@ -1316,9 +1318,9 @@ function OverviewModule({
         </div>
 
         {/* Notes */}
-        <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
           <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-neon-cyan" />
+            <MessageSquare className="w-4 h-4 text-neon-cyan flex-shrink-0" />
             Notes
           </h3>
           {isEditing ? (
@@ -1824,7 +1826,7 @@ function PantoneModule({
       {canEdit && !showPantonePicker && manufacturingLineItems.length > 0 && (
         <div className="p-4 rounded-xl bg-white/5 border border-white/10">
           <h4 className="text-sm font-semibold text-white/80 mb-4">Add Pantone to Line Item</h4>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 min-w-0 max-w-full">
             {manufacturingLineItems.map((item) => {
               const displayName = item.productName && item.variantCode
                 ? `${item.productName} - ${item.variantCode}`
@@ -1834,7 +1836,7 @@ function PantoneModule({
                 <button
                   key={item.id}
                   onClick={() => onAddClick(item.orderLineItemId || item.id)}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:border-neon-purple/30 hover:bg-neon-purple/5 transition-colors text-left"
+                  className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:border-neon-purple/30 hover:bg-neon-purple/5 transition-colors text-left min-w-0 overflow-hidden"
                 >
                   {item.imageUrl && (
                     <img
@@ -1986,7 +1988,7 @@ function DocumentsModule({
       {latestUpdate && (
         <div className="p-4 rounded-xl bg-white/5 border border-white/10">
           <h4 className="text-sm font-semibold text-white/80 mb-4">File Categories</h4>
-          <div className="grid grid-cols-5 gap-2">
+          <div className="flex flex-wrap gap-2 min-w-0 max-w-full">
             {categories.map((cat) => {
               const Icon = cat.icon;
               const count = attachments.filter((att: any) => att.category === cat.value).length;
@@ -1995,7 +1997,7 @@ function DocumentsModule({
                   key={cat.value}
                   variant={selectedCategory === cat.value ? "default" : "outline"}
                   className={cn(
-                    "flex flex-col h-auto py-3",
+                    "flex flex-col h-auto py-3 flex-1 min-w-[60px] max-w-[100px]",
                     selectedCategory === cat.value
                       ? "bg-neon-blue/20 border-neon-blue text-neon-blue"
                       : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10"
@@ -2003,8 +2005,8 @@ function DocumentsModule({
                   onClick={() => setSelectedCategory(cat.value)}
                   data-testid={`button-category-${cat.value}`}
                 >
-                  <Icon className="w-5 h-5 mb-1" />
-                  <span className="text-xs">{cat.label}</span>
+                  <Icon className="w-5 h-5 mb-1 flex-shrink-0" />
+                  <span className="text-xs truncate">{cat.label}</span>
                   {count > 0 && (
                     <Badge variant="secondary" className="mt-1 text-xs bg-white/10">
                       {count}
@@ -2179,9 +2181,9 @@ function DocumentsModule({
         )}
 
         {completedImages.length > 0 ? (
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 min-w-0 max-w-full">
             {completedImages.map((url: string, index: number) => (
-              <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-white/10">
+              <div key={index} className="relative group aspect-square rounded-lg overflow-hidden border border-white/10 min-w-0">
                 <img
                   src={url}
                   alt={`Completed ${index + 1}`}
@@ -2331,11 +2333,11 @@ function MaterialsModule({
         Materials Checklist
       </h3>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0 max-w-full">
         {categories.map((category) => (
           <div
             key={category}
-            className="bg-white/5 border border-white/10 rounded-xl p-4"
+            className="bg-white/5 border border-white/10 rounded-xl p-4 min-w-0 overflow-hidden"
             data-testid={`materials-category-${category.toLowerCase()}`}
           >
             <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
@@ -2487,10 +2489,10 @@ function QCModule({
         </Badge>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="qc-section-pre-production">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 min-w-0 max-w-full">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-w-0 overflow-hidden" data-testid="qc-section-pre-production">
           <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
-            <Eye className="w-4 h-4 text-neon-blue" />
+            <Eye className="w-4 h-4 text-neon-blue flex-shrink-0" />
             Pre-Production
           </h4>
           <div className="space-y-2">
@@ -2521,9 +2523,9 @@ function QCModule({
           </div>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="qc-section-in-process">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-w-0 overflow-hidden" data-testid="qc-section-in-process">
           <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
-            <Factory className="w-4 h-4 text-neon-purple" />
+            <Factory className="w-4 h-4 text-neon-purple flex-shrink-0" />
             In-Process
           </h4>
           <div className="space-y-2">
@@ -2554,9 +2556,9 @@ function QCModule({
           </div>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="qc-section-final-inspection">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-w-0 overflow-hidden" data-testid="qc-section-final-inspection">
           <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-neon-cyan" />
+            <CheckCircle2 className="w-4 h-4 text-neon-cyan flex-shrink-0" />
             Final Inspection
           </h4>
           <div className="space-y-2">
@@ -2588,9 +2590,9 @@ function QCModule({
         </div>
       </div>
 
-      <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="qc-defects-section">
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-w-0 max-w-full overflow-hidden" data-testid="qc-defects-section">
         <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-yellow-400" />
+          <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0" />
           Defect Tracking ({defects.length})
         </h4>
         {defects.length === 0 ? (
@@ -2881,10 +2883,10 @@ function ShippingModule({
         </Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-6">
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="shipping-address">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0 max-w-full">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-w-0 overflow-hidden" data-testid="shipping-address">
           <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-neon-blue" />
+            <MapPin className="w-4 h-4 text-neon-blue flex-shrink-0" />
             Ship-To Address
           </h4>
           {organization ? (
@@ -2912,9 +2914,9 @@ function ShippingModule({
           )}
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="shipping-dates">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-w-0 overflow-hidden" data-testid="shipping-dates">
           <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-neon-purple" />
+            <Calendar className="w-4 h-4 text-neon-purple flex-shrink-0" />
             Delivery Dates
           </h4>
           <div className="space-y-3">
@@ -2942,9 +2944,9 @@ function ShippingModule({
         </div>
       </div>
 
-      <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="shipping-tracking">
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4 min-w-0 max-w-full overflow-hidden" data-testid="shipping-tracking">
         <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
-          <Package className="w-4 h-4 text-neon-cyan" />
+          <Package className="w-4 h-4 text-neon-cyan flex-shrink-0" />
           Tracking Numbers ({orderTrackingNumbers.length})
         </h4>
         {orderTrackingNumbers.length === 0 ? (
