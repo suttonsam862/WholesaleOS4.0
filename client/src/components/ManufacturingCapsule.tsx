@@ -729,7 +729,7 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden bg-transparent border-0">
+      <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] p-0 overflow-hidden bg-transparent border-0">
       <VisuallyHidden.Root>
         <DialogTitle>Manufacturing Details - M-{manufacturing?.id}</DialogTitle>
         <DialogDescription>View and manage manufacturing record details for order {order?.orderName}</DialogDescription>
@@ -740,10 +740,10 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
           transition={{ duration: 0.2 }}
-          className="relative"
+          className="relative w-full"
         >
           {/* Glass Container */}
-          <div className="relative rounded-2xl overflow-hidden">
+          <div className="relative rounded-2xl overflow-hidden w-full">
             {/* Background Gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 via-slate-800/95 to-slate-900/95 backdrop-blur-xl" />
             <div className="absolute inset-0 bg-gradient-to-br from-neon-blue/5 via-transparent to-neon-purple/5" />
