@@ -207,12 +207,12 @@ function getCategoryIcon(iconName: string | null | undefined): LucideIcon {
 
 function ProgressBar({ blocks }: { blocks: ReturnType<typeof calculateProgressBlocks> }) {
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-0.5 sm:gap-1 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
       {blocks.map((block, index) => (
-        <div key={index} className="flex items-center">
+        <div key={index} className="flex items-center flex-shrink-0">
           <motion.div
             className={cn(
-              "relative h-8 w-16 rounded-md border flex items-center justify-center text-xs font-medium transition-all duration-300",
+              "relative h-6 sm:h-8 w-12 sm:w-16 rounded-md border flex items-center justify-center text-[10px] sm:text-xs font-medium transition-all duration-300",
               block.filled
                 ? block.current
                   ? "bg-gradient-to-r from-neon-blue/30 to-neon-purple/30 border-neon-blue/50 text-white"
@@ -230,11 +230,11 @@ function ProgressBar({ blocks }: { blocks: ReturnType<typeof calculateProgressBl
                 transition={{ duration: 2, repeat: Infinity }}
               />
             )}
-            <span className="relative z-10">{block.label}</span>
+            <span className="relative z-10 truncate px-0.5">{block.label}</span>
           </motion.div>
           {index < blocks.length - 1 && (
             <ChevronRight className={cn(
-              "w-4 h-4 mx-0.5",
+              "w-3 h-3 sm:w-4 sm:h-4 mx-0 sm:mx-0.5 flex-shrink-0",
               block.filled ? "text-green-400/60" : "text-white/20"
             )} />
           )}
@@ -249,7 +249,7 @@ function VelocityIndicatorBadge({ velocity }: { velocity: VelocityIndicator }) {
   return (
     <motion.div
       className={cn(
-        "px-3 py-1.5 rounded-full border text-sm font-medium",
+        "px-2 sm:px-3 py-1 sm:py-1.5 rounded-full border text-xs sm:text-sm font-medium",
         config.bgClass,
         config.borderClass,
         config.textClass,
@@ -280,7 +280,7 @@ function ModuleTab({
     <button
       onClick={onClick}
       className={cn(
-        "flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border transition-all duration-200 whitespace-nowrap min-h-[44px]",
+        "flex items-center justify-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 rounded-lg border transition-all duration-200 whitespace-nowrap min-h-[40px] sm:min-h-[44px] flex-shrink-0",
         active
           ? "bg-gradient-to-r from-neon-blue/20 to-neon-purple/20 border-neon-blue/50 text-white shadow-lg shadow-neon-blue/10"
           : "bg-white/5 border-white/10 text-white/60 hover:bg-white/10 hover:text-white"
@@ -288,9 +288,10 @@ function ModuleTab({
       data-testid={`tab-${label.toLowerCase().replace(/\s+/g, '-')}`}
     >
       <Icon className="w-4 h-4 flex-shrink-0" />
-      <span className="text-sm font-medium">{label}</span>
+      <span className="text-xs sm:text-sm font-medium hidden sm:inline">{label}</span>
+      <span className="text-xs font-medium sm:hidden">{label.split(' ')[0]}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="px-1.5 py-0.5 text-xs rounded-full bg-neon-blue/30 text-neon-blue flex-shrink-0">
+        <span className="px-1 sm:px-1.5 py-0.5 text-[10px] sm:text-xs rounded-full bg-neon-blue/30 text-neon-blue flex-shrink-0">
           {badge}
         </span>
       )}
@@ -326,14 +327,14 @@ function ActionButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all duration-200",
+        "flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border text-xs sm:text-sm font-medium transition-all duration-200 flex-shrink-0",
         variants[variant],
         disabled && "opacity-50 cursor-not-allowed",
         className
       )}
     >
-      <Icon className="w-4 h-4" />
-      <span>{label}</span>
+      <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+      <span className="whitespace-nowrap">{label}</span>
     </button>
   );
 }
@@ -364,17 +365,17 @@ function ManufacturingStageIndicator({ status }: { status: ManufacturingStatus |
   const currentIndex = stages.findIndex(s => s.key === status);
 
   return (
-    <div className="flex items-center gap-2 overflow-x-auto pb-2">
+    <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
       {stages.map((stage, index) => {
         const Icon = stage.icon;
         const isComplete = currentIndex >= index;
         const isCurrent = currentIndex === index;
 
         return (
-          <div key={stage.key} className="flex items-center">
+          <div key={stage.key} className="flex items-center flex-shrink-0">
             <motion.div
               className={cn(
-                "flex flex-col items-center gap-1 min-w-[60px]",
+                "flex flex-col items-center gap-0.5 sm:gap-1 min-w-[48px] sm:min-w-[60px]",
                 isComplete ? "opacity-100" : "opacity-40"
               )}
               initial={{ y: 10, opacity: 0 }}
@@ -382,17 +383,17 @@ function ManufacturingStageIndicator({ status }: { status: ManufacturingStatus |
               transition={{ delay: index * 0.05 }}
             >
               <div className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all",
+                "w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border-2 transition-all",
                 isCurrent
                   ? "bg-neon-blue/30 border-neon-blue text-neon-blue shadow-[0_0_15px_rgba(0,186,255,0.4)]"
                   : isComplete
                     ? "bg-green-500/20 border-green-500/50 text-green-400"
                     : "bg-white/5 border-white/20 text-white/40"
               )}>
-                <Icon className="w-5 h-5" />
+                <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <span className={cn(
-                "text-xs font-medium whitespace-nowrap",
+                "text-[10px] sm:text-xs font-medium whitespace-nowrap",
                 isCurrent ? "text-neon-blue" : isComplete ? "text-green-400" : "text-white/40"
               )}>
                 {stage.label}
@@ -400,7 +401,7 @@ function ManufacturingStageIndicator({ status }: { status: ManufacturingStatus |
             </motion.div>
             {index < stages.length - 1 && (
               <div className={cn(
-                "w-6 h-0.5 mx-1",
+                "w-3 sm:w-6 h-0.5 mx-0.5 sm:mx-1 flex-shrink-0",
                 currentIndex > index ? "bg-green-500/50" : "bg-white/10"
               )} />
             )}
@@ -911,13 +912,13 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
           <div className="relative z-10 flex flex-col max-h-[90vh]">
 
             {/* ========== HEADER ========== */}
-            <div className="p-6 border-b border-white/10">
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h2 className="text-2xl font-bold text-white">{order.orderCode}</h2>
+            <div className="p-3 sm:p-6 border-b border-white/10">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4 mb-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                    <h2 className="text-lg sm:text-2xl font-bold text-white">{order.orderCode}</h2>
                     <div className={cn(
-                      "px-3 py-1 rounded-full text-sm font-medium border",
+                      "px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium border",
                       orderStatusConfig?.bgClass,
                       orderStatusConfig?.textClass,
                       orderStatusConfig?.borderClass
@@ -926,54 +927,54 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
                     </div>
                     <VelocityIndicatorBadge velocity={velocity} />
                   </div>
-                  <p className="text-white/60">{order.orderName}</p>
+                  <p className="text-sm sm:text-base text-white/60 truncate">{order.orderName}</p>
                 </div>
 
                 {/* Header Actions */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
                   {!isEditing ? (
                     <button
                       onClick={() => setIsEditing(true)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 text-sm transition-colors"
+                      className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 text-xs sm:text-sm transition-colors"
                       data-testid="button-edit-mode"
                     >
-                      <Edit2 className="w-4 h-4" />
-                      Edit
+                      <Edit2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Edit</span>
                     </button>
                   ) : (
                     <>
                       <button
                         onClick={handleSaveForm}
                         disabled={updateOrderMutation.isPending}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-neon-blue/20 border border-neon-blue/50 text-neon-blue hover:bg-neon-blue/30 text-sm transition-colors"
+                        className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-neon-blue/20 border border-neon-blue/50 text-neon-blue hover:bg-neon-blue/30 text-xs sm:text-sm transition-colors"
                         data-testid="button-save"
                       >
-                        <Save className="w-4 h-4" />
-                        Save
+                        <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                        <span className="hidden sm:inline">Save</span>
                       </button>
                       <button
                         onClick={() => setIsEditing(false)}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-sm transition-colors"
+                        className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white text-xs sm:text-sm transition-colors"
                       >
-                        <X className="w-4 h-4" />
+                        <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       </button>
                     </>
                   )}
                   {hasPermission('orders', 'delete') && (
                     <button
                       onClick={() => setShowDeleteConfirm(true)}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 text-sm transition-colors"
+                      className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 text-xs sm:text-sm transition-colors"
                       data-testid="button-delete-order"
                     >
-                      <Trash2 className="w-4 h-4" />
-                      Delete
+                      <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                      <span className="hidden sm:inline">Delete</span>
                     </button>
                   )}
                   <button
                     onClick={onClose}
-                    className="p-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                    className="p-1.5 sm:p-2 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-colors"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
                 </div>
               </div>
@@ -984,7 +985,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
               </div>
 
               {/* Quick Action Bar */}
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 {/* Status transitions */}
                 {canModify(user, 'orders') && !isEditing && (
                   <>
@@ -1024,11 +1025,11 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
                   </>
                 )}
 
-                {/* Key metrics */}
-                <div className="flex items-center gap-4 ml-auto text-sm">
-                  <div className="flex items-center gap-2 text-white/60">
-                    <Calendar className="w-4 h-4" />
-                    <span>ETA: </span>
+                {/* Key metrics - scrollable on mobile */}
+                <div className="flex items-center gap-2 sm:gap-4 ml-auto text-xs sm:text-sm overflow-x-auto flex-shrink-0 max-w-full sm:max-w-none pb-1">
+                  <div className="flex items-center gap-1 sm:gap-2 text-white/60 flex-shrink-0">
+                    <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">ETA: </span>
                     <span className={cn(
                       "font-medium",
                       velocity === 'red' ? "text-red-400" :
@@ -1037,16 +1038,16 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
                       {calculateETA(order.estDelivery)}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-white/60">
-                    <Building2 className="w-4 h-4" />
-                    <span>{organization?.name || 'No organization'}</span>
+                  <div className="flex items-center gap-1 sm:gap-2 text-white/60 flex-shrink-0 max-w-[120px] sm:max-w-none">
+                    <Building2 className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                    <span className="truncate">{organization?.name || 'No org'}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-white/60">
-                    <Package className="w-4 h-4" />
-                    <span>{lineItems.length} items</span>
+                  <div className="flex items-center gap-1 sm:gap-2 text-white/60 flex-shrink-0">
+                    <Package className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span>{lineItems.length}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-neon-cyan font-medium">
-                    <DollarSign className="w-4 h-4" />
+                  <div className="flex items-center gap-1 sm:gap-2 text-neon-cyan font-medium flex-shrink-0">
+                    <DollarSign className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span>${totalValue.toFixed(2)}</span>
                   </div>
                 </div>
@@ -1054,7 +1055,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
             </div>
 
             {/* ========== MODULE TABS ========== */}
-            <div className="px-6 py-3 border-b border-white/10 flex items-center gap-2 overflow-x-auto">
+            <div className="px-3 sm:px-6 py-2 sm:py-3 border-b border-white/10 flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
               {visibleModules.includes('overview') && (
                 <ModuleTab label="Overview" icon={FileText} active={activeModule === 'overview'} onClick={() => setActiveModule('overview')} />
               )}
@@ -1076,7 +1077,7 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
             </div>
 
             {/* ========== MODULE CONTENT ========== */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6">
               <AnimatePresence mode="wait">
                 {activeModule === 'overview' && (
                   <OverviewModule
@@ -1165,12 +1166,12 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
             </div>
 
             {/* ========== FOOTER ========== */}
-            <div className="p-4 border-t border-white/10 flex items-center justify-between">
-              <div className="text-xs text-white/40">
+            <div className="p-2 sm:p-4 border-t border-white/10 flex flex-wrap items-center justify-between gap-2">
+              <div className="text-[10px] sm:text-xs text-white/40">
                 Last updated: {order.updatedAt ? format(new Date(order.updatedAt), 'MMM d, yyyy h:mm a') : 'Never'}
               </div>
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-white/60 border-white/20">
+                <Badge variant="outline" className="text-[10px] sm:text-xs text-white/60 border-white/20">
                   ID: {order.id}
                 </Badge>
               </div>
