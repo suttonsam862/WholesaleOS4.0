@@ -87,6 +87,16 @@ import {
   Pencil,
   Layers,
   Camera,
+  ClipboardCheck,
+  ShieldCheck,
+  Timer,
+  MapPin,
+  Circle,
+  CheckCircle,
+  Tag,
+  Box,
+  Ruler,
+  Eye,
 } from "lucide-react";
 
 interface ManufacturingCapsuleProps {
@@ -95,7 +105,7 @@ interface ManufacturingCapsuleProps {
   manufacturingId: number | null;
 }
 
-type ModuleId = "overview" | "line-items" | "pantone" | "documents" | "activity";
+type ModuleId = "overview" | "line-items" | "pantone" | "documents" | "activity" | "materials" | "qc" | "timeline" | "shipping";
 
 const SIZE_COLUMNS = [
   { key: "yxs", label: "YXS" },
@@ -878,6 +888,10 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
                     <ModuleTab label="Pantone" icon={Palette} active={activeModule === 'pantone'} onClick={() => setActiveModule('pantone')} badge={pantoneAssignments.length} />
                     <ModuleTab label="Documents" icon={Paperclip} active={activeModule === 'documents'} onClick={() => setActiveModule('documents')} />
                     <ModuleTab label="Activity" icon={MessageSquare} active={activeModule === 'activity'} onClick={() => setActiveModule('activity')} />
+                    <ModuleTab label="Materials" icon={ClipboardCheck} active={activeModule === 'materials'} onClick={() => setActiveModule('materials')} />
+                    <ModuleTab label="QC" icon={ShieldCheck} active={activeModule === 'qc'} onClick={() => setActiveModule('qc')} />
+                    <ModuleTab label="Timeline" icon={Timer} active={activeModule === 'timeline'} onClick={() => setActiveModule('timeline')} />
+                    <ModuleTab label="Shipping" icon={Truck} active={activeModule === 'shipping'} onClick={() => setActiveModule('shipping')} />
                   </div>
 
                   {/* ========== MODULE CONTENT ========== */}
@@ -953,6 +967,37 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
                           key="activity"
                           manufacturingUpdates={manufacturingUpdates}
                           manufacturing={manufacturing}
+                        />
+                      )}
+                      {activeModule === 'materials' && (
+                        <MaterialsModule
+                          key="materials"
+                          manufacturing={manufacturing}
+                          canEdit={canEdit}
+                        />
+                      )}
+                      {activeModule === 'qc' && (
+                        <QCModule
+                          key="qc"
+                          manufacturing={manufacturing}
+                          canEdit={canEdit}
+                        />
+                      )}
+                      {activeModule === 'timeline' && (
+                        <TimelineModule
+                          key="timeline"
+                          manufacturing={manufacturing}
+                          manufacturingUpdates={manufacturingUpdates}
+                          order={order}
+                        />
+                      )}
+                      {activeModule === 'shipping' && (
+                        <ShippingModule
+                          key="shipping"
+                          manufacturing={manufacturing}
+                          order={order}
+                          organization={organization}
+                          orderTrackingNumbers={orderTrackingNumbers}
                         />
                       )}
                     </AnimatePresence>
@@ -2227,6 +2272,740 @@ function ActivityModule({
           ))
         )}
       </div>
+    </motion.div>
+  );
+}
+
+function MaterialsModule({
+  manufacturing,
+  canEdit,
+}: {
+  manufacturing: any;
+  canEdit: boolean;
+}) {
+  const [checklist, setChecklist] = useState([
+    { id: 1, category: 'Fabric', item: 'Main Fabric', status: 'received', checked: true },
+    { id: 2, category: 'Fabric', item: 'Lining Fabric', status: 'pending', checked: false },
+    { id: 3, category: 'Thread', item: 'Primary Thread Color', status: 'received', checked: true },
+    { id: 4, category: 'Thread', item: 'Contrast Thread Color', status: 'ordered', checked: false },
+    { id: 5, category: 'Labels', item: 'Brand Labels', status: 'pending', checked: false },
+    { id: 6, category: 'Labels', item: 'Size Tags', status: 'received', checked: true },
+    { id: 7, category: 'Labels', item: 'Care Labels', status: 'received', checked: true },
+    { id: 8, category: 'Packaging', item: 'Polybags', status: 'ordered', checked: false },
+    { id: 9, category: 'Packaging', item: 'Cartons', status: 'pending', checked: false },
+    { id: 10, category: 'Packaging', item: 'Tissue Paper', status: 'received', checked: true },
+  ]);
+
+  const toggleCheck = (id: number) => {
+    setChecklist(prev => prev.map(item => 
+      item.id === id ? { ...item, checked: !item.checked } : item
+    ));
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'received': return 'bg-green-500/20 text-green-400 border-green-500/30';
+      case 'pending': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+      case 'ordered': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+      default: return 'bg-white/10 text-white/60 border-white/20';
+    }
+  };
+
+  const categories = ['Fabric', 'Thread', 'Labels', 'Packaging'];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      className="space-y-6"
+      data-testid="module-materials"
+    >
+      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+        <ClipboardCheck className="w-5 h-5 text-neon-blue" />
+        Materials Checklist
+      </h3>
+
+      <div className="grid grid-cols-2 gap-4">
+        {categories.map((category) => (
+          <div
+            key={category}
+            className="bg-white/5 border border-white/10 rounded-xl p-4"
+            data-testid={`materials-category-${category.toLowerCase()}`}
+          >
+            <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
+              {category === 'Fabric' && <Ruler className="w-4 h-4 text-neon-purple" />}
+              {category === 'Thread' && <Circle className="w-4 h-4 text-neon-cyan" />}
+              {category === 'Labels' && <Tag className="w-4 h-4 text-neon-blue" />}
+              {category === 'Packaging' && <Box className="w-4 h-4 text-neon-green" />}
+              {category}
+            </h4>
+            <div className="space-y-2">
+              {checklist.filter(item => item.category === category).map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                  data-testid={`material-item-${item.id}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => canEdit && toggleCheck(item.id)}
+                      disabled={!canEdit}
+                      className={cn(
+                        "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                        item.checked
+                          ? "bg-green-500/30 border-green-500 text-green-400"
+                          : "bg-white/5 border-white/30 text-transparent hover:border-white/50"
+                      )}
+                      data-testid={`checkbox-${item.id}`}
+                    >
+                      {item.checked && <CheckCircle className="w-3 h-3" />}
+                    </button>
+                    <span className={cn(
+                      "text-sm",
+                      item.checked ? "text-white/60 line-through" : "text-white"
+                    )}>
+                      {item.item}
+                    </span>
+                  </div>
+                  <Badge
+                    className={cn("text-xs capitalize", getStatusColor(item.status))}
+                    data-testid={`status-${item.id}`}
+                  >
+                    {item.status}
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="p-4 rounded-xl bg-gradient-to-r from-neon-blue/5 via-neon-purple/5 to-neon-cyan/5 border border-white/10">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-white/60">
+            <span className="text-white font-semibold">{checklist.filter(i => i.checked).length}</span> of {checklist.length} materials ready
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500/50" />
+              <span className="text-xs text-white/60">Received ({checklist.filter(i => i.status === 'received').length})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
+              <span className="text-xs text-white/60">Pending ({checklist.filter(i => i.status === 'pending').length})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500/50" />
+              <span className="text-xs text-white/60">Ordered ({checklist.filter(i => i.status === 'ordered').length})</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function QCModule({
+  manufacturing,
+  canEdit,
+}: {
+  manufacturing: any;
+  canEdit: boolean;
+}) {
+  const [qcChecklist, setQcChecklist] = useState({
+    preProduction: [
+      { id: 1, item: 'Pattern accuracy verified', checked: false },
+      { id: 2, item: 'Fabric quality approved', checked: true },
+      { id: 3, item: 'Color matching confirmed', checked: true },
+      { id: 4, item: 'Measurements validated', checked: false },
+    ],
+    inProcess: [
+      { id: 5, item: 'Seam quality check', checked: true },
+      { id: 6, item: 'Stitch density verified', checked: false },
+      { id: 7, item: 'Print alignment checked', checked: false },
+      { id: 8, item: 'Thread tension correct', checked: true },
+    ],
+    finalInspection: [
+      { id: 9, item: 'Final measurements', checked: false },
+      { id: 10, item: 'Label placement correct', checked: false },
+      { id: 11, item: 'No visible defects', checked: false },
+      { id: 12, item: 'Packaging complete', checked: false },
+    ],
+  });
+
+  const [defects, setDefects] = useState([
+    { id: 1, type: 'Stitch Issue', severity: 'minor', notes: 'Minor loose stitching on collar - resolved', resolved: true },
+    { id: 2, type: 'Color Variation', severity: 'minor', notes: 'Slight shade difference in batch 2', resolved: false },
+  ]);
+
+  const [approvalStatus, setApprovalStatus] = useState<'pending' | 'approved' | 'rejected'>('pending');
+
+  const toggleCheck = (section: keyof typeof qcChecklist, id: number) => {
+    setQcChecklist(prev => ({
+      ...prev,
+      [section]: prev[section].map(item =>
+        item.id === id ? { ...item, checked: !item.checked } : item
+      ),
+    }));
+  };
+
+  const allChecks = [...qcChecklist.preProduction, ...qcChecklist.inProcess, ...qcChecklist.finalInspection];
+  const checkedCount = allChecks.filter(c => c.checked).length;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      className="space-y-6"
+      data-testid="module-qc"
+    >
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5 text-neon-green" />
+          Quality Control
+        </h3>
+        <Badge
+          className={cn(
+            "px-3 py-1.5",
+            approvalStatus === 'approved' && "bg-green-500/20 text-green-400 border-green-500/30",
+            approvalStatus === 'pending' && "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
+            approvalStatus === 'rejected' && "bg-red-500/20 text-red-400 border-red-500/30"
+          )}
+          data-testid="qc-approval-status"
+        >
+          {approvalStatus === 'approved' && <CheckCircle2 className="w-4 h-4 mr-1" />}
+          {approvalStatus === 'pending' && <Clock className="w-4 h-4 mr-1" />}
+          {approvalStatus === 'rejected' && <AlertCircle className="w-4 h-4 mr-1" />}
+          {approvalStatus.charAt(0).toUpperCase() + approvalStatus.slice(1)}
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="qc-section-pre-production">
+          <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
+            <Eye className="w-4 h-4 text-neon-blue" />
+            Pre-Production
+          </h4>
+          <div className="space-y-2">
+            {qcChecklist.preProduction.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-3 p-2 rounded-lg bg-white/5"
+                data-testid={`qc-item-${item.id}`}
+              >
+                <button
+                  onClick={() => canEdit && toggleCheck('preProduction', item.id)}
+                  disabled={!canEdit}
+                  className={cn(
+                    "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                    item.checked
+                      ? "bg-green-500/30 border-green-500 text-green-400"
+                      : "bg-white/5 border-white/30"
+                  )}
+                  data-testid={`qc-checkbox-${item.id}`}
+                >
+                  {item.checked && <CheckCircle className="w-3 h-3" />}
+                </button>
+                <span className={cn("text-sm", item.checked ? "text-white/60" : "text-white")}>
+                  {item.item}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="qc-section-in-process">
+          <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
+            <Factory className="w-4 h-4 text-neon-purple" />
+            In-Process
+          </h4>
+          <div className="space-y-2">
+            {qcChecklist.inProcess.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-3 p-2 rounded-lg bg-white/5"
+                data-testid={`qc-item-${item.id}`}
+              >
+                <button
+                  onClick={() => canEdit && toggleCheck('inProcess', item.id)}
+                  disabled={!canEdit}
+                  className={cn(
+                    "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                    item.checked
+                      ? "bg-green-500/30 border-green-500 text-green-400"
+                      : "bg-white/5 border-white/30"
+                  )}
+                  data-testid={`qc-checkbox-${item.id}`}
+                >
+                  {item.checked && <CheckCircle className="w-3 h-3" />}
+                </button>
+                <span className={cn("text-sm", item.checked ? "text-white/60" : "text-white")}>
+                  {item.item}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="qc-section-final-inspection">
+          <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-neon-cyan" />
+            Final Inspection
+          </h4>
+          <div className="space-y-2">
+            {qcChecklist.finalInspection.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-3 p-2 rounded-lg bg-white/5"
+                data-testid={`qc-item-${item.id}`}
+              >
+                <button
+                  onClick={() => canEdit && toggleCheck('finalInspection', item.id)}
+                  disabled={!canEdit}
+                  className={cn(
+                    "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                    item.checked
+                      ? "bg-green-500/30 border-green-500 text-green-400"
+                      : "bg-white/5 border-white/30"
+                  )}
+                  data-testid={`qc-checkbox-${item.id}`}
+                >
+                  {item.checked && <CheckCircle className="w-3 h-3" />}
+                </button>
+                <span className={cn("text-sm", item.checked ? "text-white/60" : "text-white")}>
+                  {item.item}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="qc-defects-section">
+        <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-yellow-400" />
+          Defect Tracking ({defects.length})
+        </h4>
+        {defects.length === 0 ? (
+          <p className="text-sm text-white/50">No defects recorded</p>
+        ) : (
+          <div className="space-y-2">
+            {defects.map((defect) => (
+              <div
+                key={defect.id}
+                className={cn(
+                  "p-3 rounded-lg border",
+                  defect.resolved
+                    ? "bg-green-500/5 border-green-500/20"
+                    : "bg-yellow-500/5 border-yellow-500/20"
+                )}
+                data-testid={`defect-${defect.id}`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-medium text-white">{defect.type}</span>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      className={cn(
+                        "text-xs capitalize",
+                        defect.severity === 'minor' ? "bg-yellow-500/20 text-yellow-400" : "bg-red-500/20 text-red-400"
+                      )}
+                    >
+                      {defect.severity}
+                    </Badge>
+                    {defect.resolved && (
+                      <Badge className="bg-green-500/20 text-green-400 text-xs">Resolved</Badge>
+                    )}
+                  </div>
+                </div>
+                <p className="text-xs text-white/60">{defect.notes}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="p-4 rounded-xl bg-gradient-to-r from-neon-green/5 via-neon-blue/5 to-neon-purple/5 border border-white/10">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-white/60">
+            <span className="text-white font-semibold">{checkedCount}</span> of {allChecks.length} checks completed
+          </div>
+          <div className="w-48 h-2 bg-white/10 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full bg-gradient-to-r from-neon-green to-neon-cyan"
+              initial={{ width: 0 }}
+              animate={{ width: `${(checkedCount / allChecks.length) * 100}%` }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function TimelineModule({
+  manufacturing,
+  manufacturingUpdates,
+  order,
+}: {
+  manufacturing: any;
+  manufacturingUpdates: any[];
+  order: any;
+}) {
+  const milestones = [
+    {
+      id: 1,
+      label: 'Order Received',
+      estimatedDate: manufacturing.createdAt,
+      actualDate: manufacturing.createdAt,
+      completed: true,
+    },
+    {
+      id: 2,
+      label: 'Production Started',
+      estimatedDate: manufacturing.createdAt,
+      actualDate: manufacturingUpdates.find((u: any) => u.status === 'confirmed_awaiting_manufacturing')?.createdAt,
+      completed: ['confirmed_awaiting_manufacturing', 'cutting_sewing', 'printing', 'final_packing_press', 'shipped', 'complete'].includes(manufacturing.status),
+    },
+    {
+      id: 3,
+      label: 'Cutting & Sewing',
+      estimatedDate: null,
+      actualDate: manufacturingUpdates.find((u: any) => u.status === 'cutting_sewing')?.createdAt,
+      completed: ['cutting_sewing', 'printing', 'final_packing_press', 'shipped', 'complete'].includes(manufacturing.status),
+    },
+    {
+      id: 4,
+      label: 'Printing',
+      estimatedDate: null,
+      actualDate: manufacturingUpdates.find((u: any) => u.status === 'printing')?.createdAt,
+      completed: ['printing', 'final_packing_press', 'shipped', 'complete'].includes(manufacturing.status),
+    },
+    {
+      id: 5,
+      label: 'Final Packing',
+      estimatedDate: null,
+      actualDate: manufacturingUpdates.find((u: any) => u.status === 'final_packing_press')?.createdAt,
+      completed: ['final_packing_press', 'shipped', 'complete'].includes(manufacturing.status),
+    },
+    {
+      id: 6,
+      label: 'Shipped',
+      estimatedDate: manufacturing.estCompletion,
+      actualDate: manufacturingUpdates.find((u: any) => u.status === 'shipped')?.createdAt,
+      completed: ['shipped', 'complete'].includes(manufacturing.status),
+    },
+    {
+      id: 7,
+      label: 'Complete',
+      estimatedDate: order?.estDelivery,
+      actualDate: manufacturing.actualCompletion || manufacturingUpdates.find((u: any) => u.status === 'complete')?.createdAt,
+      completed: manufacturing.status === 'complete',
+    },
+  ];
+
+  const completedCount = milestones.filter(m => m.completed).length;
+  const progressPercentage = (completedCount / milestones.length) * 100;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      className="space-y-6"
+      data-testid="module-timeline"
+    >
+      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+        <Timer className="w-5 h-5 text-neon-purple" />
+        Timeline Tracker
+      </h3>
+
+      <div className="p-4 rounded-xl bg-gradient-to-r from-neon-blue/5 via-neon-purple/5 to-neon-cyan/5 border border-white/10">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-sm text-white/60">Overall Progress</span>
+          <span className="text-sm font-semibold text-white">{Math.round(progressPercentage)}%</span>
+        </div>
+        <div className="h-3 bg-white/10 rounded-full overflow-hidden">
+          <motion.div
+            className="h-full bg-gradient-to-r from-neon-blue via-neon-purple to-neon-cyan"
+            initial={{ width: 0 }}
+            animate={{ width: `${progressPercentage}%` }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+          />
+        </div>
+      </div>
+
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="timeline-milestones">
+        <h4 className="text-sm font-semibold text-white/80 mb-4">Milestones</h4>
+        <div className="relative">
+          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-white/10" />
+          <div className="space-y-4">
+            {milestones.map((milestone, index) => (
+              <motion.div
+                key={milestone.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="relative pl-10"
+                data-testid={`milestone-${milestone.id}`}
+              >
+                <div
+                  className={cn(
+                    "absolute left-2 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all",
+                    milestone.completed
+                      ? "bg-green-500/30 border-green-500 text-green-400"
+                      : "bg-white/5 border-white/30"
+                  )}
+                >
+                  {milestone.completed && <CheckCircle className="w-3 h-3" />}
+                </div>
+                <div className="p-3 rounded-lg bg-white/5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={cn(
+                      "text-sm font-medium",
+                      milestone.completed ? "text-white" : "text-white/60"
+                    )}>
+                      {milestone.label}
+                    </span>
+                    {milestone.completed && (
+                      <Badge className="bg-green-500/20 text-green-400 text-xs">Complete</Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 text-xs">
+                    {milestone.estimatedDate && (
+                      <div className="flex items-center gap-1 text-white/50">
+                        <Calendar className="w-3 h-3" />
+                        Est: {format(new Date(milestone.estimatedDate), 'MMM d, yyyy')}
+                      </div>
+                    )}
+                    {milestone.actualDate && (
+                      <div className="flex items-center gap-1 text-neon-cyan">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Actual: {format(new Date(milestone.actualDate), 'MMM d, yyyy')}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="timeline-status-history">
+        <h4 className="text-sm font-semibold text-white/80 mb-4">Status Transitions</h4>
+        {manufacturingUpdates.length === 0 ? (
+          <p className="text-sm text-white/50">No status transitions recorded yet</p>
+        ) : (
+          <div className="space-y-2">
+            {manufacturingUpdates.slice(0, 5).map((update: any, index: number) => (
+              <div
+                key={update.id}
+                className="flex items-center justify-between p-2 rounded-lg bg-white/5"
+                data-testid={`status-transition-${update.id}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={cn(
+                    "w-2 h-2 rounded-full",
+                    MANUFACTURING_STATUS_CONFIG[update.status as ManufacturingStatus]?.textClass?.replace('text-', 'bg-') || "bg-white/40"
+                  )} />
+                  <span className="text-sm text-white">
+                    {MANUFACTURING_STATUS_CONFIG[update.status as ManufacturingStatus]?.label || update.status}
+                  </span>
+                </div>
+                <span className="text-xs text-white/50">
+                  {format(new Date(update.createdAt), 'MMM d, h:mm a')}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+function ShippingModule({
+  manufacturing,
+  order,
+  organization,
+  orderTrackingNumbers,
+}: {
+  manufacturing: any;
+  order: any;
+  organization: any;
+  orderTrackingNumbers: any[];
+}) {
+  const shippingStatus = manufacturing.status === 'shipped' 
+    ? 'in_transit' 
+    : manufacturing.status === 'complete' 
+      ? 'delivered' 
+      : 'pending';
+
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'delivered': return { label: 'Delivered', bgClass: 'bg-green-500/20', textClass: 'text-green-400', borderClass: 'border-green-500/30' };
+      case 'in_transit': return { label: 'In Transit', bgClass: 'bg-blue-500/20', textClass: 'text-blue-400', borderClass: 'border-blue-500/30' };
+      case 'pending': return { label: 'Pending', bgClass: 'bg-yellow-500/20', textClass: 'text-yellow-400', borderClass: 'border-yellow-500/30' };
+      default: return { label: 'Unknown', bgClass: 'bg-white/10', textClass: 'text-white/60', borderClass: 'border-white/20' };
+    }
+  };
+
+  const statusConfig = getStatusConfig(shippingStatus);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      className="space-y-6"
+      data-testid="module-shipping"
+    >
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+          <Truck className="w-5 h-5 text-neon-cyan" />
+          Shipping Info
+        </h3>
+        <Badge
+          className={cn("px-3 py-1.5", statusConfig.bgClass, statusConfig.textClass, statusConfig.borderClass)}
+          data-testid="shipping-status"
+        >
+          {statusConfig.label}
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-2 gap-6">
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="shipping-address">
+          <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-neon-blue" />
+            Ship-To Address
+          </h4>
+          {organization ? (
+            <div className="space-y-2">
+              <p className="text-sm text-white font-medium">{organization.name}</p>
+              {organization.shippingAddress ? (
+                <p className="text-sm text-white/70 whitespace-pre-line">{organization.shippingAddress}</p>
+              ) : (
+                <>
+                  {organization.address && <p className="text-sm text-white/70">{organization.address}</p>}
+                  <p className="text-sm text-white/70">
+                    {[organization.city, organization.state, organization.zip].filter(Boolean).join(', ')}
+                  </p>
+                </>
+              )}
+              {organization.phone && (
+                <p className="text-xs text-white/50 flex items-center gap-1">
+                  <Phone className="w-3 h-3" />
+                  {organization.phone}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-white/50">No shipping address available</p>
+          )}
+        </div>
+
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="shipping-dates">
+          <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-neon-purple" />
+            Delivery Dates
+          </h4>
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs text-white/50">Estimated Completion</p>
+              <p className="text-sm text-white">
+                {manufacturing.estCompletion ? format(new Date(manufacturing.estCompletion), 'MMM d, yyyy') : 'Not set'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-white/50">Order Est. Delivery</p>
+              <p className="text-sm text-white">
+                {order?.estDelivery ? format(new Date(order.estDelivery), 'MMM d, yyyy') : 'Not set'}
+              </p>
+            </div>
+            {manufacturing.actualCompletion && (
+              <div>
+                <p className="text-xs text-white/50">Actual Completion</p>
+                <p className="text-sm text-neon-green">
+                  {format(new Date(manufacturing.actualCompletion), 'MMM d, yyyy')}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4" data-testid="shipping-tracking">
+        <h4 className="text-sm font-semibold text-white/80 mb-3 flex items-center gap-2">
+          <Package className="w-4 h-4 text-neon-cyan" />
+          Tracking Numbers ({orderTrackingNumbers.length})
+        </h4>
+        {orderTrackingNumbers.length === 0 ? (
+          <div className="text-center py-6 text-white/50">
+            <Truck className="w-10 h-10 mx-auto mb-2 opacity-20" />
+            <p className="text-sm">No tracking numbers added yet</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {orderTrackingNumbers.map((tracking: any) => (
+              <div
+                key={tracking.id}
+                className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10"
+                data-testid={`tracking-${tracking.id}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
+                    <Truck className="w-5 h-5 text-neon-cyan" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-mono text-white">{tracking.trackingNumber}</p>
+                    <p className="text-xs text-white/50">{tracking.carrierCompany || 'Unknown Carrier'}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge
+                    className={cn(
+                      "text-xs capitalize",
+                      tracking.status === 'delivered' ? "bg-green-500/20 text-green-400" :
+                      tracking.status === 'in_transit' ? "bg-blue-500/20 text-blue-400" :
+                      "bg-yellow-500/20 text-yellow-400"
+                    )}
+                  >
+                    {tracking.status || 'Pending'}
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white/60 hover:text-white"
+                    onClick={() => {
+                      navigator.clipboard.writeText(tracking.trackingNumber);
+                    }}
+                    data-testid={`copy-tracking-${tracking.id}`}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {manufacturing.trackingNumber && (
+        <div className="p-4 rounded-xl bg-gradient-to-r from-neon-cyan/5 via-neon-blue/5 to-neon-purple/5 border border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-lg bg-neon-cyan/20 flex items-center justify-center">
+              <Truck className="w-6 h-6 text-neon-cyan" />
+            </div>
+            <div>
+              <p className="text-xs text-white/50">Manufacturing Tracking</p>
+              <p className="text-lg font-mono text-white">{manufacturing.trackingNumber}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
