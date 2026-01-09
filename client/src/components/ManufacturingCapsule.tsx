@@ -176,6 +176,36 @@ function ModuleTab({
   );
 }
 
+const CollapsibleSection = ({ 
+  title, 
+  icon: Icon, 
+  children, 
+  defaultOpen = true,
+  className = ""
+}: { 
+  title: string; 
+  icon: any; 
+  children: React.ReactNode; 
+  defaultOpen?: boolean;
+  className?: string;
+}) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className={cn("min-w-0 overflow-hidden", className)}>
+      <CollapsibleTrigger className="flex items-center justify-between w-full p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors group">
+        <div className="flex items-center gap-3">
+          <Icon className="w-5 h-5 text-neon-cyan flex-shrink-0" />
+          <span className="font-medium text-white">{title}</span>
+        </div>
+        <ChevronDown className={cn("w-4 h-4 text-white/60 transition-transform flex-shrink-0", isOpen && "rotate-180")} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-3">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
+
 function ActionButton({
   icon: Icon,
   label,
@@ -1224,139 +1254,133 @@ function OverviewModule({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-w-0 max-w-full">
         {/* Order & Organization Details */}
-        <div className="p-4 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
-          <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-            <Package className="w-4 h-4 text-neon-blue flex-shrink-0" />
-            Order Details
-          </h3>
-          <div className="space-y-2">
-            <InfoRow label="Order Code" value={order?.orderCode} icon={Package} />
-            <InfoRow label="Order Name" value={order?.orderName} icon={FileText} />
-            <InfoRow label="Organization" value={organization?.name} icon={Building2} />
-            <InfoRow label="Est. Delivery" value={order?.estDelivery ? format(new Date(order.estDelivery), 'MMM d, yyyy') : '—'} icon={Calendar} />
+        <CollapsibleSection title="Order Details" icon={Package} defaultOpen={true}>
+          <div className="p-4 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
+            <div className="space-y-2">
+              <InfoRow label="Order Code" value={order?.orderCode} icon={Package} />
+              <InfoRow label="Order Name" value={order?.orderName} icon={FileText} />
+              <InfoRow label="Organization" value={organization?.name} icon={Building2} />
+              <InfoRow label="Est. Delivery" value={order?.estDelivery ? format(new Date(order.estDelivery), 'MMM d, yyyy') : '—'} icon={Calendar} />
+            </div>
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Timeline */}
-        <div className="p-4 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
-          <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-neon-cyan flex-shrink-0" />
-            Timeline
-          </h3>
-          <div className="space-y-2">
-            <InfoRow label="Created" value={format(new Date(manufacturing.createdAt), 'MMM d, yyyy')} icon={Calendar} />
-            <InfoRow label="Est. Completion" value={manufacturing.estCompletion ? format(new Date(manufacturing.estCompletion), 'MMM d, yyyy') : '—'} icon={Calendar} />
-            {isEditing ? (
-              <div className="pt-2">
-                <Label className="text-xs text-white/50">Actual Completion</Label>
-                <Input
-                  type="date"
-                  value={formData.actualCompletion || ''}
-                  onChange={(e) => handleFormChange('actualCompletion', e.target.value)}
-                  className="mt-1 bg-white/5 border-white/10"
-                />
-              </div>
-            ) : (
-              <InfoRow label="Actual Completion" value={manufacturing.actualCompletion ? format(new Date(manufacturing.actualCompletion), 'MMM d, yyyy') : '—'} icon={CheckCircle2} />
-            )}
+        <CollapsibleSection title="Timeline" icon={Clock} defaultOpen={true}>
+          <div className="p-4 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
+            <div className="space-y-2">
+              <InfoRow label="Created" value={format(new Date(manufacturing.createdAt), 'MMM d, yyyy')} icon={Calendar} />
+              <InfoRow label="Est. Completion" value={manufacturing.estCompletion ? format(new Date(manufacturing.estCompletion), 'MMM d, yyyy') : '—'} icon={Calendar} />
+              {isEditing ? (
+                <div className="pt-2">
+                  <Label className="text-xs text-white/50">Actual Completion</Label>
+                  <Input
+                    type="date"
+                    value={formData.actualCompletion || ''}
+                    onChange={(e) => handleFormChange('actualCompletion', e.target.value)}
+                    className="mt-1 bg-white/5 border-white/10"
+                  />
+                </div>
+              ) : (
+                <InfoRow label="Actual Completion" value={manufacturing.actualCompletion ? format(new Date(manufacturing.actualCompletion), 'MMM d, yyyy') : '—'} icon={CheckCircle2} />
+              )}
+            </div>
           </div>
-        </div>
+        </CollapsibleSection>
 
         {/* Tracking */}
-        <div className="p-4 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
-          <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-            <Truck className="w-4 h-4 text-neon-purple flex-shrink-0" />
-            Tracking
+        <CollapsibleSection title="Tracking" icon={Truck} defaultOpen={false}>
+          <div className="p-4 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
             {orderTrackingNumbers.length > 0 && (
-              <Badge variant="outline" className="ml-2 text-green-400 border-green-400/30">
-                {orderTrackingNumbers.length} tracking number{orderTrackingNumbers.length > 1 ? 's' : ''}
-              </Badge>
+              <div className="mb-3">
+                <Badge variant="outline" className="text-green-400 border-green-400/30">
+                  {orderTrackingNumbers.length} tracking number{orderTrackingNumbers.length > 1 ? 's' : ''}
+                </Badge>
+              </div>
             )}
-          </h3>
-          {isEditing ? (
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs text-white/50">Tracking Number</Label>
-                <Input
-                  value={formData.trackingNumber || ''}
-                  onChange={(e) => handleFormChange('trackingNumber', e.target.value)}
-                  placeholder="Enter tracking number"
-                  className="mt-1 bg-white/5 border-white/10"
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-white/50">Carrier</Label>
-                <Select value={formData.carrierCompany} onValueChange={(v) => handleFormChange('carrierCompany', v)}>
-                  <SelectTrigger className="mt-1 bg-white/5 border-white/10">
-                    <SelectValue placeholder="Select carrier" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="UPS">UPS</SelectItem>
-                    <SelectItem value="FedEx">FedEx</SelectItem>
-                    <SelectItem value="USPS">USPS</SelectItem>
-                    <SelectItem value="DHL">DHL</SelectItem>
-                    <SelectItem value="Manufacturing Team">Manufacturing Team (Local)</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          ) : orderTrackingNumbers.length > 0 ? (
-            <div className="space-y-2">
-              {orderTrackingNumbers.map((t: any) => (
-                <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-white/5">
-                  <div>
-                    <span className="text-sm text-white font-mono">{t.trackingNumber}</span>
-                    <span className="text-xs text-white/50 ml-2">{t.carrierCompany}</span>
-                  </div>
+            {isEditing ? (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs text-white/50">Tracking Number</Label>
+                  <Input
+                    value={formData.trackingNumber || ''}
+                    onChange={(e) => handleFormChange('trackingNumber', e.target.value)}
+                    placeholder="Enter tracking number"
+                    className="mt-1 bg-white/5 border-white/10"
+                  />
                 </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-white/50">No tracking numbers yet</p>
-          )}
-        </div>
+                <div>
+                  <Label className="text-xs text-white/50">Carrier</Label>
+                  <Select value={formData.carrierCompany} onValueChange={(v) => handleFormChange('carrierCompany', v)}>
+                    <SelectTrigger className="mt-1 bg-white/5 border-white/10">
+                      <SelectValue placeholder="Select carrier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="UPS">UPS</SelectItem>
+                      <SelectItem value="FedEx">FedEx</SelectItem>
+                      <SelectItem value="USPS">USPS</SelectItem>
+                      <SelectItem value="DHL">DHL</SelectItem>
+                      <SelectItem value="Manufacturing Team">Manufacturing Team (Local)</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            ) : orderTrackingNumbers.length > 0 ? (
+              <div className="space-y-2">
+                {orderTrackingNumbers.map((t: any) => (
+                  <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-white/5">
+                    <div>
+                      <span className="text-sm text-white font-mono">{t.trackingNumber}</span>
+                      <span className="text-xs text-white/50 ml-2">{t.carrierCompany}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-white/50">No tracking numbers yet</p>
+            )}
+          </div>
+        </CollapsibleSection>
 
         {/* Notes */}
-        <div className="p-4 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
-          <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-            <MessageSquare className="w-4 h-4 text-neon-cyan flex-shrink-0" />
-            Notes
-          </h3>
-          {isEditing ? (
-            <div className="space-y-3">
-              <div>
-                <Label className="text-xs text-white/50">Production Notes</Label>
-                <Textarea
-                  value={formData.productionNotes || ''}
-                  onChange={(e) => handleFormChange('productionNotes', e.target.value)}
-                  placeholder="Add production notes..."
-                  className="mt-1 bg-white/5 border-white/10 min-h-[80px]"
-                />
+        <CollapsibleSection title="Notes" icon={MessageSquare} defaultOpen={false}>
+          <div className="p-4 rounded-xl bg-white/5 border border-white/10 min-w-0 overflow-hidden">
+            {isEditing ? (
+              <div className="space-y-3">
+                <div>
+                  <Label className="text-xs text-white/50">Production Notes</Label>
+                  <Textarea
+                    value={formData.productionNotes || ''}
+                    onChange={(e) => handleFormChange('productionNotes', e.target.value)}
+                    placeholder="Add production notes..."
+                    className="mt-1 bg-white/5 border-white/10 min-h-[80px]"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-white/50">Quality Notes</Label>
+                  <Textarea
+                    value={formData.qualityNotes || ''}
+                    onChange={(e) => handleFormChange('qualityNotes', e.target.value)}
+                    placeholder="Add quality notes..."
+                    className="mt-1 bg-white/5 border-white/10 min-h-[80px]"
+                  />
+                </div>
               </div>
-              <div>
-                <Label className="text-xs text-white/50">Quality Notes</Label>
-                <Textarea
-                  value={formData.qualityNotes || ''}
-                  onChange={(e) => handleFormChange('qualityNotes', e.target.value)}
-                  placeholder="Add quality notes..."
-                  className="mt-1 bg-white/5 border-white/10 min-h-[80px]"
-                />
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <div className="text-xs text-white/40 mb-1">Production Notes</div>
+                  <p className="text-sm text-white">{manufacturing.productionNotes || 'No production notes'}</p>
+                </div>
+                <div>
+                  <div className="text-xs text-white/40 mb-1">Quality Notes</div>
+                  <p className="text-sm text-white">{manufacturing.qualityNotes || 'No quality notes'}</p>
+                </div>
               </div>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div>
-                <div className="text-xs text-white/40 mb-1">Production Notes</div>
-                <p className="text-sm text-white">{manufacturing.productionNotes || 'No production notes'}</p>
-              </div>
-              <div>
-                <div className="text-xs text-white/40 mb-1">Quality Notes</div>
-                <p className="text-sm text-white">{manufacturing.qualityNotes || 'No quality notes'}</p>
-              </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </CollapsibleSection>
       </div>
 
       {/* First Piece Approval Panel - Show when status is cutting_sewing or later */}
