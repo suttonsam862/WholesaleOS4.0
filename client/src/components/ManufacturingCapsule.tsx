@@ -46,6 +46,7 @@ import {
   VelocityIndicator,
   calculateVelocity,
 } from "@/lib/status-system";
+import { generateManufacturingPdf } from "@/lib/manufacturing-pdf";
 
 import {
   Package,
@@ -295,6 +296,7 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
   const [editingLineItemId, setEditingLineItemId] = useState<number | null>(null);
   const [editedItemName, setEditedItemName] = useState("");
   const [selectedAttachmentCategory, setSelectedAttachmentCategory] = useState<string>("logos");
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const canEdit = user?.role === 'admin' || user?.role === 'ops' || user?.role === 'manufacturer';
 
@@ -632,6 +634,80 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
     }
   };
 
+  const handleDownloadPdf = async () => {
+    if (!manufacturing) return;
+    
+    setIsGeneratingPdf(true);
+    try {
+      await generateManufacturingPdf({
+        manufacturing: {
+          id: manufacturing.id,
+          status: manufacturing.status,
+          estCompletion: manufacturing.estCompletion,
+          actualCompletion: manufacturing.actualCompletion,
+          trackingNumber: manufacturing.trackingNumber,
+          productionNotes: manufacturing.productionNotes,
+          qualityNotes: manufacturing.qualityNotes,
+          specialInstructions: manufacturing.specialInstructions,
+          createdAt: manufacturing.createdAt,
+          updatedAt: manufacturing.updatedAt,
+          priority: manufacturing.priority,
+        },
+        order: order ? {
+          orderCode: order.orderCode,
+          orderName: order.orderName,
+          estDelivery: order.estDelivery,
+          priority: order.priority,
+        } : null,
+        organization: organization ? {
+          name: organization.name,
+          city: organization.city,
+          state: organization.state,
+          shippingAddress: organization.shippingAddress,
+          logoUrl: organization.logoUrl,
+        } : null,
+        manufacturer: manufacturer ? {
+          name: manufacturer.name,
+        } : null,
+        lineItems: manufacturingLineItems.map((item: any) => ({
+          id: item.id,
+          orderLineItemId: item.orderLineItemId,
+          itemName: item.itemName,
+          variantName: item.variantName,
+          sku: item.sku,
+          descriptors: item.descriptors,
+          yxs: item.yxs,
+          ys: item.ys,
+          ym: item.ym,
+          yl: item.yl,
+          xs: item.xs,
+          s: item.s,
+          m: item.m,
+          l: item.l,
+          xl: item.xl,
+          xxl: item.xxl,
+          xxxl: item.xxxl,
+          xxxxl: item.xxxxl,
+          totalQty: item.totalQty,
+        })),
+        pantoneColors: pantoneAssignments.map((p: any) => ({
+          id: p.id,
+          pantoneCode: p.pantoneCode,
+          pantoneName: p.pantoneName,
+          hexValue: p.hexValue,
+          usageLocation: p.usageLocation,
+          usageNotes: p.usageNotes,
+        })),
+      });
+      toast({ title: "Success", description: "Manufacturing guide PDF downloaded" });
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      toast({ title: "Error", description: "Failed to generate PDF", variant: "destructive" });
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
+
   // Calculate velocity
   const velocity = manufacturing
     ? calculateVelocity(manufacturing.updatedAt, manufacturing.estCompletion, manufacturing.status)
@@ -749,6 +825,15 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
                                   onClick={() => setShowDeleteConfirm(true)}
                                   variant="danger"
                                 />
+                                <button
+                                  onClick={handleDownloadPdf}
+                                  disabled={isGeneratingPdf}
+                                  className="flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-all duration-200 bg-neon-cyan/10 border-neon-cyan/30 text-neon-cyan hover:bg-neon-cyan/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  data-testid="button-download-pdf"
+                                >
+                                  <Download className={cn("w-4 h-4", isGeneratingPdf && "animate-pulse")} />
+                                  <span>{isGeneratingPdf ? "Generating..." : "Download PDF"}</span>
+                                </button>
                               </>
                             )}
                           </>
