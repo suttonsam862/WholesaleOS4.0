@@ -30,6 +30,7 @@ import {
 } from "@/lib/status-system";
 import { GlassManufacturingSpreadsheet, type EnrichedManufacturing } from "@/components/manufacturing/GlassManufacturingSpreadsheet";
 import { ManufacturingCapsule } from "@/components/ManufacturingCapsule";
+import { generateManufacturingPdf } from "@/lib/manufacturing-pdf";
 import type { Order, Manufacturing } from "@shared/schema";
 
 interface Organization {
@@ -209,11 +210,56 @@ export default function ManufacturingList() {
     setIsCapsuleOpen(true);
   }, []);
 
-  const handleDownloadPdf = useCallback((record: EnrichedManufacturing) => {
+  const handleDownloadPdf = useCallback(async (record: EnrichedManufacturing) => {
     toast({
       title: "Generating PDF",
       description: `Preparing manufacturing guide for ${record.order?.orderCode || `MFG-${record.id}`}...`,
     });
+    
+    try {
+      await generateManufacturingPdf({
+        manufacturing: {
+          id: record.id,
+          status: record.status,
+          estCompletion: record.estCompletion,
+          actualCompletion: record.actualCompletion,
+          trackingNumber: record.trackingNumber,
+          productionNotes: record.productionNotes,
+          qualityNotes: record.qualityNotes,
+          specialInstructions: record.specialInstructions,
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt,
+          priority: record.priority,
+        },
+        order: record.order ? {
+          orderCode: record.order.orderCode,
+          orderName: record.order.orderName,
+          estDelivery: record.order.estDelivery,
+          priority: record.order.priority,
+        } : null,
+        organization: record.organization ? {
+          name: record.organization.name,
+          city: record.organization.city,
+          state: record.organization.state,
+          shippingAddress: null,
+          logoUrl: record.organization.logoUrl,
+        } : null,
+        manufacturer: null,
+        lineItems: [],
+        pantoneColors: [],
+      });
+      toast({
+        title: "Success",
+        description: "Manufacturing guide PDF downloaded",
+      });
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF",
+        variant: "destructive",
+      });
+    }
   }, [toast]);
 
   const handleCloseCapsule = useCallback(() => {

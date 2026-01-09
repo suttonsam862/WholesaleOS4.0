@@ -636,7 +636,7 @@ export default function Manufacturing() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleOpenDetail(selectedManufacturing)}
+                        onClick={() => handleQuickView(selectedManufacturing)}
                         className="border-primary/50 bg-primary/10 hover:bg-primary/20"
                         data-testid="button-quick-view"
                       >
