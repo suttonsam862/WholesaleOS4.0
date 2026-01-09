@@ -1,7 +1,7 @@
 # Rich Habits ERP System
 
 ## Overview
-This full-stack Enterprise Resource Planning (ERP) system for Rich Habits LLC, a custom athletic apparel manufacturer, manages the entire business workflow. It spans sales lead tracking, design, manufacturing, and delivery. Key capabilities include sales pipeline management, design job workflows, production tracking, financial management (invoicing, payments, QuickBooks integration), Shopify-integrated team stores, and event management. The system features role-based access control for Admin, Sales, Designer, Ops, Manufacturer, and Finance roles. The business vision is to streamline operations, enhance efficiency, and provide a comprehensive platform for managing all aspects of custom apparel manufacturing, aiming for significant market potential through robust process automation and improved customer experience.
+This full-stack Enterprise Resource Planning (ERP) system for Rich Habits LLC manages the entire business workflow for custom athletic apparel manufacturing. It covers sales lead tracking, design, manufacturing, and delivery. Key capabilities include sales pipeline management, design job workflows, production tracking, financial management (invoicing, payments, QuickBooks integration), Shopify-integrated team stores, and event management. The system features role-based access control for Admin, Sales, Designer, Ops, Manufacturer, and Finance roles. The business vision is to streamline operations, enhance efficiency, and provide a comprehensive platform for managing all aspects of custom apparel manufacturing, aiming for significant market potential through robust process automation and improved customer experience.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -16,23 +16,24 @@ Preferred communication style: Simple, everyday language.
 - **Forms**: React Hook Form with Zod validation.
 - **Interactivity**: dnd-kit for drag & drop.
 - **Navigation**: Hub-based pattern for domain areas.
-- **Mobile Optimization**: App-wide responsiveness, touch-first interactions, `DataViewToggle` (table/card views, mobile defaults to cards), `MobileDataCard` (swipe-enabled), `ResponsiveDialog` (Dialog/Drawer switch), safe area support, compact mobile layouts, and consistent mobile patterns (44px touch targets, collapsible sections, horizontal scroll areas).
+- **Mobile Optimization**: App-wide responsiveness, touch-first interactions, `DataViewToggle`, `MobileDataCard`, `ResponsiveDialog`, safe area support, compact layouts, and consistent mobile patterns (44px touch targets, collapsible sections, horizontal scroll areas). Features include shimmer loading, spring physics animations, and various micro-interactions (`PressFeedback`, `PullToRefresh`, `SmoothScrollArea`). Glassmorphic spreadsheet components are used for enhanced data visualization.
 
 ### Backend Architecture
 - **Runtime & Language**: Node.js with Express.js, TypeScript with ES modules.
 - **API Design**: RESTful JSON APIs with Zod schema validation.
 - **Authentication**: Session-based with role-based middleware.
-- **Structure**: Modular route files organized by domain (auth, orders, manufacturing, catalog, etc.).
+- **Structure**: Modular route files organized by domain.
+- **Security**: CSRF protection, general API rate limiting, and auth-specific rate limiting.
 
 ### Data Layer
 - **ORM**: Drizzle ORM (PostgreSQL dialect).
 - **Database**: PostgreSQL (Neon serverless compatible).
 - **Schema**: `shared/schema.ts` for frontend/backend consistency.
 - **Migrations**: Drizzle Kit.
-- **Key Models**: Users (role-based), Organizations, Orders (line items, size breakdowns), Manufacturing records, Design jobs, Quotes.
+- **Key Models**: Users (role-based), Organizations, Orders, Manufacturing records, Design jobs, Quotes.
 
 ### Shared Code
-- `shared/` directory contains `schema.ts` (Drizzle, Zod schemas) and type definitions for full-stack type safety.
+- `shared/` directory contains Drizzle and Zod schemas and type definitions for full-stack type safety.
 
 ## External Dependencies
 
@@ -40,186 +41,14 @@ Preferred communication style: Simple, everyday language.
 - **PostgreSQL**: Via Neon Serverless (`@neondatabase/serverless`).
 
 ### Cloud Storage
-- **Google Cloud Storage**: (`@google-cloud/storage`) for file uploads (images, design files, attachments).
+- **Google Cloud Storage**: (`@google-cloud/storage`) for file uploads.
 
 ### Email Service
-- **SendGrid**: (`@sendgrid/mail`) for transactional emails (notifications, quotes, invoices).
+- **SendGrid**: (`@sendgrid/mail`) for transactional emails.
 
 ### Planned Integrations
 - **Shopify Admin API**: For team store creation and product synchronization.
 - **QuickBooks Online**: For invoice and payment workflows.
 - **Printful API**: For print-on-demand fulfillment.
-- **Google Gemini**: For AI-powered features (client summaries, design assistance).
-- **Pantone Connect API**: For color matching from images.
-
-## Recent Changes
-
-### Permission Error Suppression for Manufacturer Role (January 2026)
-Improved user experience for manufacturer role by suppressing 403 permission errors.
-
-**QueryClient Changes** (`client/src/lib/queryClient.ts`):
-- Suppress 403 (Forbidden) errors in QueryCache - no toast notifications for permission denied
-- Suppress 403 errors in MutationCache - silent handling for mutations that fail due to permissions
-- Consistent with existing 401 (Unauthorized) suppression behavior
-
-**QueueWidget Changes** (`client/src/components/role-home/QueueWidget.tsx`):
-- Import HttpError from queryClient to properly identify 403 errors
-- Treat 403 permission errors as "no access" - show empty state instead of ugly error
-- Users without permission see a clean empty widget instead of error messages
-
-**ManufacturingCapsule Visibility**:
-- Verified admin, ops, and manufacturer roles all receive maximum details via `canEdit` flag
-- All modules (Overview, Line Items, Pantone, Documents, Activity) visible to these roles
-- Full editing capabilities available for authorized roles
-
-### Universal Dock Padding Fix (January 2026)
-Fixed content being covered by the fixed floating dock across the entire application.
-
-**CSS Variables** (`client/src/index.css`):
-- Added `--dock-height-desktop: 80px` and `--dock-height-mobile: 100px`
-- Added `--dock-safe-padding-desktop` and `--dock-safe-padding-mobile` calculated values
-- Created `.pb-dock` utility class for bottom padding that accounts for dock height
-- Created `.bottom-above-dock` utility class for fixed elements that need to sit above the dock
-
-**Universal Application**:
-- AppLayout's `<main>` element now uses `.pb-dock` class for consistent padding
-- ActionPageShell's fixed footer uses `.bottom-above-dock` to sit above the dock
-- PermissionManagement's floating save bar uses `.bottom-above-dock`
-
-**Best Practice**: Any new page with scrollable content automatically gets dock-safe padding via AppLayout. Any fixed bottom elements (save bars, action footers) should use the `.bottom-above-dock` class to position above the dock.
-
-### Error Remediation Phase 1 (December 2024)
-Systematic error elimination for improved stability and security.
-
-**TypeScript/Schema Fixes** (`shared/schema.ts`):
-- Fixed 12 LSP type errors in insert schemas
-- Pattern: Use `.omit()` on base schema BEFORE `.extend()` for refinements
-- Affected: insertFabricSchema, insertManufacturerJobSchema, insertPantoneAssignmentSchema, and 9 others
-
-**Security Middleware** (`server/routes/index.ts`, `server/middleware/`):
-- CSRF protection globally applied to all routes
-- General API rate limiter: 100 requests/minute per IP on all `/api` routes
-- Auth rate limiter: 5 attempts/15 min on login endpoint
-- CSRF token endpoint at `/api/auth/csrf-token`
-
-**Documentation** (`docs/COMPREHENSIVE_ERROR_LIST.md`):
-- Created comprehensive error tracking document
-- 20 issues fixed, 20 documented for future phases
-- Data assessment complete: 0 violations for prices/quantities/orphans - constraints safe to add
-- Priority matrix for remaining work
-
-**Query Client Improvements** (`client/src/lib/queryClient.ts`, `client/src/lib/queryKeys.ts`):
-- Added `queryKeys.ts` factory pattern with 15+ resource patterns for consistent cache invalidation
-- Global error handling via `QueryCache` and `MutationCache` with toast notifications
-- Configured reasonable stale time (30s) and gcTime (5min)
-- Added `silent` meta option to suppress toasts when needed
-
-### Native App Quality Mobile Polish (December 2024)
-Enhanced the mobile experience to feel like native iOS/Android apps with smooth loading, spring physics animations, and micro-interactions.
-
-**Loading & Skeleton System** (`client/src/components/ui/skeleton.tsx`):
-- Shimmer animations with gradient sweep (like Instagram)
-- Content-aware skeleton variants: SkeletonCard, SkeletonList, SkeletonTable, SkeletonChart, SkeletonAvatar, SkeletonText
-- LoadingContainer wrapper with smooth crossfade transitions
-- Spring physics for content appearance
-
-**Animation System**:
-- Spring timing functions via CSS variables: `--spring-bounce`, `--spring-smooth`, `--spring-snappy`
-- Page transitions with AnimatePresence and spring physics
-- Stagger animations for lists and grids (`StaggerContainer`, `StaggerItem`, `StaggerGrid`)
-- Modal/popup spring animations with backdrop blur transitions
-
-**Typography System** (`client/src/components/ui/responsive-text.tsx`, `truncate-text.tsx`):
-- Fluid typography with CSS clamp(): `--text-fluid-xs` through `--text-fluid-3xl`
-- TruncateText with expandable tap-to-show-more functionality
-- ResponsiveHeading and ResponsiveText components
-- AutoSizeText for automatic font scaling to fit container
-
-**Micro-Interactions** (`client/src/components/ui/`):
-- `PressFeedback` - Scale-down effect on touch (0.97 scale)
-- `PullToRefresh` - Touch gesture refresh with animated indicator
-- `SmoothScrollArea` - Momentum scrolling with edge gradients
-- `AnimatedCounter` - Spring-animated number transitions
-- `RippleEffect` - Material Design ripple on tap
-
-**Sales Map Mobile Optimization** (`client/src/modules/sales-map/`):
-- Full-screen map with floating glass morphism controls
-- Bottom sheet for mobile filters (TopHUD converted)
-- Bottom drawer for entity details (RightDrawer converted)
-- Collapsible bottom bar for orders panel
-- Larger touch targets (1.4x marker size on mobile)
-- Haptic-style visual feedback on marker tap
-
-**Global Mobile Polish**:
-- All buttons have :active scale transform (0.97)
-- Overscroll behavior utilities
-- 44-48px minimum touch targets throughout
-- Spring physics on all modal/popup transitions
-- No layout shifts during page transitions
-
-### React Query Cache Invalidation Fix (December 2024)
-Fixed cache invalidation "drift" across all CRUD operations by standardizing query key patterns.
-
-**Problem**: Template string query keys like `` [`/api/orders/${orderId}`] `` created single-string keys that didn't match hierarchical cache invalidation patterns, causing stale data after create/edit/delete operations.
-
-**Solution**: Converted all query keys to array segment format for proper prefix-based invalidation:
-- `['/api/orders', orderId]` instead of `` [`/api/orders/${orderId}`] ``
-- `['/api/orders', orderId, 'line-items']` instead of `` [`/api/orders/${orderId}/line-items`] ``
-
-**Files Updated**:
-- `OrderCapsule.tsx` - 16 query key fixes
-- `order-detail-modal.tsx` - 16 fixes
-- `manufacturing-detail-modal.tsx` - 1 fix
-- `edit-organization-modal.tsx`, `organization-detail-modal.tsx` - 4 fixes
-- `DataCapsule.tsx` - 2 fixes
-- `product-variants.tsx`, `category-products.tsx`, `customer-order-form.tsx`, `variant-design-archive.tsx` - 4 fixes
-- `salesperson-action-panel.tsx`, `salesperson-workflow-dashboard.tsx` - 4 fixes
-
-**Best Practice**: Always use array segment format for React Query keys to ensure cache invalidation works correctly with prefix matching.
-
-### Manufacturer Role UX Simplification (January 2026)
-Simplified the manufacturing pages for non-technical manufacturer role users.
-
-**Query Errors Fixed** (`client/src/pages/manufacturer-home.tsx`):
-- Removed unused `/api/manufacturing` query that caused 403 errors for manufacturer role users
-- Manufacturer pages now only use `/api/manufacturer-portal/*` endpoints which are scoped to their permissions
-
-**Navigation Improvements** (`client/src/pages/manufacturer-queue.tsx`, `manufacturer-job-detail.tsx`):
-- All back buttons now consistently navigate to `/manufacturer/home`
-- Removed confusing navigation to `/manufacturer-portal` which was a different view
-- Clear, consistent navigation flow: Home → Queue → Job Detail → Home
-
-**Large CTAs for Non-Tech Users** (`client/src/pages/manufacturer-job-detail.tsx`):
-- Action buttons now 64px tall with full color backgrounds
-- Grid layout (1-2 columns) for clear visibility
-- Larger icons (w-6 h-6) and text (text-lg font-semibold)
-- Active state with scale transform for touch feedback
-- Improved "Job Complete" state with green success styling
-
-**Type Fixes** (`server/routes/manufacturer-portal.routes.ts`):
-- Fixed userId type from number to string for manufacturer associations
-- Fixed printMethod null vs undefined type mismatch
-
-**Removed Unnecessary Cache Invalidations**:
-- Cleaned up `/api/manufacturing` cache invalidations from manufacturer-portal.tsx and manufacturer-job-detail.tsx
-- These were attempting to invalidate endpoints that manufacturer role cannot access
-
-### Manufacturing Hub & List UX Update (January 2026)
-Redesigned manufacturing pages to match orders-hub/orders-list pattern per user preference for list-based views over column/board layouts.
-
-**Manufacturing Hub** (`client/src/pages/manufacturing-hub.tsx`):
-- Added "All Items" aggregate card at the beginning of the pipeline
-- Derived pipeline stages from MANUFACTURING_STATUS_CONFIG for status consistency
-- Matches orders-hub styling with pipeline cards and navigation
-
-**Manufacturing List** (`client/src/pages/manufacturing-list.tsx`):
-- Simple list view (no column/board layout) matching orders-list.tsx pattern
-- Navigates to order detail page (/orders/:id) instead of using modal
-- Role-based filtering: Sales users only see manufacturing for their assigned orders
-- Status filter dropdown using MANUFACTURING_STATUS_CONFIG keys
-
-**Route Updates** (`client/src/lib/routesConfig.ts`):
-- /manufacturing/list uses new list component
-- Board view moved to /manufacturing/board
-
-**Architecture Note**: Manufacturing records are linked to orders. Clicking on a manufacturing record navigates to the associated order detail page which contains the Manufacturing tab with full context.
+- **Google Gemini**: For AI-powered features.
+- **Pantone Connect API**: For color matching.
