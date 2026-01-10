@@ -2377,7 +2377,7 @@ function MaterialsModule({
     enabled: !!manufacturing?.id,
   });
 
-  // Save materials checklist mutation
+  // Save materials checklist mutation with optimistic updates
   const saveMutation = useMutation({
     mutationFn: async (updatedChecklist: MaterialItem[]) => {
       const response = await fetch(`/api/manufacturing/${manufacturing.id}/materials-checklist`, {
@@ -2389,12 +2389,28 @@ function MaterialsModule({
       if (!response.ok) throw new Error('Failed to save materials checklist');
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/manufacturing', manufacturing?.id, 'materials-checklist'] });
-      toast({ title: "Success", description: "Materials checklist saved" });
+    onMutate: async (updatedChecklist) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/manufacturing', manufacturing?.id, 'materials-checklist'] });
+      
+      // Snapshot previous value
+      const previousChecklist = queryClient.getQueryData<MaterialItem[]>(['/api/manufacturing', manufacturing?.id, 'materials-checklist']);
+      
+      // Optimistically update the cache immediately
+      queryClient.setQueryData(['/api/manufacturing', manufacturing?.id, 'materials-checklist'], updatedChecklist);
+      
+      return { previousChecklist };
     },
-    onError: () => {
+    onError: (_err, _updatedChecklist, context) => {
+      // Rollback to previous value on error
+      if (context?.previousChecklist) {
+        queryClient.setQueryData(['/api/manufacturing', manufacturing?.id, 'materials-checklist'], context.previousChecklist);
+      }
       toast({ title: "Error", description: "Failed to save materials checklist", variant: "destructive" });
+    },
+    onSettled: () => {
+      // Refetch after error or success to sync with server
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturing', manufacturing?.id, 'materials-checklist'] });
     },
   });
 
