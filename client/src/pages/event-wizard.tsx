@@ -41,6 +41,7 @@ const stage1Schema = z.object({
   endDate: z.string().optional(),
   location: z.string().optional(),
   timezone: z.string().optional(),
+  logoUrl: z.string().optional(),
 });
 
 type Stage1Data = z.infer<typeof stage1Schema>;
@@ -215,6 +216,7 @@ export default function EventWizard() {
       endDate: event?.endDate ? new Date(event.endDate).toISOString().split("T")[0] : "",
       location: event?.location || "",
       timezone: event?.timezone || "America/New_York",
+      logoUrl: event?.logoUrl || "",
     },
   });
 
@@ -462,6 +464,37 @@ export default function EventWizard() {
                               <Textarea {...field} placeholder="Enter event location" data-testid="input-location" />
                             </FormControl>
                             <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="logoUrl"
+                        render={({ field }) => (
+                          <FormItem className="md:col-span-2">
+                            <FormLabel>Event Logo URL</FormLabel>
+                            <FormControl>
+                              <Input 
+                                placeholder="https://example.com/logo.png" 
+                                {...field} 
+                                data-testid="input-logo-url"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                            {field.value && (
+                              <div className="mt-2">
+                                <img 
+                                  src={field.value} 
+                                  alt="Event logo preview" 
+                                  className="h-20 object-contain border rounded p-2"
+                                  data-testid="img-logo-preview"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            )}
                           </FormItem>
                         )}
                       />

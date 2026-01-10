@@ -1369,6 +1369,7 @@ export const events = pgTable("events", {
   location: text("location"),
   venueId: integer("venue_id"),
   thumbnailUrl: text("thumbnail_url"),
+  logoUrl: text("logo_url"),
   brandingConfig: jsonb("branding_config"), // Theme colors, logos, flyers
   organizationId: integer("organization_id").references(() => organizations.id),
   createdBy: varchar("created_by").references(() => users.id).notNull(),
@@ -1565,6 +1566,271 @@ export const eventRegistrations = pgTable("event_registrations", {
 }, (table) => [
   index("idx_event_registrations_event_id").on(table.eventId),
   index("idx_event_registrations_email").on(table.attendeeEmail),
+]);
+
+// Event Sponsors (sponsorship management)
+export const eventSponsors = pgTable("event_sponsors", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar("name").notNull(),
+  logoUrl: text("logo_url"),
+  tier: varchar("tier").$type<"platinum" | "gold" | "silver" | "bronze" | "custom">(),
+  amount: decimal("amount", { precision: 10, scale: 2 }),
+  benefits: text("benefits"),
+  contactName: varchar("contact_name"),
+  contactEmail: varchar("contact_email"),
+  contactPhone: varchar("contact_phone"),
+  status: varchar("status").$type<"pending" | "confirmed" | "paid">().default("pending"),
+  paymentDate: timestamp("payment_date"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_sponsors_event_id").on(table.eventId),
+]);
+
+// Event Volunteers (custom staff/volunteers - not system users)
+export const eventVolunteers = pgTable("event_volunteers", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar("name").notNull(),
+  role: varchar("role").notNull(),
+  email: varchar("email"),
+  phone: varchar("phone"),
+  shirtSize: varchar("shirt_size"),
+  assignedArea: varchar("assigned_area"),
+  scheduledStartTime: timestamp("scheduled_start_time"),
+  scheduledEndTime: timestamp("scheduled_end_time"),
+  checkedIn: boolean("checked_in").default(false),
+  checkedInAt: timestamp("checked_in_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_volunteers_event_id").on(table.eventId),
+]);
+
+// Event Graphics (flyers, posters, videos for advertising)
+export const eventGraphics = pgTable("event_graphics", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  fileType: varchar("file_type").$type<"flyer" | "poster" | "video" | "banner" | "social_media" | "logo" | "other">(),
+  fileName: varchar("file_name").notNull(),
+  fileUrl: text("file_url").notNull(),
+  thumbnailUrl: text("thumbnail_url"),
+  fileSize: integer("file_size"),
+  dimensions: varchar("dimensions"),
+  duration: integer("duration"),
+  usageRights: text("usage_rights"),
+  description: text("description"),
+  tags: text("tags").array(),
+  sortOrder: integer("sort_order").default(0),
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_graphics_event_id").on(table.eventId),
+]);
+
+// Event Venues (venue management)
+export const eventVenues = pgTable("event_venues", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  venueName: varchar("venue_name").notNull(),
+  address: text("address"),
+  city: varchar("city"),
+  state: varchar("state"),
+  zipCode: varchar("zip_code"),
+  country: varchar("country").default("USA"),
+  capacity: integer("capacity"),
+  rentalCost: decimal("rental_cost", { precision: 10, scale: 2 }),
+  contactName: varchar("contact_name"),
+  contactPhone: varchar("contact_phone"),
+  contactEmail: varchar("contact_email"),
+  amenities: text("amenities").array(),
+  layoutUrl: text("layout_url"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_venues_event_id").on(table.eventId),
+]);
+
+// Event Schedules (schedule/agenda items)
+export const eventSchedules = pgTable("event_schedules", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  location: varchar("location"),
+  activityType: varchar("activity_type").$type<"session" | "break" | "registration" | "ceremony" | "other">(),
+  speakerName: varchar("speaker_name"),
+  speakerBio: text("speaker_bio"),
+  maxAttendees: integer("max_attendees"),
+  currentAttendees: integer("current_attendees").default(0),
+  isPublic: boolean("is_public").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_schedules_event_id").on(table.eventId),
+]);
+
+// Event Equipment (equipment tracking)
+export const eventEquipment = pgTable("event_equipment", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  itemName: varchar("item_name").notNull(),
+  category: varchar("category").$type<"audio" | "visual" | "signage" | "furniture" | "sports" | "other">(),
+  quantity: integer("quantity").default(1),
+  rentalCompany: varchar("rental_company"),
+  rentalCost: decimal("rental_cost", { precision: 10, scale: 2 }),
+  isOwned: boolean("is_owned").default(false),
+  pickupDate: timestamp("pickup_date"),
+  returnDate: timestamp("return_date"),
+  status: varchar("status").$type<"reserved" | "picked_up" | "returned" | "damaged">().default("reserved"),
+  serialNumbers: text("serial_numbers"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_equipment_event_id").on(table.eventId),
+]);
+
+// Event Travel (travel arrangements for staff/contractors)
+export const eventTravel = pgTable("event_travel", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  travelerId: integer("traveler_id"),
+  travelerType: varchar("traveler_type").$type<"contractor" | "staff" | "custom">(),
+  travelerName: varchar("traveler_name").notNull(),
+  flightArrival: timestamp("flight_arrival"),
+  flightDeparture: timestamp("flight_departure"),
+  airlineDetails: text("airline_details"),
+  hotelName: varchar("hotel_name"),
+  hotelAddress: text("hotel_address"),
+  hotelCheckIn: timestamp("hotel_check_in"),
+  hotelCheckOut: timestamp("hotel_check_out"),
+  groundTransportation: text("ground_transportation"),
+  totalCost: decimal("total_cost", { precision: 10, scale: 2 }),
+  reimbursementStatus: varchar("reimbursement_status").$type<"pending" | "approved" | "reimbursed">().default("pending"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_travel_event_id").on(table.eventId),
+]);
+
+// Event Tasks (task management specific to events)
+export const eventTasks = pgTable("event_tasks", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  title: varchar("title").notNull(),
+  description: text("description"),
+  category: varchar("category").$type<"logistics" | "marketing" | "setup" | "teardown" | "other">(),
+  priority: varchar("priority").$type<"low" | "normal" | "high" | "urgent">().default("normal"),
+  status: varchar("status").$type<"pending" | "in_progress" | "completed" | "cancelled">().default("pending"),
+  dueDate: timestamp("due_date"),
+  assignedTo: varchar("assigned_to"),
+  completedAt: timestamp("completed_at"),
+  completedBy: varchar("completed_by"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_tasks_event_id").on(table.eventId),
+]);
+
+// Event Documents (document storage)
+export const eventDocuments = pgTable("event_documents", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  documentType: varchar("document_type").$type<"contract" | "permit" | "insurance" | "invoice" | "receipt" | "other">(),
+  fileName: varchar("file_name").notNull(),
+  fileUrl: text("file_url").notNull(),
+  fileSize: integer("file_size"),
+  expirationDate: timestamp("expiration_date"),
+  status: varchar("status").$type<"draft" | "pending_approval" | "approved" | "expired">().default("draft"),
+  notes: text("notes"),
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_documents_event_id").on(table.eventId),
+]);
+
+// Event Ticket Tiers (ticket pricing tiers)
+export const eventTicketTiers = pgTable("event_ticket_tiers", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  tierName: varchar("tier_name").notNull(),
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  capacity: integer("capacity"),
+  soldCount: integer("sold_count").default(0),
+  earlyBirdPrice: decimal("early_bird_price", { precision: 10, scale: 2 }),
+  earlyBirdEnds: timestamp("early_bird_ends"),
+  description: text("description"),
+  perks: text("perks").array(),
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_ticket_tiers_event_id").on(table.eventId),
+]);
+
+// Event Expenses (detailed expense tracking)
+export const eventExpenses = pgTable("event_expenses", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  expenseCategory: varchar("expense_category").notNull().$type<"venue" | "catering" | "equipment" | "marketing" | "staffing" | "travel" | "other">(),
+  description: varchar("description").notNull(),
+  vendor: varchar("vendor"),
+  amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: varchar("payment_method").$type<"cash" | "check" | "credit_card" | "wire" | "other">(),
+  paymentDate: timestamp("payment_date"),
+  receiptUrl: text("receipt_url"),
+  status: varchar("status").$type<"pending" | "approved" | "paid" | "reimbursed">().default("pending"),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_expenses_event_id").on(table.eventId),
+]);
+
+// Event Notes (general notes/comments for events)
+export const eventNotes = pgTable("event_notes", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  noteType: varchar("note_type").$type<"general" | "internal" | "client_facing" | "urgent">().default("general"),
+  title: varchar("title"),
+  content: text("content").notNull(),
+  isPinned: boolean("is_pinned").default(false),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_notes_event_id").on(table.eventId),
+]);
+
+// Event Checklists (pre-event and post-event checklists)
+export const eventChecklists = pgTable("event_checklists", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
+  checklistType: varchar("checklist_type").$type<"pre_event" | "during_event" | "post_event" | "setup" | "teardown">(),
+  itemText: varchar("item_text").notNull(),
+  isCompleted: boolean("is_completed").default(false),
+  completedAt: timestamp("completed_at"),
+  completedBy: varchar("completed_by").references(() => users.id),
+  sortOrder: integer("sort_order").default(0),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_event_checklists_event_id").on(table.eventId),
 ]);
 
 // Communication logs for leads tracking
@@ -2708,6 +2974,103 @@ export const insertEventRegistrationSchema = createInsertSchema(eventRegistratio
   ticketPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
 }).omit({ createdAt: true, updatedAt: true, registeredAt: true });
 
+export const insertEventSponsorSchema = createInsertSchema(eventSponsors, {
+  eventId: z.number().int().positive("Event ID is required"),
+  name: z.string().min(1, "Sponsor name is required"),
+  tier: z.enum(["platinum", "gold", "silver", "bronze", "custom"]).optional(),
+  status: z.enum(["pending", "confirmed", "paid"]).optional(),
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
+  contactEmail: z.string().email().optional().or(z.literal("")),
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertEventVolunteerSchema = createInsertSchema(eventVolunteers, {
+  eventId: z.number().int().positive("Event ID is required"),
+  name: z.string().min(1, "Volunteer name is required"),
+  role: z.string().min(1, "Role is required"),
+  email: z.string().email().optional().or(z.literal("")),
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertEventGraphicSchema = createInsertSchema(eventGraphics, {
+  eventId: z.number().int().positive("Event ID is required"),
+  fileName: z.string().min(1, "File name is required"),
+  fileUrl: z.string().url("Must be a valid URL"),
+  fileType: z.enum(["flyer", "poster", "video", "banner", "social_media", "logo", "other"]).optional(),
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertEventVenueSchema = createInsertSchema(eventVenues, {
+  eventId: z.number().int().positive("Event ID is required"),
+  venueName: z.string().min(1, "Venue name is required"),
+  rentalCost: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
+  contactEmail: z.string().email().optional().or(z.literal("")),
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertEventScheduleSchema = createInsertSchema(eventSchedules, {
+  eventId: z.number().int().positive("Event ID is required"),
+  title: z.string().min(1, "Title is required"),
+  startTime: z.string().min(1, "Start time is required"),
+  activityType: z.enum(["session", "break", "registration", "ceremony", "other"]).optional(),
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertEventEquipmentSchema = createInsertSchema(eventEquipment, {
+  eventId: z.number().int().positive("Event ID is required"),
+  itemName: z.string().min(1, "Item name is required"),
+  category: z.enum(["audio", "visual", "signage", "furniture", "sports", "other"]).optional(),
+  status: z.enum(["reserved", "picked_up", "returned", "damaged"]).optional(),
+  rentalCost: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertEventTravelSchema = createInsertSchema(eventTravel, {
+  eventId: z.number().int().positive("Event ID is required"),
+  travelerName: z.string().min(1, "Traveler name is required"),
+  travelerType: z.enum(["contractor", "staff", "custom"]).optional(),
+  reimbursementStatus: z.enum(["pending", "approved", "reimbursed"]).optional(),
+  totalCost: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertEventTaskSchema = createInsertSchema(eventTasks, {
+  eventId: z.number().int().positive("Event ID is required"),
+  title: z.string().min(1, "Task title is required"),
+  category: z.enum(["logistics", "marketing", "setup", "teardown", "other"]).optional(),
+  priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
+  status: z.enum(["pending", "in_progress", "completed", "cancelled"]).optional(),
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertEventDocumentSchema = createInsertSchema(eventDocuments, {
+  eventId: z.number().int().positive("Event ID is required"),
+  fileName: z.string().min(1, "File name is required"),
+  fileUrl: z.string().url("Must be a valid URL"),
+  documentType: z.enum(["contract", "permit", "insurance", "invoice", "receipt", "other"]).optional(),
+  status: z.enum(["draft", "pending_approval", "approved", "expired"]).optional(),
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertEventTicketTierSchema = createInsertSchema(eventTicketTiers, {
+  eventId: z.number().int().positive("Event ID is required"),
+  tierName: z.string().min(1, "Tier name is required"),
+  price: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid price"),
+  earlyBirdPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid price").optional(),
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertEventExpenseSchema = createInsertSchema(eventExpenses, {
+  eventId: z.number().int().positive("Event ID is required"),
+  expenseCategory: z.enum(["venue", "catering", "equipment", "marketing", "staffing", "travel", "other"]),
+  description: z.string().min(1, "Description is required"),
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount"),
+  paymentMethod: z.enum(["cash", "check", "credit_card", "wire", "other"]).optional(),
+  status: z.enum(["pending", "approved", "paid", "reimbursed"]).optional(),
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertEventNoteSchema = createInsertSchema(eventNotes, {
+  eventId: z.number().int().positive("Event ID is required"),
+  content: z.string().min(1, "Content is required"),
+  noteType: z.enum(["general", "internal", "client_facing", "urgent"]).optional(),
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertEventChecklistSchema = createInsertSchema(eventChecklists, {
+  eventId: z.number().int().positive("Event ID is required"),
+  itemText: z.string().min(1, "Item text is required"),
+  checklistType: z.enum(["pre_event", "during_event", "post_event", "setup", "teardown"]).optional(),
+}).omit({ createdAt: true, updatedAt: true });
+
 // Event Management Types
 export type Event = typeof events.$inferSelect;
 export type InsertEvent = z.infer<typeof insertEventSchema>;
@@ -2731,6 +3094,32 @@ export type EventCampaign = typeof eventCampaigns.$inferSelect;
 export type InsertEventCampaign = z.infer<typeof insertEventCampaignSchema>;
 export type EventRegistration = typeof eventRegistrations.$inferSelect;
 export type InsertEventRegistration = z.infer<typeof insertEventRegistrationSchema>;
+export type EventSponsor = typeof eventSponsors.$inferSelect;
+export type InsertEventSponsor = z.infer<typeof insertEventSponsorSchema>;
+export type EventVolunteer = typeof eventVolunteers.$inferSelect;
+export type InsertEventVolunteer = z.infer<typeof insertEventVolunteerSchema>;
+export type EventGraphic = typeof eventGraphics.$inferSelect;
+export type InsertEventGraphic = z.infer<typeof insertEventGraphicSchema>;
+export type EventVenue = typeof eventVenues.$inferSelect;
+export type InsertEventVenue = z.infer<typeof insertEventVenueSchema>;
+export type EventSchedule = typeof eventSchedules.$inferSelect;
+export type InsertEventSchedule = z.infer<typeof insertEventScheduleSchema>;
+export type EventEquipment = typeof eventEquipment.$inferSelect;
+export type InsertEventEquipment = z.infer<typeof insertEventEquipmentSchema>;
+export type EventTravel = typeof eventTravel.$inferSelect;
+export type InsertEventTravel = z.infer<typeof insertEventTravelSchema>;
+export type EventTask = typeof eventTasks.$inferSelect;
+export type InsertEventTask = z.infer<typeof insertEventTaskSchema>;
+export type EventDocument = typeof eventDocuments.$inferSelect;
+export type InsertEventDocument = z.infer<typeof insertEventDocumentSchema>;
+export type EventTicketTier = typeof eventTicketTiers.$inferSelect;
+export type InsertEventTicketTier = z.infer<typeof insertEventTicketTierSchema>;
+export type EventExpense = typeof eventExpenses.$inferSelect;
+export type InsertEventExpense = z.infer<typeof insertEventExpenseSchema>;
+export type EventNote = typeof eventNotes.$inferSelect;
+export type InsertEventNote = z.infer<typeof insertEventNoteSchema>;
+export type EventChecklist = typeof eventChecklists.$inferSelect;
+export type InsertEventChecklist = z.infer<typeof insertEventChecklistSchema>;
 
 // Order Form Submission Schemas
 export const insertOrderFormSubmissionSchema = createInsertSchema(orderFormSubmissions, {

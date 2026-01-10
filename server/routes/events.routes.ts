@@ -13,7 +13,20 @@ import {
   insertEventBudgetSchema,
   insertEventCampaignSchema,
   insertEventRegistrationSchema,
-  insertTourMerchBundleSchema
+  insertTourMerchBundleSchema,
+  insertEventSponsorSchema,
+  insertEventVolunteerSchema,
+  insertEventGraphicSchema,
+  insertEventVenueSchema,
+  insertEventScheduleSchema,
+  insertEventEquipmentSchema,
+  insertEventTravelSchema,
+  insertEventTaskSchema,
+  insertEventDocumentSchema,
+  insertEventTicketTierSchema,
+  insertEventExpenseSchema,
+  insertEventNoteSchema,
+  insertEventChecklistSchema
 } from "@shared/schema";
 import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
 
@@ -647,6 +660,711 @@ export function registerEventRoutes(app: Express) {
     } catch (error) {
       console.error("Error deleting tour merch bundle:", error);
       res.status(500).json({ message: "Failed to delete tour merch bundle" });
+    }
+  });
+
+  // Event Sponsor routes
+  app.get('/api/events/:eventId/sponsors', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const sponsors = await storage.getEventSponsors(eventId);
+      res.json(sponsors);
+    } catch (error) {
+      console.error("Error fetching event sponsors:", error);
+      res.status(500).json({ message: "Failed to fetch event sponsors" });
+    }
+  });
+
+  app.post('/api/events/:eventId/sponsors', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const validatedData = insertEventSponsorSchema.parse({ ...req.body, eventId });
+      const sponsor = await storage.createEventSponsor(validatedData);
+      res.status(201).json(sponsor);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating event sponsor:", error);
+      res.status(500).json({ message: "Failed to create event sponsor" });
+    }
+  });
+
+  app.put('/api/events/sponsors/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertEventSponsorSchema.partial().parse(req.body);
+      const sponsor = await storage.updateEventSponsor(id, validatedData);
+      res.json(sponsor);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event sponsor:", error);
+      res.status(500).json({ message: "Failed to update event sponsor" });
+    }
+  });
+
+  app.delete('/api/events/sponsors/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEventSponsor(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting event sponsor:", error);
+      res.status(500).json({ message: "Failed to delete event sponsor" });
+    }
+  });
+
+  // Event Volunteer routes
+  app.get('/api/events/:eventId/volunteers', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const volunteers = await storage.getEventVolunteers(eventId);
+      res.json(volunteers);
+    } catch (error) {
+      console.error("Error fetching event volunteers:", error);
+      res.status(500).json({ message: "Failed to fetch event volunteers" });
+    }
+  });
+
+  app.post('/api/events/:eventId/volunteers', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const validatedData = insertEventVolunteerSchema.parse({ ...req.body, eventId });
+      const volunteer = await storage.createEventVolunteer(validatedData);
+      res.status(201).json(volunteer);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating event volunteer:", error);
+      res.status(500).json({ message: "Failed to create event volunteer" });
+    }
+  });
+
+  app.put('/api/events/volunteers/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertEventVolunteerSchema.partial().parse(req.body);
+      const volunteer = await storage.updateEventVolunteer(id, validatedData);
+      res.json(volunteer);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event volunteer:", error);
+      res.status(500).json({ message: "Failed to update event volunteer" });
+    }
+  });
+
+  app.delete('/api/events/volunteers/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEventVolunteer(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting event volunteer:", error);
+      res.status(500).json({ message: "Failed to delete event volunteer" });
+    }
+  });
+
+  // Event Graphic routes
+  app.get('/api/events/:eventId/graphics', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const graphics = await storage.getEventGraphics(eventId);
+      res.json(graphics);
+    } catch (error) {
+      console.error("Error fetching event graphics:", error);
+      res.status(500).json({ message: "Failed to fetch event graphics" });
+    }
+  });
+
+  app.post('/api/events/:eventId/graphics', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const userData = (req as AuthenticatedRequest).user.userData!;
+      const validatedData = insertEventGraphicSchema.parse({ ...req.body, eventId, uploadedBy: userData.id });
+      const graphic = await storage.createEventGraphic(validatedData);
+      res.status(201).json(graphic);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating event graphic:", error);
+      res.status(500).json({ message: "Failed to create event graphic" });
+    }
+  });
+
+  app.put('/api/events/graphics/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertEventGraphicSchema.partial().parse(req.body);
+      const graphic = await storage.updateEventGraphic(id, validatedData);
+      res.json(graphic);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event graphic:", error);
+      res.status(500).json({ message: "Failed to update event graphic" });
+    }
+  });
+
+  app.delete('/api/events/graphics/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEventGraphic(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting event graphic:", error);
+      res.status(500).json({ message: "Failed to delete event graphic" });
+    }
+  });
+
+  // Event Venue routes
+  app.get('/api/events/:eventId/venues', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const venues = await storage.getEventVenues(eventId);
+      res.json(venues);
+    } catch (error) {
+      console.error("Error fetching event venues:", error);
+      res.status(500).json({ message: "Failed to fetch event venues" });
+    }
+  });
+
+  app.post('/api/events/:eventId/venues', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const validatedData = insertEventVenueSchema.parse({ ...req.body, eventId });
+      const venue = await storage.createEventVenue(validatedData);
+      res.status(201).json(venue);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating event venue:", error);
+      res.status(500).json({ message: "Failed to create event venue" });
+    }
+  });
+
+  app.put('/api/events/venues/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertEventVenueSchema.partial().parse(req.body);
+      const venue = await storage.updateEventVenue(id, validatedData);
+      res.json(venue);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event venue:", error);
+      res.status(500).json({ message: "Failed to update event venue" });
+    }
+  });
+
+  app.delete('/api/events/venues/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEventVenue(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting event venue:", error);
+      res.status(500).json({ message: "Failed to delete event venue" });
+    }
+  });
+
+  // Event Schedule routes
+  app.get('/api/events/:eventId/schedules', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const schedules = await storage.getEventSchedules(eventId);
+      res.json(schedules);
+    } catch (error) {
+      console.error("Error fetching event schedules:", error);
+      res.status(500).json({ message: "Failed to fetch event schedules" });
+    }
+  });
+
+  app.post('/api/events/:eventId/schedules', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const validatedData = insertEventScheduleSchema.parse({ ...req.body, eventId });
+      const schedule = await storage.createEventSchedule(validatedData);
+      res.status(201).json(schedule);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating event schedule:", error);
+      res.status(500).json({ message: "Failed to create event schedule" });
+    }
+  });
+
+  app.put('/api/events/schedules/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertEventScheduleSchema.partial().parse(req.body);
+      const schedule = await storage.updateEventSchedule(id, validatedData);
+      res.json(schedule);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event schedule:", error);
+      res.status(500).json({ message: "Failed to update event schedule" });
+    }
+  });
+
+  app.delete('/api/events/schedules/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEventSchedule(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting event schedule:", error);
+      res.status(500).json({ message: "Failed to delete event schedule" });
+    }
+  });
+
+  // Event Equipment routes
+  app.get('/api/events/:eventId/equipment', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const equipment = await storage.getEventEquipment(eventId);
+      res.json(equipment);
+    } catch (error) {
+      console.error("Error fetching event equipment:", error);
+      res.status(500).json({ message: "Failed to fetch event equipment" });
+    }
+  });
+
+  app.post('/api/events/:eventId/equipment', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const validatedData = insertEventEquipmentSchema.parse({ ...req.body, eventId });
+      const equipmentItem = await storage.createEventEquipment(validatedData);
+      res.status(201).json(equipmentItem);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating event equipment:", error);
+      res.status(500).json({ message: "Failed to create event equipment" });
+    }
+  });
+
+  app.put('/api/events/equipment/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertEventEquipmentSchema.partial().parse(req.body);
+      const equipmentItem = await storage.updateEventEquipment(id, validatedData);
+      res.json(equipmentItem);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event equipment:", error);
+      res.status(500).json({ message: "Failed to update event equipment" });
+    }
+  });
+
+  app.delete('/api/events/equipment/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEventEquipment(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting event equipment:", error);
+      res.status(500).json({ message: "Failed to delete event equipment" });
+    }
+  });
+
+  // Event Travel routes
+  app.get('/api/events/:eventId/travel', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const travel = await storage.getEventTravel(eventId);
+      res.json(travel);
+    } catch (error) {
+      console.error("Error fetching event travel:", error);
+      res.status(500).json({ message: "Failed to fetch event travel" });
+    }
+  });
+
+  app.post('/api/events/:eventId/travel', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const validatedData = insertEventTravelSchema.parse({ ...req.body, eventId });
+      const travelItem = await storage.createEventTravel(validatedData);
+      res.status(201).json(travelItem);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating event travel:", error);
+      res.status(500).json({ message: "Failed to create event travel" });
+    }
+  });
+
+  app.put('/api/events/travel/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertEventTravelSchema.partial().parse(req.body);
+      const travelItem = await storage.updateEventTravel(id, validatedData);
+      res.json(travelItem);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event travel:", error);
+      res.status(500).json({ message: "Failed to update event travel" });
+    }
+  });
+
+  app.delete('/api/events/travel/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEventTravel(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting event travel:", error);
+      res.status(500).json({ message: "Failed to delete event travel" });
+    }
+  });
+
+  // Event Task routes
+  app.get('/api/events/:eventId/tasks', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const tasks = await storage.getEventTasks(eventId);
+      res.json(tasks);
+    } catch (error) {
+      console.error("Error fetching event tasks:", error);
+      res.status(500).json({ message: "Failed to fetch event tasks" });
+    }
+  });
+
+  app.post('/api/events/:eventId/tasks', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const validatedData = insertEventTaskSchema.parse({ ...req.body, eventId });
+      const task = await storage.createEventTask(validatedData);
+      res.status(201).json(task);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating event task:", error);
+      res.status(500).json({ message: "Failed to create event task" });
+    }
+  });
+
+  app.put('/api/events/tasks/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertEventTaskSchema.partial().parse(req.body);
+      const task = await storage.updateEventTask(id, validatedData);
+      res.json(task);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event task:", error);
+      res.status(500).json({ message: "Failed to update event task" });
+    }
+  });
+
+  app.delete('/api/events/tasks/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEventTask(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting event task:", error);
+      res.status(500).json({ message: "Failed to delete event task" });
+    }
+  });
+
+  // Event Document routes
+  app.get('/api/events/:eventId/documents', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const documents = await storage.getEventDocuments(eventId);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching event documents:", error);
+      res.status(500).json({ message: "Failed to fetch event documents" });
+    }
+  });
+
+  app.post('/api/events/:eventId/documents', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const userData = (req as AuthenticatedRequest).user.userData!;
+      const validatedData = insertEventDocumentSchema.parse({ ...req.body, eventId, uploadedBy: userData.id });
+      const document = await storage.createEventDocument(validatedData);
+      res.status(201).json(document);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating event document:", error);
+      res.status(500).json({ message: "Failed to create event document" });
+    }
+  });
+
+  app.put('/api/events/documents/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertEventDocumentSchema.partial().parse(req.body);
+      const document = await storage.updateEventDocument(id, validatedData);
+      res.json(document);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event document:", error);
+      res.status(500).json({ message: "Failed to update event document" });
+    }
+  });
+
+  app.delete('/api/events/documents/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEventDocument(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting event document:", error);
+      res.status(500).json({ message: "Failed to delete event document" });
+    }
+  });
+
+  // Event Ticket Tier routes
+  app.get('/api/events/:eventId/ticket-tiers', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const ticketTiers = await storage.getEventTicketTiers(eventId);
+      res.json(ticketTiers);
+    } catch (error) {
+      console.error("Error fetching event ticket tiers:", error);
+      res.status(500).json({ message: "Failed to fetch event ticket tiers" });
+    }
+  });
+
+  app.post('/api/events/:eventId/ticket-tiers', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const validatedData = insertEventTicketTierSchema.parse({ ...req.body, eventId });
+      const ticketTier = await storage.createEventTicketTier(validatedData);
+      res.status(201).json(ticketTier);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating event ticket tier:", error);
+      res.status(500).json({ message: "Failed to create event ticket tier" });
+    }
+  });
+
+  app.put('/api/events/ticket-tiers/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertEventTicketTierSchema.partial().parse(req.body);
+      const ticketTier = await storage.updateEventTicketTier(id, validatedData);
+      res.json(ticketTier);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event ticket tier:", error);
+      res.status(500).json({ message: "Failed to update event ticket tier" });
+    }
+  });
+
+  app.delete('/api/events/ticket-tiers/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEventTicketTier(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting event ticket tier:", error);
+      res.status(500).json({ message: "Failed to delete event ticket tier" });
+    }
+  });
+
+  // Event Expense routes
+  app.get('/api/events/:eventId/expenses', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const expenses = await storage.getEventExpenses(eventId);
+      res.json(expenses);
+    } catch (error) {
+      console.error("Error fetching event expenses:", error);
+      res.status(500).json({ message: "Failed to fetch event expenses" });
+    }
+  });
+
+  app.post('/api/events/:eventId/expenses', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const validatedData = insertEventExpenseSchema.parse({ ...req.body, eventId });
+      const expense = await storage.createEventExpense(validatedData);
+      res.status(201).json(expense);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating event expense:", error);
+      res.status(500).json({ message: "Failed to create event expense" });
+    }
+  });
+
+  app.put('/api/events/expenses/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userData = (req as AuthenticatedRequest).user.userData!;
+      const validatedData = insertEventExpenseSchema.partial().parse(req.body);
+      
+      if (validatedData.status === 'approved' && !validatedData.approvedBy) {
+        validatedData.approvedBy = userData.id;
+      }
+      
+      const expense = await storage.updateEventExpense(id, validatedData);
+      res.json(expense);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event expense:", error);
+      res.status(500).json({ message: "Failed to update event expense" });
+    }
+  });
+
+  app.delete('/api/events/expenses/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEventExpense(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting event expense:", error);
+      res.status(500).json({ message: "Failed to delete event expense" });
+    }
+  });
+
+  // Event Note routes
+  app.get('/api/events/:eventId/notes', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const notes = await storage.getEventNotes(eventId);
+      res.json(notes);
+    } catch (error) {
+      console.error("Error fetching event notes:", error);
+      res.status(500).json({ message: "Failed to fetch event notes" });
+    }
+  });
+
+  app.post('/api/events/:eventId/notes', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const userData = (req as AuthenticatedRequest).user.userData!;
+      const validatedData = insertEventNoteSchema.parse({ ...req.body, eventId, createdBy: userData.id });
+      const note = await storage.createEventNote(validatedData);
+      res.status(201).json(note);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating event note:", error);
+      res.status(500).json({ message: "Failed to create event note" });
+    }
+  });
+
+  app.put('/api/events/notes/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertEventNoteSchema.partial().parse(req.body);
+      const note = await storage.updateEventNote(id, validatedData);
+      res.json(note);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event note:", error);
+      res.status(500).json({ message: "Failed to update event note" });
+    }
+  });
+
+  app.delete('/api/events/notes/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEventNote(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting event note:", error);
+      res.status(500).json({ message: "Failed to delete event note" });
+    }
+  });
+
+  // Event Checklist routes
+  app.get('/api/events/:eventId/checklists', isAuthenticated, loadUserData, requirePermission('events', 'read'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const checklists = await storage.getEventChecklists(eventId);
+      res.json(checklists);
+    } catch (error) {
+      console.error("Error fetching event checklists:", error);
+      res.status(500).json({ message: "Failed to fetch event checklists" });
+    }
+  });
+
+  app.post('/api/events/:eventId/checklists', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const validatedData = insertEventChecklistSchema.parse({ ...req.body, eventId });
+      const checklist = await storage.createEventChecklist(validatedData);
+      res.status(201).json(checklist);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error creating event checklist:", error);
+      res.status(500).json({ message: "Failed to create event checklist" });
+    }
+  });
+
+  app.put('/api/events/checklists/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const userData = (req as AuthenticatedRequest).user.userData!;
+      const validatedData = insertEventChecklistSchema.partial().parse(req.body);
+      
+      if (validatedData.isCompleted && !validatedData.completedBy) {
+        validatedData.completedBy = userData.id;
+        (validatedData as any).completedAt = new Date();
+      }
+      
+      const checklist = await storage.updateEventChecklist(id, validatedData);
+      res.json(checklist);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event checklist:", error);
+      res.status(500).json({ message: "Failed to update event checklist" });
+    }
+  });
+
+  app.delete('/api/events/checklists/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      await storage.deleteEventChecklist(id);
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting event checklist:", error);
+      res.status(500).json({ message: "Failed to delete event checklist" });
     }
   });
 }

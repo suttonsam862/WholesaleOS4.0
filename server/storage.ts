@@ -169,6 +169,19 @@ import {
   eventBudgets,
   eventCampaigns,
   eventRegistrations,
+  eventSponsors,
+  eventVolunteers,
+  eventGraphics,
+  eventVenues,
+  eventSchedules,
+  eventEquipment,
+  eventTravel,
+  eventTasks,
+  eventDocuments,
+  eventTicketTiers,
+  eventExpenses,
+  eventNotes,
+  eventChecklists,
   communicationLogs,
   userPermissions,
   designPortfolios,
@@ -195,6 +208,32 @@ import {
   type InsertEventCampaign,
   type EventRegistration,
   type InsertEventRegistration,
+  type EventSponsor,
+  type InsertEventSponsor,
+  type EventVolunteer,
+  type InsertEventVolunteer,
+  type EventGraphic,
+  type InsertEventGraphic,
+  type EventVenue,
+  type InsertEventVenue,
+  type EventSchedule,
+  type InsertEventSchedule,
+  type EventEquipment,
+  type InsertEventEquipment,
+  type EventTravel,
+  type InsertEventTravel,
+  type EventTask,
+  type InsertEventTask,
+  type EventDocument,
+  type InsertEventDocument,
+  type EventTicketTier,
+  type InsertEventTicketTier,
+  type EventExpense,
+  type InsertEventExpense,
+  type EventNote,
+  type InsertEventNote,
+  type EventChecklist,
+  type InsertEventChecklist,
   type CommunicationLog,
   type InsertCommunicationLog,
   type UserPermission,
@@ -693,6 +732,84 @@ export interface IStorage {
   createEventRegistration(registration: InsertEventRegistration): Promise<EventRegistration>;
   updateEventRegistration(id: number, registration: Partial<InsertEventRegistration>): Promise<EventRegistration>;
   deleteEventRegistration(id: number): Promise<void>;
+
+  // Event Sponsors
+  getEventSponsors(eventId: number): Promise<EventSponsor[]>;
+  createEventSponsor(sponsor: InsertEventSponsor): Promise<EventSponsor>;
+  updateEventSponsor(id: number, sponsor: Partial<InsertEventSponsor>): Promise<EventSponsor>;
+  deleteEventSponsor(id: number): Promise<void>;
+
+  // Event Volunteers
+  getEventVolunteers(eventId: number): Promise<EventVolunteer[]>;
+  createEventVolunteer(volunteer: InsertEventVolunteer): Promise<EventVolunteer>;
+  updateEventVolunteer(id: number, volunteer: Partial<InsertEventVolunteer>): Promise<EventVolunteer>;
+  deleteEventVolunteer(id: number): Promise<void>;
+
+  // Event Graphics
+  getEventGraphics(eventId: number): Promise<EventGraphic[]>;
+  createEventGraphic(graphic: InsertEventGraphic): Promise<EventGraphic>;
+  updateEventGraphic(id: number, graphic: Partial<InsertEventGraphic>): Promise<EventGraphic>;
+  deleteEventGraphic(id: number): Promise<void>;
+
+  // Event Venues
+  getEventVenues(eventId: number): Promise<EventVenue[]>;
+  createEventVenue(venue: InsertEventVenue): Promise<EventVenue>;
+  updateEventVenue(id: number, venue: Partial<InsertEventVenue>): Promise<EventVenue>;
+  deleteEventVenue(id: number): Promise<void>;
+
+  // Event Schedules
+  getEventSchedules(eventId: number): Promise<EventSchedule[]>;
+  createEventSchedule(schedule: InsertEventSchedule): Promise<EventSchedule>;
+  updateEventSchedule(id: number, schedule: Partial<InsertEventSchedule>): Promise<EventSchedule>;
+  deleteEventSchedule(id: number): Promise<void>;
+
+  // Event Equipment
+  getEventEquipment(eventId: number): Promise<EventEquipment[]>;
+  createEventEquipment(equipment: InsertEventEquipment): Promise<EventEquipment>;
+  updateEventEquipment(id: number, equipment: Partial<InsertEventEquipment>): Promise<EventEquipment>;
+  deleteEventEquipment(id: number): Promise<void>;
+
+  // Event Travel
+  getEventTravel(eventId: number): Promise<EventTravel[]>;
+  createEventTravel(travel: InsertEventTravel): Promise<EventTravel>;
+  updateEventTravel(id: number, travel: Partial<InsertEventTravel>): Promise<EventTravel>;
+  deleteEventTravel(id: number): Promise<void>;
+
+  // Event Tasks
+  getEventTasks(eventId: number): Promise<EventTask[]>;
+  createEventTask(task: InsertEventTask): Promise<EventTask>;
+  updateEventTask(id: number, task: Partial<InsertEventTask>): Promise<EventTask>;
+  deleteEventTask(id: number): Promise<void>;
+
+  // Event Documents
+  getEventDocuments(eventId: number): Promise<EventDocument[]>;
+  createEventDocument(document: InsertEventDocument): Promise<EventDocument>;
+  updateEventDocument(id: number, document: Partial<InsertEventDocument>): Promise<EventDocument>;
+  deleteEventDocument(id: number): Promise<void>;
+
+  // Event Ticket Tiers
+  getEventTicketTiers(eventId: number): Promise<EventTicketTier[]>;
+  createEventTicketTier(tier: InsertEventTicketTier): Promise<EventTicketTier>;
+  updateEventTicketTier(id: number, tier: Partial<InsertEventTicketTier>): Promise<EventTicketTier>;
+  deleteEventTicketTier(id: number): Promise<void>;
+
+  // Event Expenses
+  getEventExpenses(eventId: number): Promise<EventExpense[]>;
+  createEventExpense(expense: InsertEventExpense): Promise<EventExpense>;
+  updateEventExpense(id: number, expense: Partial<InsertEventExpense>): Promise<EventExpense>;
+  deleteEventExpense(id: number): Promise<void>;
+
+  // Event Notes
+  getEventNotes(eventId: number): Promise<EventNote[]>;
+  createEventNote(note: InsertEventNote): Promise<EventNote>;
+  updateEventNote(id: number, note: Partial<InsertEventNote>): Promise<EventNote>;
+  deleteEventNote(id: number): Promise<void>;
+
+  // Event Checklists
+  getEventChecklists(eventId: number): Promise<EventChecklist[]>;
+  createEventChecklist(checklist: InsertEventChecklist): Promise<EventChecklist>;
+  updateEventChecklist(id: number, checklist: Partial<InsertEventChecklist>): Promise<EventChecklist>;
+  deleteEventChecklist(id: number): Promise<void>;
 
   // Tour Merch Bundle operations
   getTourMerchBundles(): Promise<TourMerchBundle[]>;
@@ -5537,6 +5654,381 @@ export class DatabaseStorage implements IStorage {
 
   async deleteEventRegistration(id: number): Promise<void> {
     await db.delete(eventRegistrations).where(eq(eventRegistrations.id, id));
+  }
+
+  // Event Sponsors
+  async getEventSponsors(eventId: number): Promise<EventSponsor[]> {
+    return await db
+      .select()
+      .from(eventSponsors)
+      .where(eq(eventSponsors.eventId, eventId))
+      .orderBy(desc(eventSponsors.createdAt));
+  }
+
+  async createEventSponsor(sponsor: InsertEventSponsor): Promise<EventSponsor> {
+    const [created] = await db.insert(eventSponsors).values(sponsor).returning();
+    return created;
+  }
+
+  async updateEventSponsor(id: number, sponsor: Partial<InsertEventSponsor>): Promise<EventSponsor> {
+    const [updated] = await db
+      .update(eventSponsors)
+      .set({ ...sponsor, updatedAt: new Date() })
+      .where(eq(eventSponsors.id, id))
+      .returning();
+    if (!updated) throw new Error("Sponsor not found");
+    return updated;
+  }
+
+  async deleteEventSponsor(id: number): Promise<void> {
+    await db.delete(eventSponsors).where(eq(eventSponsors.id, id));
+  }
+
+  // Event Volunteers
+  async getEventVolunteers(eventId: number): Promise<EventVolunteer[]> {
+    return await db
+      .select()
+      .from(eventVolunteers)
+      .where(eq(eventVolunteers.eventId, eventId))
+      .orderBy(desc(eventVolunteers.createdAt));
+  }
+
+  async createEventVolunteer(volunteer: InsertEventVolunteer): Promise<EventVolunteer> {
+    const [created] = await db.insert(eventVolunteers).values(volunteer).returning();
+    return created;
+  }
+
+  async updateEventVolunteer(id: number, volunteer: Partial<InsertEventVolunteer>): Promise<EventVolunteer> {
+    const [updated] = await db
+      .update(eventVolunteers)
+      .set({ ...volunteer, updatedAt: new Date() })
+      .where(eq(eventVolunteers.id, id))
+      .returning();
+    if (!updated) throw new Error("Volunteer not found");
+    return updated;
+  }
+
+  async deleteEventVolunteer(id: number): Promise<void> {
+    await db.delete(eventVolunteers).where(eq(eventVolunteers.id, id));
+  }
+
+  // Event Graphics
+  async getEventGraphics(eventId: number): Promise<EventGraphic[]> {
+    return await db
+      .select()
+      .from(eventGraphics)
+      .where(eq(eventGraphics.eventId, eventId))
+      .orderBy(desc(eventGraphics.createdAt));
+  }
+
+  async createEventGraphic(graphic: InsertEventGraphic): Promise<EventGraphic> {
+    const [created] = await db.insert(eventGraphics).values(graphic).returning();
+    return created;
+  }
+
+  async updateEventGraphic(id: number, graphic: Partial<InsertEventGraphic>): Promise<EventGraphic> {
+    const [updated] = await db
+      .update(eventGraphics)
+      .set({ ...graphic, updatedAt: new Date() })
+      .where(eq(eventGraphics.id, id))
+      .returning();
+    if (!updated) throw new Error("Graphic not found");
+    return updated;
+  }
+
+  async deleteEventGraphic(id: number): Promise<void> {
+    await db.delete(eventGraphics).where(eq(eventGraphics.id, id));
+  }
+
+  // Event Venues
+  async getEventVenues(eventId: number): Promise<EventVenue[]> {
+    return await db
+      .select()
+      .from(eventVenues)
+      .where(eq(eventVenues.eventId, eventId))
+      .orderBy(desc(eventVenues.createdAt));
+  }
+
+  async createEventVenue(venue: InsertEventVenue): Promise<EventVenue> {
+    const [created] = await db.insert(eventVenues).values(venue).returning();
+    return created;
+  }
+
+  async updateEventVenue(id: number, venue: Partial<InsertEventVenue>): Promise<EventVenue> {
+    const [updated] = await db
+      .update(eventVenues)
+      .set({ ...venue, updatedAt: new Date() })
+      .where(eq(eventVenues.id, id))
+      .returning();
+    if (!updated) throw new Error("Venue not found");
+    return updated;
+  }
+
+  async deleteEventVenue(id: number): Promise<void> {
+    await db.delete(eventVenues).where(eq(eventVenues.id, id));
+  }
+
+  // Event Schedules
+  async getEventSchedules(eventId: number): Promise<EventSchedule[]> {
+    return await db
+      .select()
+      .from(eventSchedules)
+      .where(eq(eventSchedules.eventId, eventId))
+      .orderBy(desc(eventSchedules.createdAt));
+  }
+
+  async createEventSchedule(schedule: InsertEventSchedule): Promise<EventSchedule> {
+    const scheduleData: any = {
+      ...schedule,
+      startTime: schedule.startTime ? (typeof schedule.startTime === 'string' ? new Date(schedule.startTime) : schedule.startTime) : null,
+      endTime: schedule.endTime ? (typeof schedule.endTime === 'string' ? new Date(schedule.endTime) : schedule.endTime) : null
+    };
+    const [created] = await db.insert(eventSchedules).values(scheduleData).returning();
+    return created;
+  }
+
+  async updateEventSchedule(id: number, schedule: Partial<InsertEventSchedule>): Promise<EventSchedule> {
+    const updateData: any = {
+      ...schedule,
+      updatedAt: new Date(),
+      startTime: schedule.startTime ? (typeof schedule.startTime === 'string' ? new Date(schedule.startTime) : schedule.startTime) : undefined,
+      endTime: schedule.endTime ? (typeof schedule.endTime === 'string' ? new Date(schedule.endTime) : schedule.endTime) : undefined
+    };
+    const [updated] = await db
+      .update(eventSchedules)
+      .set(updateData)
+      .where(eq(eventSchedules.id, id))
+      .returning();
+    if (!updated) throw new Error("Schedule not found");
+    return updated;
+  }
+
+  async deleteEventSchedule(id: number): Promise<void> {
+    await db.delete(eventSchedules).where(eq(eventSchedules.id, id));
+  }
+
+  // Event Equipment
+  async getEventEquipment(eventId: number): Promise<EventEquipment[]> {
+    return await db
+      .select()
+      .from(eventEquipment)
+      .where(eq(eventEquipment.eventId, eventId))
+      .orderBy(desc(eventEquipment.createdAt));
+  }
+
+  async createEventEquipment(equipment: InsertEventEquipment): Promise<EventEquipment> {
+    const [created] = await db.insert(eventEquipment).values(equipment).returning();
+    return created;
+  }
+
+  async updateEventEquipment(id: number, equipment: Partial<InsertEventEquipment>): Promise<EventEquipment> {
+    const [updated] = await db
+      .update(eventEquipment)
+      .set({ ...equipment, updatedAt: new Date() })
+      .where(eq(eventEquipment.id, id))
+      .returning();
+    if (!updated) throw new Error("Equipment not found");
+    return updated;
+  }
+
+  async deleteEventEquipment(id: number): Promise<void> {
+    await db.delete(eventEquipment).where(eq(eventEquipment.id, id));
+  }
+
+  // Event Travel
+  async getEventTravel(eventId: number): Promise<EventTravel[]> {
+    return await db
+      .select()
+      .from(eventTravel)
+      .where(eq(eventTravel.eventId, eventId))
+      .orderBy(desc(eventTravel.createdAt));
+  }
+
+  async createEventTravel(travel: InsertEventTravel): Promise<EventTravel> {
+    const [created] = await db.insert(eventTravel).values(travel).returning();
+    return created;
+  }
+
+  async updateEventTravel(id: number, travel: Partial<InsertEventTravel>): Promise<EventTravel> {
+    const [updated] = await db
+      .update(eventTravel)
+      .set({ ...travel, updatedAt: new Date() })
+      .where(eq(eventTravel.id, id))
+      .returning();
+    if (!updated) throw new Error("Travel record not found");
+    return updated;
+  }
+
+  async deleteEventTravel(id: number): Promise<void> {
+    await db.delete(eventTravel).where(eq(eventTravel.id, id));
+  }
+
+  // Event Tasks
+  async getEventTasks(eventId: number): Promise<EventTask[]> {
+    return await db
+      .select()
+      .from(eventTasks)
+      .where(eq(eventTasks.eventId, eventId))
+      .orderBy(desc(eventTasks.createdAt));
+  }
+
+  async createEventTask(task: InsertEventTask): Promise<EventTask> {
+    const [created] = await db.insert(eventTasks).values(task).returning();
+    return created;
+  }
+
+  async updateEventTask(id: number, task: Partial<InsertEventTask>): Promise<EventTask> {
+    const [updated] = await db
+      .update(eventTasks)
+      .set({ ...task, updatedAt: new Date() })
+      .where(eq(eventTasks.id, id))
+      .returning();
+    if (!updated) throw new Error("Task not found");
+    return updated;
+  }
+
+  async deleteEventTask(id: number): Promise<void> {
+    await db.delete(eventTasks).where(eq(eventTasks.id, id));
+  }
+
+  // Event Documents
+  async getEventDocuments(eventId: number): Promise<EventDocument[]> {
+    return await db
+      .select()
+      .from(eventDocuments)
+      .where(eq(eventDocuments.eventId, eventId))
+      .orderBy(desc(eventDocuments.createdAt));
+  }
+
+  async createEventDocument(document: InsertEventDocument): Promise<EventDocument> {
+    const [created] = await db.insert(eventDocuments).values(document).returning();
+    return created;
+  }
+
+  async updateEventDocument(id: number, document: Partial<InsertEventDocument>): Promise<EventDocument> {
+    const [updated] = await db
+      .update(eventDocuments)
+      .set({ ...document, updatedAt: new Date() })
+      .where(eq(eventDocuments.id, id))
+      .returning();
+    if (!updated) throw new Error("Document not found");
+    return updated;
+  }
+
+  async deleteEventDocument(id: number): Promise<void> {
+    await db.delete(eventDocuments).where(eq(eventDocuments.id, id));
+  }
+
+  // Event Ticket Tiers
+  async getEventTicketTiers(eventId: number): Promise<EventTicketTier[]> {
+    return await db
+      .select()
+      .from(eventTicketTiers)
+      .where(eq(eventTicketTiers.eventId, eventId))
+      .orderBy(desc(eventTicketTiers.createdAt));
+  }
+
+  async createEventTicketTier(tier: InsertEventTicketTier): Promise<EventTicketTier> {
+    const [created] = await db.insert(eventTicketTiers).values(tier).returning();
+    return created;
+  }
+
+  async updateEventTicketTier(id: number, tier: Partial<InsertEventTicketTier>): Promise<EventTicketTier> {
+    const [updated] = await db
+      .update(eventTicketTiers)
+      .set({ ...tier, updatedAt: new Date() })
+      .where(eq(eventTicketTiers.id, id))
+      .returning();
+    if (!updated) throw new Error("Ticket tier not found");
+    return updated;
+  }
+
+  async deleteEventTicketTier(id: number): Promise<void> {
+    await db.delete(eventTicketTiers).where(eq(eventTicketTiers.id, id));
+  }
+
+  // Event Expenses
+  async getEventExpenses(eventId: number): Promise<EventExpense[]> {
+    return await db
+      .select()
+      .from(eventExpenses)
+      .where(eq(eventExpenses.eventId, eventId))
+      .orderBy(desc(eventExpenses.createdAt));
+  }
+
+  async createEventExpense(expense: InsertEventExpense): Promise<EventExpense> {
+    const [created] = await db.insert(eventExpenses).values(expense).returning();
+    return created;
+  }
+
+  async updateEventExpense(id: number, expense: Partial<InsertEventExpense>): Promise<EventExpense> {
+    const [updated] = await db
+      .update(eventExpenses)
+      .set({ ...expense, updatedAt: new Date() })
+      .where(eq(eventExpenses.id, id))
+      .returning();
+    if (!updated) throw new Error("Expense not found");
+    return updated;
+  }
+
+  async deleteEventExpense(id: number): Promise<void> {
+    await db.delete(eventExpenses).where(eq(eventExpenses.id, id));
+  }
+
+  // Event Notes
+  async getEventNotes(eventId: number): Promise<EventNote[]> {
+    return await db
+      .select()
+      .from(eventNotes)
+      .where(eq(eventNotes.eventId, eventId))
+      .orderBy(desc(eventNotes.createdAt));
+  }
+
+  async createEventNote(note: InsertEventNote): Promise<EventNote> {
+    const [created] = await db.insert(eventNotes).values(note).returning();
+    return created;
+  }
+
+  async updateEventNote(id: number, note: Partial<InsertEventNote>): Promise<EventNote> {
+    const [updated] = await db
+      .update(eventNotes)
+      .set({ ...note, updatedAt: new Date() })
+      .where(eq(eventNotes.id, id))
+      .returning();
+    if (!updated) throw new Error("Note not found");
+    return updated;
+  }
+
+  async deleteEventNote(id: number): Promise<void> {
+    await db.delete(eventNotes).where(eq(eventNotes.id, id));
+  }
+
+  // Event Checklists
+  async getEventChecklists(eventId: number): Promise<EventChecklist[]> {
+    return await db
+      .select()
+      .from(eventChecklists)
+      .where(eq(eventChecklists.eventId, eventId))
+      .orderBy(desc(eventChecklists.createdAt));
+  }
+
+  async createEventChecklist(checklist: InsertEventChecklist): Promise<EventChecklist> {
+    const [created] = await db.insert(eventChecklists).values(checklist).returning();
+    return created;
+  }
+
+  async updateEventChecklist(id: number, checklist: Partial<InsertEventChecklist>): Promise<EventChecklist> {
+    const [updated] = await db
+      .update(eventChecklists)
+      .set({ ...checklist, updatedAt: new Date() })
+      .where(eq(eventChecklists.id, id))
+      .returning();
+    if (!updated) throw new Error("Checklist item not found");
+    return updated;
+  }
+
+  async deleteEventChecklist(id: number): Promise<void> {
+    await db.delete(eventChecklists).where(eq(eventChecklists.id, id));
   }
 
   // Tour Merch Bundle operations
