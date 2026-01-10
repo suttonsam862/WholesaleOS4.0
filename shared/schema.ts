@@ -613,6 +613,13 @@ export const manufacturing = pgTable("manufacturing", {
   archivedAt: timestamp("archived_at"),
   archivedBy: varchar("archived_by").references(() => users.id),
   completedProductImages: text("completed_product_images").array(),
+  materialsChecklist: jsonb("materials_checklist").$type<{
+    id: number;
+    category: string;
+    item: string;
+    status: 'new' | 'ordered' | 'pending' | 'received';
+    checked: boolean;
+  }[]>(),
   firstPieceImageUrls: text("first_piece_image_urls").array(),
   firstPieceStatus: varchar("first_piece_status").$type<"pending" | "awaiting_approval" | "approved" | "rejected">().default("pending"),
   firstPieceUploadedBy: varchar("first_piece_uploaded_by").references(() => users.id),

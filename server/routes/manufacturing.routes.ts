@@ -703,6 +703,77 @@ export function registerManufacturingRoutes(app: Express): void {
     }
   });
 
+  // Default materials checklist template
+  const DEFAULT_MATERIALS_CHECKLIST = [
+    { id: 1, category: 'Fabric', item: 'Main Fabric', status: 'new' as const, checked: false },
+    { id: 2, category: 'Fabric', item: 'Lining Fabric', status: 'new' as const, checked: false },
+    { id: 3, category: 'Thread', item: 'Primary Thread Color', status: 'new' as const, checked: false },
+    { id: 4, category: 'Thread', item: 'Contrast Thread Color', status: 'new' as const, checked: false },
+    { id: 5, category: 'Labels', item: 'Brand Labels', status: 'new' as const, checked: false },
+    { id: 6, category: 'Labels', item: 'Size Tags', status: 'new' as const, checked: false },
+    { id: 7, category: 'Labels', item: 'Care Labels', status: 'new' as const, checked: false },
+    { id: 8, category: 'Packaging', item: 'Polybags', status: 'new' as const, checked: false },
+    { id: 9, category: 'Packaging', item: 'Cartons', status: 'new' as const, checked: false },
+    { id: 10, category: 'Packaging', item: 'Tissue Paper', status: 'new' as const, checked: false },
+  ];
+
+  // Get materials checklist for manufacturing record
+  app.get('/api/manufacturing/:id/materials-checklist', isAuthenticated, loadUserData, requirePermission('manufacturing', 'read'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = (req as AuthenticatedRequest).user.userData!;
+      
+      const record = await storage.getManufacturingRecord(id, user);
+      if (!record) {
+        return res.status(404).json({ message: "Manufacturing record not found" });
+      }
+
+      // Return existing checklist or default template
+      const checklist = record.materialsChecklist || DEFAULT_MATERIALS_CHECKLIST;
+      res.json(checklist);
+    } catch (error) {
+      console.error("Error fetching materials checklist:", error);
+      res.status(500).json({ message: "Failed to fetch materials checklist" });
+    }
+  });
+
+  // Update materials checklist for manufacturing record
+  app.put('/api/manufacturing/:id/materials-checklist', isAuthenticated, loadUserData, requirePermission('manufacturing', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const { materialsChecklist } = req.body;
+
+      if (!Array.isArray(materialsChecklist)) {
+        return res.status(400).json({ message: "materialsChecklist must be an array" });
+      }
+
+      const existingRecord = await storage.getManufacturingRecord(id, user);
+      if (!existingRecord) {
+        return res.status(404).json({ message: "Manufacturing record not found" });
+      }
+
+      const updatedRecord = await storage.updateManufacturing(id, {
+        materialsChecklist,
+      });
+
+      // Log activity
+      await storage.logActivity(
+        user.id,
+        'manufacturing',
+        id,
+        'updated',
+        { materialsChecklist: existingRecord.materialsChecklist },
+        { materialsChecklist: updatedRecord.materialsChecklist }
+      );
+
+      res.json(updatedRecord.materialsChecklist || DEFAULT_MATERIALS_CHECKLIST);
+    } catch (error) {
+      console.error("Error updating materials checklist:", error);
+      res.status(500).json({ message: "Failed to update materials checklist" });
+    }
+  });
+
   app.post('/api/manufacturing/:id/archive', isAuthenticated, loadUserData, requirePermission('manufacturing', 'write'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);

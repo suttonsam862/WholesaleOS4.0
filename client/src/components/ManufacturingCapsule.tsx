@@ -2336,6 +2336,23 @@ function ActivityModule({
   );
 }
 
+type MaterialStatus = 'new' | 'ordered' | 'pending' | 'received';
+
+interface MaterialItem {
+  id: number;
+  category: string;
+  item: string;
+  status: MaterialStatus;
+  checked: boolean;
+}
+
+const STATUS_OPTIONS: { value: MaterialStatus; label: string; color: string }[] = [
+  { value: 'new', label: 'New', color: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
+  { value: 'ordered', label: 'Ordered', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+  { value: 'pending', label: 'Pending', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
+  { value: 'received', label: 'Received', color: 'bg-green-500/20 text-green-400 border-green-500/30' },
+];
+
 function MaterialsModule({
   manufacturing,
   canEdit,
@@ -2343,35 +2360,76 @@ function MaterialsModule({
   manufacturing: any;
   canEdit: boolean;
 }) {
-  const [checklist, setChecklist] = useState([
-    { id: 1, category: 'Fabric', item: 'Main Fabric', status: 'received', checked: true },
-    { id: 2, category: 'Fabric', item: 'Lining Fabric', status: 'pending', checked: false },
-    { id: 3, category: 'Thread', item: 'Primary Thread Color', status: 'received', checked: true },
-    { id: 4, category: 'Thread', item: 'Contrast Thread Color', status: 'ordered', checked: false },
-    { id: 5, category: 'Labels', item: 'Brand Labels', status: 'pending', checked: false },
-    { id: 6, category: 'Labels', item: 'Size Tags', status: 'received', checked: true },
-    { id: 7, category: 'Labels', item: 'Care Labels', status: 'received', checked: true },
-    { id: 8, category: 'Packaging', item: 'Polybags', status: 'ordered', checked: false },
-    { id: 9, category: 'Packaging', item: 'Cartons', status: 'pending', checked: false },
-    { id: 10, category: 'Packaging', item: 'Tissue Paper', status: 'received', checked: true },
-  ]);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch materials checklist from API
+  const { data: checklist = [], isLoading } = useQuery<MaterialItem[]>({
+    queryKey: ['/api/manufacturing', manufacturing?.id, 'materials-checklist'],
+    queryFn: async () => {
+      if (!manufacturing?.id) return [];
+      const response = await fetch(`/api/manufacturing/${manufacturing.id}/materials-checklist`, {
+        credentials: 'include',
+      });
+      if (!response.ok) return [];
+      return response.json();
+    },
+    enabled: !!manufacturing?.id,
+  });
+
+  // Save materials checklist mutation
+  const saveMutation = useMutation({
+    mutationFn: async (updatedChecklist: MaterialItem[]) => {
+      const response = await fetch(`/api/manufacturing/${manufacturing.id}/materials-checklist`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ materialsChecklist: updatedChecklist }),
+      });
+      if (!response.ok) throw new Error('Failed to save materials checklist');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturing', manufacturing?.id, 'materials-checklist'] });
+      toast({ title: "Success", description: "Materials checklist saved" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to save materials checklist", variant: "destructive" });
+    },
+  });
+
+  const updateItemStatus = (id: number, newStatus: MaterialStatus) => {
+    const updatedChecklist = checklist.map(item =>
+      item.id === id ? { ...item, status: newStatus } : item
+    );
+    saveMutation.mutate(updatedChecklist);
+  };
 
   const toggleCheck = (id: number) => {
-    setChecklist(prev => prev.map(item => 
+    const updatedChecklist = checklist.map(item =>
       item.id === id ? { ...item, checked: !item.checked } : item
-    ));
+    );
+    saveMutation.mutate(updatedChecklist);
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'received': return 'bg-green-500/20 text-green-400 border-green-500/30';
-      case 'pending': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
-      case 'ordered': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-      default: return 'bg-white/10 text-white/60 border-white/20';
-    }
+    const option = STATUS_OPTIONS.find(o => o.value === status);
+    return option?.color || 'bg-white/10 text-white/60 border-white/20';
   };
 
   const categories = ['Fabric', 'Thread', 'Labels', 'Packaging'];
+
+  if (isLoading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex items-center justify-center py-12"
+      >
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neon-blue"></div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
@@ -2381,10 +2439,18 @@ function MaterialsModule({
       className="space-y-6"
       data-testid="module-materials"
     >
-      <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-        <ClipboardCheck className="w-5 h-5 text-neon-blue" />
-        Materials Checklist
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+          <ClipboardCheck className="w-5 h-5 text-neon-blue" />
+          Materials Checklist
+        </h3>
+        {saveMutation.isPending && (
+          <span className="text-xs text-white/50 flex items-center gap-2">
+            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-neon-blue"></div>
+            Saving...
+          </span>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 min-w-0 max-w-full">
         {categories.map((category) => (
@@ -2404,15 +2470,15 @@ function MaterialsModule({
               {checklist.filter(item => item.category === category).map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
+                  className="flex items-center justify-between p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors gap-2"
                   data-testid={`material-item-${item.id}`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
                     <button
                       onClick={() => canEdit && toggleCheck(item.id)}
-                      disabled={!canEdit}
+                      disabled={!canEdit || saveMutation.isPending}
                       className={cn(
-                        "w-5 h-5 rounded border-2 flex items-center justify-center transition-all",
+                        "w-5 h-5 rounded border-2 flex items-center justify-center transition-all flex-shrink-0",
                         item.checked
                           ? "bg-green-500/30 border-green-500 text-green-400"
                           : "bg-white/5 border-white/30 text-transparent hover:border-white/50"
@@ -2422,18 +2488,43 @@ function MaterialsModule({
                       {item.checked && <CheckCircle className="w-3 h-3" />}
                     </button>
                     <span className={cn(
-                      "text-sm",
+                      "text-sm truncate",
                       item.checked ? "text-white/60 line-through" : "text-white"
                     )}>
                       {item.item}
                     </span>
                   </div>
-                  <Badge
-                    className={cn("text-xs capitalize", getStatusColor(item.status))}
-                    data-testid={`status-${item.id}`}
-                  >
-                    {item.status}
-                  </Badge>
+                  {canEdit ? (
+                    <Select
+                      value={item.status}
+                      onValueChange={(value) => updateItemStatus(item.id, value as MaterialStatus)}
+                      disabled={saveMutation.isPending}
+                    >
+                      <SelectTrigger 
+                        className={cn(
+                          "w-[100px] h-7 text-xs border",
+                          getStatusColor(item.status)
+                        )}
+                        data-testid={`status-select-${item.id}`}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {STATUS_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge
+                      className={cn("text-xs capitalize", getStatusColor(item.status))}
+                      data-testid={`status-${item.id}`}
+                    >
+                      {item.status}
+                    </Badge>
+                  )}
                 </div>
               ))}
             </div>
@@ -2442,22 +2533,26 @@ function MaterialsModule({
       </div>
 
       <div className="p-4 rounded-xl bg-gradient-to-r from-neon-blue/5 via-neon-purple/5 to-neon-cyan/5 border border-white/10">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="text-sm text-white/60">
             <span className="text-white font-semibold">{checklist.filter(i => i.checked).length}</span> of {checklist.length} materials ready
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-green-500/50" />
-              <span className="text-xs text-white/60">Received ({checklist.filter(i => i.status === 'received').length})</span>
+              <div className="w-3 h-3 rounded-full bg-gray-500/50" />
+              <span className="text-xs text-white/60">New ({checklist.filter(i => i.status === 'new').length})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500/50" />
+              <span className="text-xs text-white/60">Ordered ({checklist.filter(i => i.status === 'ordered').length})</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
               <span className="text-xs text-white/60">Pending ({checklist.filter(i => i.status === 'pending').length})</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500/50" />
-              <span className="text-xs text-white/60">Ordered ({checklist.filter(i => i.status === 'ordered').length})</span>
+              <div className="w-3 h-3 rounded-full bg-green-500/50" />
+              <span className="text-xs text-white/60">Received ({checklist.filter(i => i.status === 'received').length})</span>
             </div>
           </div>
         </div>
