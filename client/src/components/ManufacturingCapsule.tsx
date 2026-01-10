@@ -503,10 +503,13 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
   // Create Pantone assignment mutation
   const createPantoneAssignmentMutation = useMutation({
     mutationFn: async (assignment: PantoneAssignment & { lineItemId: number }) => {
+      if (!latestUpdate?.id) {
+        throw new Error("No manufacturing update found. Please refresh the page and try again.");
+      }
       return apiRequest('/api/pantone-assignments', {
         method: 'POST',
         body: {
-          manufacturingUpdateId: latestUpdate?.id,
+          manufacturingUpdateId: latestUpdate.id,
           lineItemId: assignment.lineItemId,
           pantoneCode: assignment.pantoneCode,
           pantoneName: assignment.pantoneName,
@@ -528,8 +531,8 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
       setShowPantonePicker(null);
       toast({ title: "Success", description: "Pantone color assigned successfully" });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to assign Pantone color", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to assign Pantone color", variant: "destructive" });
     },
   });
 
