@@ -2,7 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect, useMemo } from "react";
+import { Link } from "wouter";
 import { LandingHub, hubColors, type HubCardConfig } from "@/components/LandingHub";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Palette,
   Clock,
@@ -11,6 +16,8 @@ import {
   Eye,
   CheckCircle,
   PartyPopper,
+  Sparkles,
+  ArrowRight,
 } from "lucide-react";
 
 interface DesignJob {
@@ -22,6 +29,7 @@ interface DesignJob {
 export default function DesignJobsHub() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -135,16 +143,48 @@ export default function DesignJobsHub() {
   ];
 
   return (
-    <LandingHub
-      title="Design Jobs"
-      subtitle="Select a status to view design jobs"
-      cards={cards}
-      viewAllHref="/design-jobs/list"
-      viewAllLabel="View All Jobs"
-      isLoading={jobsLoading}
-      tip="Click on any status above to see design jobs in that state. Use 'View All Jobs' for a complete list with advanced filters."
-      testIdPrefix="design-jobs"
-      hubId="design-jobs"
-    />
+    <div>
+      <div className={cn("px-6 pt-6", isMobile && "px-4 pt-4")}>
+        <Link href="/design-lab" data-testid="link-design-lab">
+          <Card 
+            className="cursor-pointer transition-all hover:shadow-lg hover:scale-[1.01] border-2 border-violet-500/30 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-purple-500/10 mb-4"
+            data-testid="card-design-lab"
+          >
+            <CardContent className={cn("flex items-center justify-between", isMobile ? "p-4" : "p-6")}>
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 border border-violet-500/30">
+                  <Sparkles className={cn("text-violet-500", isMobile ? "h-5 w-5" : "h-6 w-6")} />
+                </div>
+                <div>
+                  <h3 className={cn("font-semibold", isMobile ? "text-base" : "text-lg")} data-testid="text-design-lab-title">AI Design Lab</h3>
+                  <p className={cn("text-muted-foreground", isMobile ? "text-xs" : "text-sm")} data-testid="text-design-lab-description">
+                    Create AI-powered designs with generation and iteration tools
+                  </p>
+                </div>
+              </div>
+              <Button 
+                variant="outline" 
+                className="gap-2 border-violet-500/30 text-violet-600 hover:bg-violet-500/10"
+                data-testid="button-open-design-lab"
+              >
+                <span className={cn(isMobile && "hidden")}>Open Lab</span>
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+      <LandingHub
+        title="Design Jobs"
+        subtitle="Select a status to view design jobs"
+        cards={cards}
+        viewAllHref="/design-jobs/list"
+        viewAllLabel="View All Jobs"
+        isLoading={jobsLoading}
+        tip="Click on any status above to see design jobs in that state. Use 'View All Jobs' for a complete list with advanced filters."
+        testIdPrefix="design-jobs"
+        hubId="design-jobs"
+      />
+    </div>
   );
 }
