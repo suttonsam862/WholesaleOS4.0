@@ -33,6 +33,7 @@ const DesignJobsHub = lazy(() => import("@/pages/design-jobs-hub"));
 const DesignJobs = lazy(() => import("@/pages/design-jobs"));
 const DesignJobDetail = lazy(() => import("@/pages/design-job-detail"));
 const DesignLab = lazy(() => import("@/pages/design-lab").then(m => ({ default: m.DesignLab })));
+const DesignLabProject = lazy(() => import("@/pages/design-lab-project").then(m => ({ default: m.DesignLabProject })));
 const OrdersHub = lazy(() => import("@/pages/orders-hub"));
 const OrdersList = lazy(() => import("@/pages/orders-list"));
 const OrderDetail = lazy(() => import("@/pages/order-detail"));
@@ -183,6 +184,7 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/design-jobs/actions/:actionId", title: "Design Job Action", component: DesignJobsActionDetail, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
   { path: "/design-jobs/:id", title: "Design Job Detail", component: DesignJobDetail, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
   { path: "/design-lab", title: "AI Design Lab", component: DesignLab, requiresAuth: true, requiresLayout: true, resource: "designJobs" },
+  { path: "/design-lab/project/:id", title: "Design Project", component: DesignLabProject, requiresAuth: true, requiresLayout: false, resource: "designJobs" },
   { path: "/orders", title: "Orders Hub", component: OrdersHub, requiresAuth: true, requiresLayout: true, resource: "orders" },
   { path: "/orders/list", title: "Orders List", component: OrdersList, requiresAuth: true, requiresLayout: true, resource: "orders" },
   { path: "/orders/actions", title: "Orders Actions", component: OrdersActions, requiresAuth: true, requiresLayout: true, resource: "orders" },
