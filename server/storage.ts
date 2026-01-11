@@ -267,6 +267,24 @@ import {
   manufacturingFinishedImages,
   type ManufacturingFinishedImage,
   type InsertManufacturingFinishedImage,
+  designTemplates,
+  designLockedOverlays,
+  designProjects,
+  designVersions,
+  designLayers,
+  designGenerationRequests,
+  type DesignTemplate,
+  type InsertDesignTemplate,
+  type DesignLockedOverlay,
+  type InsertDesignLockedOverlay,
+  type DesignProject,
+  type InsertDesignProject,
+  type DesignVersion,
+  type InsertDesignVersion,
+  type DesignLayer,
+  type InsertDesignLayer,
+  type DesignGenerationRequest,
+  type InsertDesignGenerationRequest,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, like, or, and, sql, count, getTableColumns, gte, lte, lt, inArray, isNotNull, isNull } from "drizzle-orm";
@@ -932,6 +950,43 @@ export interface IStorage {
   createManufacturingNoteCategory(category: InsertManufacturingNoteCategory): Promise<ManufacturingNoteCategory>;
   updateManufacturingNoteCategory(id: number, category: Partial<InsertManufacturingNoteCategory>): Promise<ManufacturingNoteCategory>;
   deleteManufacturingNoteCategory(id: number): Promise<void>;
+
+  // Design Lab - Projects
+  getDesignProjects(userId?: string): Promise<DesignProject[]>;
+  getDesignProject(id: number): Promise<DesignProject | undefined>;
+  createDesignProject(data: InsertDesignProject): Promise<DesignProject>;
+  updateDesignProject(id: number, data: Partial<InsertDesignProject>): Promise<DesignProject | undefined>;
+
+  // Design Lab - Versions
+  getDesignVersions(projectId: number): Promise<DesignVersion[]>;
+  getDesignVersion(id: number): Promise<DesignVersion | undefined>;
+  createDesignVersion(data: InsertDesignVersion): Promise<DesignVersion>;
+  updateDesignVersion(id: number, data: Partial<InsertDesignVersion>): Promise<DesignVersion | undefined>;
+
+  // Design Lab - Layers
+  getDesignLayers(versionId: number): Promise<DesignLayer[]>;
+  getDesignLayer(id: number): Promise<DesignLayer | undefined>;
+  createDesignLayer(data: InsertDesignLayer): Promise<DesignLayer>;
+  updateDesignLayer(id: number, data: Partial<InsertDesignLayer>): Promise<DesignLayer | undefined>;
+  deleteDesignLayer(id: number): Promise<boolean>;
+
+  // Design Lab - Templates (Admin)
+  getDesignTemplates(variantId?: number): Promise<DesignTemplate[]>;
+  getDesignTemplate(id: number): Promise<DesignTemplate | undefined>;
+  createDesignTemplate(data: InsertDesignTemplate): Promise<DesignTemplate>;
+  updateDesignTemplate(id: number, data: Partial<InsertDesignTemplate>): Promise<DesignTemplate | undefined>;
+
+  // Design Lab - Locked Overlays (Admin)
+  getDesignLockedOverlays(variantId?: number): Promise<DesignLockedOverlay[]>;
+  getDesignLockedOverlay(id: number): Promise<DesignLockedOverlay | undefined>;
+  createDesignLockedOverlay(data: InsertDesignLockedOverlay): Promise<DesignLockedOverlay>;
+  updateDesignLockedOverlay(id: number, data: Partial<InsertDesignLockedOverlay>): Promise<DesignLockedOverlay | undefined>;
+
+  // Design Lab - Generation Requests
+  getDesignGenerationRequest(id: number): Promise<DesignGenerationRequest | undefined>;
+  getDesignGenerationRequestByCode(code: string): Promise<DesignGenerationRequest | undefined>;
+  createDesignGenerationRequest(data: InsertDesignGenerationRequest): Promise<DesignGenerationRequest>;
+  updateDesignGenerationRequest(id: number, data: Partial<InsertDesignGenerationRequest>): Promise<DesignGenerationRequest | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -6865,6 +6920,241 @@ export class DatabaseStorage implements IStorage {
       .update(manufacturingNoteCategories)
       .set({ isActive: false, updatedAt: new Date() })
       .where(eq(manufacturingNoteCategories.id, id));
+  }
+
+  // ==================== DESIGN LAB OPERATIONS ====================
+
+  // Design Projects
+  async getDesignProjects(userId?: string): Promise<DesignProject[]> {
+    if (userId) {
+      return await db
+        .select()
+        .from(designProjects)
+        .where(eq(designProjects.userId, userId))
+        .orderBy(desc(designProjects.createdAt));
+    }
+    return await db
+      .select()
+      .from(designProjects)
+      .orderBy(desc(designProjects.createdAt));
+  }
+
+  async getDesignProject(id: number): Promise<DesignProject | undefined> {
+    const [project] = await db
+      .select()
+      .from(designProjects)
+      .where(eq(designProjects.id, id));
+    return project;
+  }
+
+  async createDesignProject(data: InsertDesignProject): Promise<DesignProject> {
+    const projectCode = `DL-${Date.now()}`;
+    const [created] = await db
+      .insert(designProjects)
+      .values({ ...data, projectCode } as any)
+      .returning();
+    return created;
+  }
+
+  async updateDesignProject(id: number, data: Partial<InsertDesignProject>): Promise<DesignProject | undefined> {
+    const [updated] = await db
+      .update(designProjects)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(designProjects.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Design Versions
+  async getDesignVersions(projectId: number): Promise<DesignVersion[]> {
+    return await db
+      .select()
+      .from(designVersions)
+      .where(eq(designVersions.projectId, projectId))
+      .orderBy(desc(designVersions.versionNumber));
+  }
+
+  async getDesignVersion(id: number): Promise<DesignVersion | undefined> {
+    const [version] = await db
+      .select()
+      .from(designVersions)
+      .where(eq(designVersions.id, id));
+    return version;
+  }
+
+  async createDesignVersion(data: InsertDesignVersion): Promise<DesignVersion> {
+    const [created] = await db
+      .insert(designVersions)
+      .values(data as any)
+      .returning();
+    return created;
+  }
+
+  async updateDesignVersion(id: number, data: Partial<InsertDesignVersion>): Promise<DesignVersion | undefined> {
+    const [updated] = await db
+      .update(designVersions)
+      .set(data)
+      .where(eq(designVersions.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Design Layers
+  async getDesignLayers(versionId: number): Promise<DesignLayer[]> {
+    return await db
+      .select()
+      .from(designLayers)
+      .where(eq(designLayers.versionId, versionId))
+      .orderBy(asc(designLayers.zIndex));
+  }
+
+  async getDesignLayer(id: number): Promise<DesignLayer | undefined> {
+    const [layer] = await db
+      .select()
+      .from(designLayers)
+      .where(eq(designLayers.id, id));
+    return layer;
+  }
+
+  async createDesignLayer(data: InsertDesignLayer): Promise<DesignLayer> {
+    const [created] = await db
+      .insert(designLayers)
+      .values(data as any)
+      .returning();
+    return created;
+  }
+
+  async updateDesignLayer(id: number, data: Partial<InsertDesignLayer>): Promise<DesignLayer | undefined> {
+    const [updated] = await db
+      .update(designLayers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(designLayers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDesignLayer(id: number): Promise<boolean> {
+    const result = await db
+      .delete(designLayers)
+      .where(eq(designLayers.id, id));
+    return true;
+  }
+
+  // Design Templates
+  async getDesignTemplates(variantId?: number): Promise<DesignTemplate[]> {
+    if (variantId) {
+      return await db
+        .select()
+        .from(designTemplates)
+        .where(and(eq(designTemplates.variantId, variantId), eq(designTemplates.isActive, true)))
+        .orderBy(desc(designTemplates.createdAt));
+    }
+    return await db
+      .select()
+      .from(designTemplates)
+      .where(eq(designTemplates.isActive, true))
+      .orderBy(desc(designTemplates.createdAt));
+  }
+
+  async getDesignTemplate(id: number): Promise<DesignTemplate | undefined> {
+    const [template] = await db
+      .select()
+      .from(designTemplates)
+      .where(eq(designTemplates.id, id));
+    return template;
+  }
+
+  async createDesignTemplate(data: InsertDesignTemplate): Promise<DesignTemplate> {
+    const [created] = await db
+      .insert(designTemplates)
+      .values(data as any)
+      .returning();
+    return created;
+  }
+
+  async updateDesignTemplate(id: number, data: Partial<InsertDesignTemplate>): Promise<DesignTemplate | undefined> {
+    const [updated] = await db
+      .update(designTemplates)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(designTemplates.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Design Locked Overlays
+  async getDesignLockedOverlays(variantId?: number): Promise<DesignLockedOverlay[]> {
+    if (variantId) {
+      return await db
+        .select()
+        .from(designLockedOverlays)
+        .where(and(eq(designLockedOverlays.variantId, variantId), eq(designLockedOverlays.isActive, true)))
+        .orderBy(asc(designLockedOverlays.zIndex));
+    }
+    return await db
+      .select()
+      .from(designLockedOverlays)
+      .where(eq(designLockedOverlays.isActive, true))
+      .orderBy(asc(designLockedOverlays.zIndex));
+  }
+
+  async getDesignLockedOverlay(id: number): Promise<DesignLockedOverlay | undefined> {
+    const [overlay] = await db
+      .select()
+      .from(designLockedOverlays)
+      .where(eq(designLockedOverlays.id, id));
+    return overlay;
+  }
+
+  async createDesignLockedOverlay(data: InsertDesignLockedOverlay): Promise<DesignLockedOverlay> {
+    const [created] = await db
+      .insert(designLockedOverlays)
+      .values(data as any)
+      .returning();
+    return created;
+  }
+
+  async updateDesignLockedOverlay(id: number, data: Partial<InsertDesignLockedOverlay>): Promise<DesignLockedOverlay | undefined> {
+    const [updated] = await db
+      .update(designLockedOverlays)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(designLockedOverlays.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Design Generation Requests
+  async getDesignGenerationRequest(id: number): Promise<DesignGenerationRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(designGenerationRequests)
+      .where(eq(designGenerationRequests.id, id));
+    return request;
+  }
+
+  async getDesignGenerationRequestByCode(code: string): Promise<DesignGenerationRequest | undefined> {
+    const [request] = await db
+      .select()
+      .from(designGenerationRequests)
+      .where(eq(designGenerationRequests.requestCode, code));
+    return request;
+  }
+
+  async createDesignGenerationRequest(data: InsertDesignGenerationRequest): Promise<DesignGenerationRequest> {
+    const requestCode = `GEN-${Date.now()}`;
+    const [created] = await db
+      .insert(designGenerationRequests)
+      .values({ ...data, requestCode } as any)
+      .returning();
+    return created;
+  }
+
+  async updateDesignGenerationRequest(id: number, data: Partial<InsertDesignGenerationRequest>): Promise<DesignGenerationRequest | undefined> {
+    const [updated] = await db
+      .update(designGenerationRequests)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(designGenerationRequests.id, id))
+      .returning();
+    return updated;
   }
 }
 

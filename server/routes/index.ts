@@ -36,6 +36,7 @@ import { registerRequestsRoutes } from "./requests.routes";
 import { registerAIRoutes } from "./ai.routes";
 import { registerManufacturingNotesRoutes, seedDefaultManufacturingNoteCategories } from "./manufacturing-notes.routes";
 import salesMapRoutes from "./sales-map.routes";
+import { registerDesignLabRoutes } from "./design-lab.routes";
 
 import { csrfProtection } from '../middleware/csrf.middleware';
 import { apiRateLimiter } from '../middleware/rateLimit.middleware';
@@ -124,6 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerRequestsRoutes(app);
   registerAIRoutes(app);
   registerManufacturingNotesRoutes(app);
+  registerDesignLabRoutes(app);
   
   // Sales Map routes (mounted as router)
   app.use("/api/sales-map", salesMapRoutes);
