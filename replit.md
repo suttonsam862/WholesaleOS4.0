@@ -52,3 +52,11 @@ Preferred communication style: Simple, everyday language.
 - **Printful API**: For print-on-demand fulfillment.
 - **Google Gemini**: For AI-powered features.
 - **Pantone Connect API**: For color matching.
+
+## Recent Changes
+
+### AI Design Lab (January 2026)
+- Added AI Design Lab entry point to Design Jobs Hub with a prominent card linking to `/design-lab`
+- Created placeholder Design Lab page at `/design-lab` with coming soon status and planned features display
+- Planned features include: AI Generation, Typography Iteration, Logo Placement, Version History, Layer Management, and Finalize & Export
+- Uses existing RBAC via `designJobs` resource permission
