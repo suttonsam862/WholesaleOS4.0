@@ -2072,6 +2072,124 @@ export const aiDesignSessions = pgTable("ai_design_sessions", {
   index("idx_ai_design_sessions_status").on(table.status),
 ]);
 
+// ==================== AI DESIGN LAB ====================
+
+// Design Templates - Base templates for products (front/back images)
+export const designTemplates = pgTable("design_templates", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  variantId: integer("variant_id").references(() => productVariants.id),
+  name: varchar("name").notNull(),
+  templateType: varchar("template_type").notNull().$type<"front" | "back" | "sleeve" | "custom">(),
+  baseImageUrl: text("base_image_url").notNull(),
+  focusAreaMask: jsonb("focus_area_mask"),
+  isActive: boolean("is_active").default(true),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Design Locked Overlays - Permanent logos/graphics at catalog level
+export const designLockedOverlays = pgTable("design_locked_overlays", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  variantId: integer("variant_id").references(() => productVariants.id),
+  name: varchar("name").notNull(),
+  overlayImageUrl: text("overlay_image_url").notNull(),
+  position: jsonb("position"),
+  templateType: varchar("template_type").notNull().$type<"front" | "back" | "sleeve" | "custom">(),
+  zIndex: integer("z_index").default(100),
+  isActive: boolean("is_active").default(true),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Design Projects - User's design projects
+export const designProjects = pgTable("design_projects", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  projectCode: varchar("project_code").unique().notNull(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  userId: varchar("user_id").references(() => users.id).notNull(),
+  variantId: integer("variant_id").references(() => productVariants.id),
+  designJobId: integer("design_job_id").references(() => designJobs.id),
+  orgId: integer("org_id").references(() => organizations.id),
+  status: varchar("status").notNull().$type<"draft" | "generating" | "in_progress" | "review" | "finalized" | "archived">().default("draft"),
+  currentVersionId: integer("current_version_id"),
+  thumbnailUrl: text("thumbnail_url"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_design_projects_user_id").on(table.userId),
+  index("idx_design_projects_status").on(table.status),
+  index("idx_design_projects_design_job_id").on(table.designJobId),
+]);
+
+// Design Versions - Version history for projects
+export const designVersions = pgTable("design_versions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  projectId: integer("project_id").references(() => designProjects.id, { onDelete: 'cascade' }).notNull(),
+  versionNumber: integer("version_number").notNull(),
+  name: varchar("name"),
+  frontImageUrl: text("front_image_url"),
+  backImageUrl: text("back_image_url"),
+  compositeFrontUrl: text("composite_front_url"),
+  compositeBackUrl: text("composite_back_url"),
+  layerData: jsonb("layer_data"),
+  generationPrompt: text("generation_prompt"),
+  generationProvider: varchar("generation_provider"),
+  generationDuration: integer("generation_duration"),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_design_versions_project_id").on(table.projectId),
+]);
+
+// Design Layers - Individual layers within a version
+export const designLayers = pgTable("design_layers", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  versionId: integer("version_id").references(() => designVersions.id, { onDelete: 'cascade' }).notNull(),
+  layerType: varchar("layer_type").notNull().$type<"base" | "generated" | "typography" | "logo" | "graphic" | "overlay">(),
+  name: varchar("name").notNull(),
+  imageUrl: text("image_url"),
+  position: jsonb("position"),
+  textContent: text("text_content"),
+  textStyle: jsonb("text_style"),
+  view: varchar("view").notNull().$type<"front" | "back">().default("front"),
+  zIndex: integer("z_index").default(0),
+  isVisible: boolean("is_visible").default(true),
+  isLocked: boolean("is_locked").default(false),
+  opacity: decimal("opacity", { precision: 4, scale: 2 }).default("1.0"),
+  blendMode: varchar("blend_mode").default("normal"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Design Generation Requests - Track AI generation jobs
+export const designGenerationRequests = pgTable("design_generation_requests", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  requestCode: varchar("request_code").unique().notNull(),
+  projectId: integer("project_id").references(() => designProjects.id).notNull(),
+  versionId: integer("version_id").references(() => designVersions.id),
+  requestType: varchar("request_type").notNull().$type<"base_generation" | "typography_iteration" | "logo_placement" | "style_transfer">(),
+  prompt: text("prompt").notNull(),
+  inputConfig: jsonb("input_config"),
+  status: varchar("status").notNull().$type<"pending" | "processing" | "completed" | "failed" | "cancelled">().default("pending"),
+  progress: integer("progress").default(0),
+  resultImageUrls: text("result_image_urls").array(),
+  aiProvider: varchar("ai_provider").default("openai"),
+  modelVersion: varchar("model_version"),
+  tokensUsed: integer("tokens_used"),
+  durationMs: integer("duration_ms"),
+  errorMessage: text("error_message"),
+  retryCount: integer("retry_count").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+  completedAt: timestamp("completed_at"),
+}, (table) => [
+  index("idx_design_generation_requests_project_id").on(table.projectId),
+  index("idx_design_generation_requests_status").on(table.status),
+]);
+
 // ==================== TOUR MERCH BUNDLES ====================
 
 // Tour merch bundles - Pre-configured merchandise bundles for tour events
@@ -2271,6 +2389,41 @@ export const quotesRelations = relations(quotes, ({ one, many }) => ({
 export const quoteLineItemsRelations = relations(quoteLineItems, ({ one }) => ({
   quote: one(quotes, { fields: [quoteLineItems.quoteId], references: [quotes.id] }),
   variant: one(productVariants, { fields: [quoteLineItems.variantId], references: [productVariants.id] }),
+}));
+
+// AI Design Lab Relations
+export const designTemplatesRelations = relations(designTemplates, ({ one }) => ({
+  variant: one(productVariants, { fields: [designTemplates.variantId], references: [productVariants.id] }),
+  createdByUser: one(users, { fields: [designTemplates.createdBy], references: [users.id] }),
+}));
+
+export const designLockedOverlaysRelations = relations(designLockedOverlays, ({ one }) => ({
+  variant: one(productVariants, { fields: [designLockedOverlays.variantId], references: [productVariants.id] }),
+  createdByUser: one(users, { fields: [designLockedOverlays.createdBy], references: [users.id] }),
+}));
+
+export const designProjectsRelations = relations(designProjects, ({ one, many }) => ({
+  user: one(users, { fields: [designProjects.userId], references: [users.id] }),
+  variant: one(productVariants, { fields: [designProjects.variantId], references: [productVariants.id] }),
+  designJob: one(designJobs, { fields: [designProjects.designJobId], references: [designJobs.id] }),
+  organization: one(organizations, { fields: [designProjects.orgId], references: [organizations.id] }),
+  versions: many(designVersions),
+  generationRequests: many(designGenerationRequests),
+}));
+
+export const designVersionsRelations = relations(designVersions, ({ one, many }) => ({
+  project: one(designProjects, { fields: [designVersions.projectId], references: [designProjects.id] }),
+  createdByUser: one(users, { fields: [designVersions.createdBy], references: [users.id] }),
+  layers: many(designLayers),
+}));
+
+export const designLayersRelations = relations(designLayers, ({ one }) => ({
+  version: one(designVersions, { fields: [designLayers.versionId], references: [designVersions.id] }),
+}));
+
+export const designGenerationRequestsRelations = relations(designGenerationRequests, ({ one }) => ({
+  project: one(designProjects, { fields: [designGenerationRequests.projectId], references: [designProjects.id] }),
+  version: one(designVersions, { fields: [designGenerationRequests.versionId], references: [designVersions.id] }),
 }));
 
 // Insert schemas
@@ -3302,6 +3455,129 @@ export const insertQuickActionLogSchema = createInsertSchema(quickActionLogs).om
 
 export type QuickActionLog = typeof quickActionLogs.$inferSelect;
 export type InsertQuickActionLog = z.infer<typeof insertQuickActionLogSchema>;
+
+// ==================== AI DESIGN LAB SCHEMAS ====================
+
+// Design Templates Schemas
+export const insertDesignTemplateSchema = createInsertSchema(designTemplates).omit({
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  name: z.string().min(1, "Template name is required"),
+  templateType: z.enum(["front", "back", "sleeve", "custom"]),
+  baseImageUrl: z.string().min(1, "Base image URL is required"),
+  variantId: z.number().int().optional(),
+  focusAreaMask: z.any().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type DesignTemplate = typeof designTemplates.$inferSelect;
+export type InsertDesignTemplate = z.infer<typeof insertDesignTemplateSchema>;
+
+// Design Locked Overlays Schemas
+export const insertDesignLockedOverlaySchema = createInsertSchema(designLockedOverlays).omit({
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  name: z.string().min(1, "Overlay name is required"),
+  overlayImageUrl: z.string().min(1, "Overlay image URL is required"),
+  templateType: z.enum(["front", "back", "sleeve", "custom"]),
+  variantId: z.number().int().optional(),
+  position: z.any().optional(),
+  zIndex: z.number().int().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type DesignLockedOverlay = typeof designLockedOverlays.$inferSelect;
+export type InsertDesignLockedOverlay = z.infer<typeof insertDesignLockedOverlaySchema>;
+
+// Design Projects Schemas
+export const insertDesignProjectSchema = createInsertSchema(designProjects).omit({
+  projectCode: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  name: z.string().min(1, "Project name is required"),
+  description: z.string().optional(),
+  variantId: z.number().int().optional(),
+  designJobId: z.number().int().optional(),
+  orgId: z.number().int().optional(),
+  status: z.enum(["draft", "generating", "in_progress", "review", "finalized", "archived"]).optional(),
+  currentVersionId: z.number().int().optional(),
+  thumbnailUrl: z.string().optional(),
+});
+
+export type DesignProject = typeof designProjects.$inferSelect;
+export type InsertDesignProject = z.infer<typeof insertDesignProjectSchema>;
+
+// Design Versions Schemas
+export const insertDesignVersionSchema = createInsertSchema(designVersions).omit({
+  createdAt: true,
+}).extend({
+  projectId: z.number().int().positive("Project ID is required"),
+  versionNumber: z.number().int().positive("Version number is required"),
+  name: z.string().optional(),
+  frontImageUrl: z.string().optional(),
+  backImageUrl: z.string().optional(),
+  compositeFrontUrl: z.string().optional(),
+  compositeBackUrl: z.string().optional(),
+  layerData: z.any().optional(),
+  generationPrompt: z.string().optional(),
+  generationProvider: z.string().optional(),
+  generationDuration: z.number().int().optional(),
+});
+
+export type DesignVersion = typeof designVersions.$inferSelect;
+export type InsertDesignVersion = z.infer<typeof insertDesignVersionSchema>;
+
+// Design Layers Schemas
+export const insertDesignLayerSchema = createInsertSchema(designLayers).omit({
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  versionId: z.number().int().positive("Version ID is required"),
+  layerType: z.enum(["base", "generated", "typography", "logo", "graphic", "overlay"]),
+  name: z.string().min(1, "Layer name is required"),
+  imageUrl: z.string().optional(),
+  position: z.any().optional(),
+  textContent: z.string().optional(),
+  textStyle: z.any().optional(),
+  view: z.enum(["front", "back"]).optional(),
+  zIndex: z.number().int().optional(),
+  isVisible: z.boolean().optional(),
+  isLocked: z.boolean().optional(),
+  opacity: z.string().optional(),
+  blendMode: z.string().optional(),
+});
+
+export type DesignLayer = typeof designLayers.$inferSelect;
+export type InsertDesignLayer = z.infer<typeof insertDesignLayerSchema>;
+
+// Design Generation Requests Schemas
+export const insertDesignGenerationRequestSchema = createInsertSchema(designGenerationRequests).omit({
+  requestCode: true,
+  createdAt: true,
+  updatedAt: true,
+  completedAt: true,
+}).extend({
+  projectId: z.number().int().positive("Project ID is required"),
+  versionId: z.number().int().optional(),
+  requestType: z.enum(["base_generation", "typography_iteration", "logo_placement", "style_transfer"]),
+  prompt: z.string().min(1, "Prompt is required"),
+  inputConfig: z.any().optional(),
+  status: z.enum(["pending", "processing", "completed", "failed", "cancelled"]).optional(),
+  progress: z.number().int().min(0).max(100).optional(),
+  resultImageUrls: z.array(z.string()).optional(),
+  aiProvider: z.string().optional(),
+  modelVersion: z.string().optional(),
+  tokensUsed: z.number().int().optional(),
+  durationMs: z.number().int().optional(),
+  errorMessage: z.string().optional(),
+  retryCount: z.number().int().optional(),
+});
+
+export type DesignGenerationRequest = typeof designGenerationRequests.$inferSelect;
+export type InsertDesignGenerationRequest = z.infer<typeof insertDesignGenerationRequestSchema>;
 
 // AI Design Sessions Schemas
 export const insertAiDesignSessionSchema = createInsertSchema(aiDesignSessions).omit({
