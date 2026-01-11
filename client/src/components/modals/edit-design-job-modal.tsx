@@ -141,24 +141,18 @@ export function EditDesignJobModal({ isOpen, onClose, designJobId }: EditDesignJ
 
   const updateDesignJobMutation = useMutation({
     mutationFn: (data: EditDesignJobForm) => {
-      const cleanedData = {
+      const cleanedData: any = {
         ...data,
-        logoUrls: logoUrls.length > 0 ? logoUrls : undefined,
-        designReferenceUrls: designReferenceUrls.length > 0 ? designReferenceUrls : undefined,
-        additionalFileUrls: additionalFileUrls.length > 0 ? additionalFileUrls : undefined,
+        logoUrls: logoUrls,
+        designReferenceUrls: designReferenceUrls,
+        additionalFileUrls: additionalFileUrls,
         designStyleUrl: designStyleUrl || undefined,
-        finalDesignUrls: finalDesignUrls.length > 0 ? finalDesignUrls : undefined,
+        finalDesignUrls: finalDesignUrls,
         leadId: data.leadId || undefined,
         orderId: data.orderId || undefined,
         salespersonId: data.salespersonId || undefined,
         deadline: data.deadline || undefined,
       };
-      
-      Object.keys(cleanedData).forEach(key => {
-        if (cleanedData[key as keyof typeof cleanedData] === undefined) {
-          delete cleanedData[key as keyof typeof cleanedData];
-        }
-      });
       
       return apiRequest(`/api/design-jobs/${designJobId}`, {
         method: 'PUT',
@@ -171,6 +165,7 @@ export function EditDesignJobModal({ isOpen, onClose, designJobId }: EditDesignJ
         description: "Design job updated successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/design-jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/design-jobs", designJobId] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       handleClose();
     },

@@ -23,7 +23,13 @@ interface DesignGalleryProps {
  */
 function isImageUrl(url: string, category?: string): boolean {
   const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.bmp', '.ico'];
+  const nonImageExtensions = ['.pdf', '.psd', '.ai', '.eps', '.psb', '.indd', '.sketch', '.fig'];
   const lowerUrl = url.toLowerCase();
+  
+  // Check for explicit non-image extensions first
+  if (nonImageExtensions.some(ext => lowerUrl.endsWith(ext) || lowerUrl.includes(ext + '?'))) {
+    return false;
+  }
   
   // Check for explicit image extensions
   if (imageExtensions.some(ext => lowerUrl.includes(ext))) {
@@ -37,12 +43,18 @@ function isImageUrl(url: string, category?: string): boolean {
     return true;
   }
   
-  // For logos and references categories, assume uploaded files are images
-  // (these categories only accept image/* types)
-  if (category === 'logos' || category === 'references') {
+  // For logos, references, and designs categories, assume uploaded files are images
+  // unless they have explicit non-image extensions (these categories primarily accept image/* types)
+  if (category === 'logos' || category === 'references' || category === 'designs') {
     if (lowerUrl.includes('/public-objects/') || lowerUrl.includes('/objects/')) {
       return true;
     }
+  }
+  
+  // For object storage URLs without known extensions, try to display as image
+  // (the ImageThumbnail component handles errors gracefully if it's not an image)
+  if (lowerUrl.includes('/public-objects/') || lowerUrl.includes('/objects/')) {
+    return true;
   }
   
   return false;
@@ -61,6 +73,19 @@ function extractFileName(url: string): string {
   } catch {
     return url;
   }
+}
+
+/**
+ * Download a file from URL
+ */
+function downloadFile(url: string, filename?: string) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename || extractFileName(url);
+  link.target = '_blank';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 }
 
 /**
@@ -84,6 +109,11 @@ function ImageThumbnail({
     square: "aspect-square",
     wide: "aspect-video",
     tall: "aspect-[3/4]",
+  };
+
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    downloadFile(url);
   };
 
   if (error || !isImageUrl(url, category)) {
@@ -113,7 +143,6 @@ function ImageThumbnail({
 
   return (
     <div
-      onClick={onClick}
       className={cn(
         "relative group rounded-xl overflow-hidden cursor-pointer",
         "border border-white/10 hover:border-primary/50",
@@ -139,12 +168,13 @@ function ImageThumbnail({
         onLoad={() => setLoaded(true)}
         onError={() => setError(true)}
         loading="lazy"
+        onClick={onClick}
       />
       
       {/* Overlay gradient */}
       <div className={cn(
         "absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent",
-        "opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        "opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
       )} />
       
       {/* Hover actions */}
@@ -152,15 +182,27 @@ function ImageThumbnail({
         "absolute inset-0 flex items-center justify-center gap-3",
         "opacity-0 group-hover:opacity-100 transition-opacity duration-300"
       )}>
-        <div className="p-2.5 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors">
+        <button 
+          onClick={onClick}
+          className="p-2.5 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors"
+          title="View full size"
+        >
           <ZoomIn className="w-5 h-5 text-white" />
-        </div>
+        </button>
+        <button 
+          onClick={handleDownload}
+          className="p-2.5 rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 transition-colors"
+          title="Download"
+          data-testid="button-quick-download"
+        >
+          <Download className="w-5 h-5 text-white" />
+        </button>
       </div>
 
       {/* Filename badge */}
       <div className={cn(
         "absolute bottom-0 left-0 right-0 p-2",
-        "opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        "opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
       )}>
         <span className="text-xs text-white/90 truncate block text-center" 
           style={{ textShadow: '0 1px 3px rgba(0,0,0,0.5)' }}>
@@ -206,6 +248,14 @@ export function DesignGallery({
     setViewerOpen(true);
   };
 
+  const handleDownloadAll = () => {
+    files.forEach((url, index) => {
+      setTimeout(() => {
+        downloadFile(url, `${category}-${index + 1}-${extractFileName(url)}`);
+      }, index * 200);
+    });
+  };
+
   if (files.length === 0) {
     return (
       <div className={cn("space-y-3", className)}>
@@ -247,17 +297,31 @@ export function DesignGallery({
               </span>
             </div>
           </div>
-          {imageFiles.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => handleImageClick(0)}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <ZoomIn className="w-4 h-4 mr-1.5" />
-              View All
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {files.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDownloadAll}
+                className="text-muted-foreground hover:text-foreground"
+                data-testid="button-download-all"
+              >
+                <Download className="w-4 h-4 mr-1.5" />
+                Download All
+              </Button>
+            )}
+            {imageFiles.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleImageClick(0)}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <ZoomIn className="w-4 h-4 mr-1.5" />
+                View All
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
