@@ -22,6 +22,7 @@ import {
   MoreHorizontal,
   X,
   ChevronRight,
+  ChevronDown,
   Home,
   type LucideIcon,
 } from "lucide-react";
@@ -52,8 +53,21 @@ interface MobileFloatingDockProps {
 export function MobileFloatingDock({ onSearchClick, user }: MobileFloatingDockProps) {
   const [location] = useLocation();
   const [isExpanded, setIsExpanded] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const { getAllFlags, isEnabled } = useFeatureFlags();
   const enableRoleHome = isEnabled("enableRoleHome");
+
+  const toggleGroup = (groupId: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  };
 
   const navigation = useMemo(() => {
     if (!user?.role) return [];
@@ -146,55 +160,96 @@ export function MobileFloatingDock({ onSearchClick, user }: MobileFloatingDockPr
                       const landingPath = getGroupLandingForRole(group, user?.role as UserRole, featureFlags);
                       const isActive = isGroupActive(group);
                       const visiblePages = group.pages.filter(p => !p.hideFromMoreMenu);
+                      const isGroupExpanded = expandedGroups.has(group.id);
+                      const hasSubPages = visiblePages.length > 1;
 
                       return (
                         <div key={group.id} className="space-y-1.5">
-                          <Link href={landingPath} onClick={() => setIsExpanded(false)}>
-                            <motion.div
-                              whileTap={{ scale: 0.97 }}
-                              className={cn(
-                                "flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all overflow-hidden min-h-[52px]",
-                                isActive
-                                  ? "bg-neon-blue/20 text-neon-blue border border-neon-blue/30"
-                                  : "bg-white/5 text-white hover:bg-white/10"
-                              )}
-                              data-testid={`mobile-nav-group-${group.id}`}
+                          <div className="flex items-center gap-2">
+                            <Link 
+                              href={landingPath} 
+                              onClick={() => setIsExpanded(false)}
+                              className="flex-1"
                             >
-                              <div className={cn(
-                                "p-2.5 rounded-lg flex-shrink-0",
-                                isActive ? "bg-neon-blue/20" : "bg-white/10"
-                              )}>
-                                <GroupIcon className="w-5 h-5" />
-                              </div>
-                              <span className="flex-1 font-medium text-sm truncate">{group.title}</span>
-                              <ChevronRight className="w-4 h-4 text-white/40 flex-shrink-0" />
-                            </motion.div>
-                          </Link>
-
-                          {visiblePages.length > 1 && (
-                            <div className="ml-5 pl-4 border-l border-white/10 space-y-1">
-                              {visiblePages.map((page) => (
-                                <Link 
-                                  key={page.id} 
-                                  href={page.path}
-                                  onClick={() => setIsExpanded(false)}
+                              <motion.div
+                                whileTap={{ scale: 0.97 }}
+                                className={cn(
+                                  "flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all overflow-hidden min-h-[52px]",
+                                  isActive
+                                    ? "bg-neon-blue/20 text-neon-blue border border-neon-blue/30"
+                                    : "bg-white/5 text-white hover:bg-white/10"
+                                )}
+                                data-testid={`mobile-nav-group-${group.id}`}
+                              >
+                                <div className={cn(
+                                  "p-2.5 rounded-lg flex-shrink-0",
+                                  isActive ? "bg-neon-blue/20" : "bg-white/10"
+                                )}>
+                                  <GroupIcon className="w-5 h-5" />
+                                </div>
+                                <span className="flex-1 font-medium text-sm truncate">{group.title}</span>
+                                {!hasSubPages && (
+                                  <ChevronRight className="w-4 h-4 text-white/40 flex-shrink-0" />
+                                )}
+                              </motion.div>
+                            </Link>
+                            
+                            {hasSubPages && (
+                              <motion.button
+                                whileTap={{ scale: 0.9 }}
+                                onClick={() => toggleGroup(group.id)}
+                                className={cn(
+                                  "p-3 rounded-xl transition-all min-w-[48px] min-h-[52px] flex items-center justify-center",
+                                  isGroupExpanded
+                                    ? "bg-neon-blue/20 text-neon-blue"
+                                    : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
+                                )}
+                                data-testid={`button-toggle-${group.id}`}
+                              >
+                                <motion.div
+                                  animate={{ rotate: isGroupExpanded ? 180 : 0 }}
+                                  transition={{ duration: 0.2 }}
                                 >
-                                  <motion.div
-                                    whileTap={{ scale: 0.97 }}
-                                    className={cn(
-                                      "px-4 py-3 rounded-lg text-sm transition-all truncate overflow-hidden min-h-[48px] flex items-center",
-                                      page.isActive
-                                        ? "text-neon-blue bg-neon-blue/10"
-                                        : "text-white/60 hover:text-white hover:bg-white/5"
-                                    )}
-                                    data-testid={`mobile-nav-page-${page.id}`}
-                                  >
-                                    {page.label}
-                                  </motion.div>
-                                </Link>
-                              ))}
-                            </div>
-                          )}
+                                  <ChevronDown className="w-5 h-5" />
+                                </motion.div>
+                              </motion.button>
+                            )}
+                          </div>
+
+                          <AnimatePresence initial={false}>
+                            {hasSubPages && isGroupExpanded && (
+                              <motion.div
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{ duration: 0.2, ease: "easeInOut" }}
+                                className="overflow-hidden"
+                              >
+                                <div className="ml-5 pl-4 border-l border-white/10 space-y-1">
+                                  {visiblePages.map((page) => (
+                                    <Link 
+                                      key={page.id} 
+                                      href={page.path}
+                                      onClick={() => setIsExpanded(false)}
+                                    >
+                                      <motion.div
+                                        whileTap={{ scale: 0.97 }}
+                                        className={cn(
+                                          "px-4 py-3 rounded-lg text-sm transition-all truncate overflow-hidden min-h-[48px] flex items-center",
+                                          page.isActive
+                                            ? "text-neon-blue bg-neon-blue/10"
+                                            : "text-white/60 hover:text-white hover:bg-white/5"
+                                        )}
+                                        data-testid={`mobile-nav-page-${page.id}`}
+                                      >
+                                        {page.label}
+                                      </motion.div>
+                                    </Link>
+                                  ))}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
                       );
                     })}
