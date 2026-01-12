@@ -156,10 +156,11 @@ export function DesignLab() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: projects = [], isLoading: projectsLoading } = useQuery<DesignProject[]>({
+  const { data: projectsData, isLoading: projectsLoading } = useQuery<{ projects: DesignProject[]; pagination: { page: number; limit: number; total: number; pages: number } }>({
     queryKey: ["/api/design-lab/projects"],
     retry: false,
   });
+  const projects = projectsData?.projects ?? [];
 
   const { data: variants = [] } = useQuery<ProductVariant[]>({
     queryKey: ["/api/variants"],
