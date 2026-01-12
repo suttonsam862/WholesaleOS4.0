@@ -59,6 +59,7 @@ import {
   FileText,
   CheckCircle2,
   Play,
+  Settings,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 
@@ -135,7 +136,7 @@ function getStatusLabel(status: DesignProject["status"]) {
 
 export function DesignLab() {
   const { toast } = useToast();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const isMobile = useIsMobile();
   const [, setLocation] = useLocation();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -332,14 +333,28 @@ export function DesignLab() {
               AI Design Lab
             </h1>
           </div>
-          <Button
-            onClick={() => setIsCreateDialogOpen(true)}
-            className="gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700"
-            data-testid="button-new-project"
-          >
-            <Plus className="h-4 w-4" />
-            {!isMobile && "New Project"}
-          </Button>
+          <div className="flex items-center gap-2">
+            {user?.role === "admin" && (
+              <Link href="/design-lab/admin">
+                <Button
+                  variant="outline"
+                  className="gap-2 border-zinc-700 hover:bg-zinc-800"
+                  data-testid="button-admin-settings"
+                >
+                  <Settings className="h-4 w-4" />
+                  {!isMobile && "Admin Settings"}
+                </Button>
+              </Link>
+            )}
+            <Button
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700"
+              data-testid="button-new-project"
+            >
+              <Plus className="h-4 w-4" />
+              {!isMobile && "New Project"}
+            </Button>
+          </div>
         </div>
         <p className="text-muted-foreground">
           Create and manage AI-powered design projects
