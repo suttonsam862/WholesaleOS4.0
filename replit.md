@@ -86,3 +86,36 @@ Preferred communication style: Simple, everyday language.
   - All project endpoints verify user ownership
   - Admin override for cross-user access
   - RBAC via `designJobs` resource permission
+
+### AI Design Lab - Enhancements (January 2026)
+- **Product Template Support**: Added front/back template images for product variants
+  - `frontTemplateUrl` and `backTemplateUrl` fields in productVariants schema
+  - Upload UI in variant edit modal for template images
+  - Composite image generation overlays AI designs onto product templates
+
+- **Image Compositing Service**: New `image-composite.service.ts` using sharp
+  - Blends AI-generated designs onto product template images
+  - Produces `compositeFrontUrl` and `compositeBackUrl` for realistic mockups
+  - Automatic compositing during version creation
+
+- **Typography Iteration**: Full API implementation
+  - `generateTypographyIteration` service function
+  - Accepts fontFamily, fontSize, textColor, focusArea parameters
+  - POST /api/design-lab/generate handles both base_generation and typography_iteration
+
+- **Layer Property Controls**: Complete editor panel
+  - Position (X, Y), Size (Width, Height) inputs
+  - Rotation slider (-180° to 180°)
+  - Scale slider (0.1x to 3.0x)
+  - Opacity slider (0% to 100%)
+  - Blend mode dropdown (normal, multiply, screen, overlay, darken, lighten)
+
+- **Design Job Linkage**: Project creation integration
+  - Optional design job selector in create project dialog
+  - Filters to show only pending/in_progress jobs
+  - Links projects to design jobs for workflow integration
+
+- **Focus Area Tooling**: Admin template enhancements
+  - Focus area mask upload in template forms
+  - Overlay position/size inputs (positionX, positionY, width, height)
+  - Improved template configuration for guided AI generation
