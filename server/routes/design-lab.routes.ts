@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
 import { insertDesignProjectSchema, insertDesignVersionSchema, insertDesignLayerSchema, insertDesignTemplateSchema, insertDesignLockedOverlaySchema, insertDesignGenerationRequestSchema } from "@shared/schema";
 import { z } from "zod";
+import { generateBaseDesign } from "../services/design-generation.service";
 
 export function registerDesignLabRoutes(app: Express): void {
   // ==================== DESIGN PROJECTS ====================
@@ -597,10 +598,101 @@ export function registerDesignLabRoutes(app: Express): void {
   // POST /api/design-lab/generate - Start AI generation request
   app.post('/api/design-lab/generate', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
     try {
-      const parsed = insertDesignGenerationRequestSchema.parse(req.body);
-      
-      const request = await storage.createDesignGenerationRequest(parsed);
-      res.status(201).json(request);
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const { projectId, prompt, requestType = 'base_generation', style = 'athletic', productType } = req.body;
+
+      if (!projectId || !prompt) {
+        return res.status(400).json({ message: "projectId and prompt are required" });
+      }
+
+      // Verify project exists and user has access
+      const project = await storage.getDesignProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Project not found" });
+      }
+      if (project.userId !== user.id && user.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      // Create generation request record
+      const generationRequest = await storage.createDesignGenerationRequest({
+        projectId,
+        prompt,
+        requestType,
+        inputConfig: { style, productType },
+        status: 'processing',
+        progress: 0,
+        aiProvider: 'openai',
+      });
+
+      // Update project status
+      await storage.updateDesignProject(projectId, { status: 'generating' });
+
+      // Start async generation (don't await - return immediately)
+      (async () => {
+        try {
+          await storage.updateDesignGenerationRequest(generationRequest.id, { progress: 10 });
+
+          const result = await generateBaseDesign({
+            prompt,
+            style: style as 'athletic' | 'modern' | 'vintage' | 'bold',
+            productType,
+          });
+
+          await storage.updateDesignGenerationRequest(generationRequest.id, { progress: 80 });
+
+          // Create a new version with generated images
+          const versions = await storage.getDesignVersions(projectId);
+          const nextVersionNumber = versions.length + 1;
+
+          const newVersion = await storage.createDesignVersion({
+            projectId,
+            versionNumber: nextVersionNumber,
+            name: `Generated v${nextVersionNumber}`,
+            frontImageUrl: `data:image/png;base64,${result.frontImageBase64}`,
+            backImageUrl: `data:image/png;base64,${result.backImageBase64}`,
+            generationPrompt: prompt,
+            generationProvider: result.provider,
+            generationDuration: result.durationMs,
+            createdBy: user.id,
+          });
+
+          // Update project with new version
+          await storage.updateDesignProject(projectId, {
+            currentVersionId: newVersion.id,
+            status: 'in_progress',
+          });
+
+          // Complete the generation request
+          await storage.updateDesignGenerationRequest(generationRequest.id, {
+            status: 'completed',
+            progress: 100,
+            versionId: newVersion.id,
+            modelVersion: result.modelVersion,
+            durationMs: result.durationMs,
+            resultImageUrls: [
+              `data:image/png;base64,${result.frontImageBase64.substring(0, 100)}...`,
+              `data:image/png;base64,${result.backImageBase64.substring(0, 100)}...`,
+            ],
+          });
+
+          console.log(`Generation ${generationRequest.requestCode} completed successfully`);
+        } catch (error) {
+          console.error(`Generation ${generationRequest.requestCode} failed:`, error);
+          await storage.updateDesignGenerationRequest(generationRequest.id, {
+            status: 'failed',
+            errorMessage: error instanceof Error ? error.message : 'Generation failed',
+          });
+          await storage.updateDesignProject(projectId, { status: 'draft' });
+        }
+      })();
+
+      // Return immediately with the request info
+      res.status(202).json({
+        message: "Generation started",
+        request: generationRequest,
+        pollUrl: `/api/design-lab/generate/${generationRequest.id}`,
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });

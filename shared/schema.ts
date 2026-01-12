@@ -3647,3 +3647,6 @@ export const insertPrintfulSyncRecordSchema = createInsertSchema(printfulSyncRec
 
 export type PrintfulSyncRecord = typeof printfulSyncRecords.$inferSelect;
 export type InsertPrintfulSyncRecord = z.infer<typeof insertPrintfulSyncRecordSchema>;
+
+// AI Chat models (used by OpenAI integration)
+export * from "./models/chat";
