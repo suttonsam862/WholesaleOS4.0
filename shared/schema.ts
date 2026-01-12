@@ -287,6 +287,8 @@ export const productVariants = pgTable("product_variants", {
   msrp: decimal("msrp", { precision: 10, scale: 2 }),
   cost: decimal("cost", { precision: 10, scale: 2 }),
   imageUrl: text("image_url"),
+  frontTemplateUrl: text("front_template_url"),
+  backTemplateUrl: text("back_template_url"),
   defaultManufacturerId: integer("default_manufacturer_id").references(() => manufacturers.id),
   backupManufacturerId: integer("backup_manufacturer_id").references(() => manufacturers.id),
   archived: boolean("archived").default(false),
@@ -2502,6 +2504,8 @@ export const insertProductVariantSchema = createInsertSchema(productVariants, {
   cost: z.string()
     .optional()
     .refine((val) => !val || (val && /^\d+(\.\d{1,2})?$/.test(val) && parseFloat(val) > 0), "Cost must be a positive number greater than 0"),
+  frontTemplateUrl: z.string().optional(),
+  backTemplateUrl: z.string().optional(),
 });
 
 export const insertDesignJobSchema = createInsertSchema(designJobs, {

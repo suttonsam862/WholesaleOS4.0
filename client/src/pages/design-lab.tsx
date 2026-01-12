@@ -81,9 +81,21 @@ interface DesignProject {
 
 interface ProductVariant {
   id: number;
-  name: string;
   productId: number;
-  sku: string;
+  variantCode: string;
+  color?: string;
+  size?: string;
+  material?: string;
+  imageUrl?: string;
+  frontTemplateUrl?: string;
+  backTemplateUrl?: string;
+}
+
+function getVariantDisplayName(variant: ProductVariant): string {
+  const parts = [variant.variantCode];
+  if (variant.color) parts.push(variant.color);
+  if (variant.size) parts.push(variant.size);
+  return parts.join(" - ");
 }
 
 const createProjectSchema = z.object({
@@ -546,7 +558,7 @@ export function DesignLab() {
 
                   {variant && (
                     <p className="text-sm text-muted-foreground mb-2" data-testid={`text-variant-${project.id}`}>
-                      Variant: {variant.name}
+                      Variant: {getVariantDisplayName(variant)}
                     </p>
                   )}
 
@@ -636,7 +648,7 @@ export function DesignLab() {
                             value={variant.id.toString()}
                             data-testid={`option-variant-${variant.id}`}
                           >
-                            {variant.name} ({variant.sku})
+                            {getVariantDisplayName(variant)}
                           </SelectItem>
                         ))}
                       </SelectContent>
