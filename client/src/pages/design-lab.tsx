@@ -647,8 +647,8 @@ export function DesignLab() {
                   <FormItem>
                     <FormLabel>Product Variant</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
-                      value={field.value?.toString() || ""}
+                      onValueChange={(value) => field.onChange(value && value !== "none" ? parseInt(value) : undefined)}
+                      value={field.value?.toString() ?? "none"}
                     >
                       <FormControl>
                         <SelectTrigger data-testid="select-variant">
@@ -656,6 +656,7 @@ export function DesignLab() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="none">None (optional)</SelectItem>
                         {variants.map((variant) => (
                           <SelectItem 
                             key={variant.id} 
@@ -679,8 +680,8 @@ export function DesignLab() {
                   <FormItem>
                     <FormLabel>Link to Design Job (optional)</FormLabel>
                     <Select 
-                      onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
-                      value={field.value?.toString() || ""}
+                      onValueChange={(value) => field.onChange(value && value !== "none" ? parseInt(value) : undefined)}
+                      value={field.value?.toString() ?? "none"}
                     >
                       <FormControl>
                         <SelectTrigger data-testid="select-design-job">
@@ -688,6 +689,7 @@ export function DesignLab() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="none">None (optional)</SelectItem>
                         {designJobs
                           .filter((job) => job.status === "pending" || job.status === "in_progress")
                           .map((job) => {
