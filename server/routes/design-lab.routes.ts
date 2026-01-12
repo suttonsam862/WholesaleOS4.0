@@ -1,9 +1,29 @@
-import type { Express } from "express";
+import type { Express, Response } from "express";
 import { storage } from "../storage";
 import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
-import { insertDesignProjectSchema, insertDesignVersionSchema, insertDesignLayerSchema, insertDesignTemplateSchema, insertDesignLockedOverlaySchema, insertDesignGenerationRequestSchema } from "@shared/schema";
+import { insertDesignProjectSchema, insertDesignVersionSchema, insertDesignLayerSchema, insertDesignTemplateSchema, insertDesignLockedOverlaySchema, insertDesignGenerationRequestSchema, type DesignProject } from "@shared/schema";
 import { z } from "zod";
 import { generateBaseDesign } from "../services/design-generation.service";
+
+// Helper to verify project ownership - returns project if authorized, null if not
+async function verifyProjectAccess(
+  projectId: number,
+  userId: string,
+  userRole: string,
+  res: Response
+): Promise<DesignProject | null> {
+  const project = await storage.getDesignProject(projectId);
+  if (!project) {
+    res.status(404).json({ message: "Design project not found" });
+    return null;
+  }
+  // Admin can access all projects, otherwise must be owner
+  if (userRole !== 'admin' && project.userId !== userId) {
+    res.status(403).json({ message: "Access denied - you don't own this project" });
+    return null;
+  }
+  return project;
+}
 
 export function registerDesignLabRoutes(app: Express): void {
   // ==================== DESIGN PROJECTS ====================
@@ -59,15 +79,14 @@ export function registerDesignLabRoutes(app: Express): void {
   // GET /api/design-lab/projects/:id - Get project with current version and layers
   app.get('/api/design-lab/projects/:id', isAuthenticated, loadUserData, requirePermission('designJobs', 'read'), async (req, res) => {
     try {
+      const user = (req as AuthenticatedRequest).user.userData!;
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      const project = await storage.getDesignProject(id);
-      if (!project) {
-        return res.status(404).json({ message: "Design project not found" });
-      }
+      const project = await verifyProjectAccess(id, user.id, user.role, res);
+      if (!project) return; // Response already sent by helper
 
       // Get current version and its layers if available
       let currentVersion = null;
@@ -90,15 +109,14 @@ export function registerDesignLabRoutes(app: Express): void {
   // PATCH /api/design-lab/projects/:id - Update project
   app.patch('/api/design-lab/projects/:id', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
     try {
+      const user = (req as AuthenticatedRequest).user.userData!;
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      const existing = await storage.getDesignProject(id);
-      if (!existing) {
-        return res.status(404).json({ message: "Design project not found" });
-      }
+      const existing = await verifyProjectAccess(id, user.id, user.role, res);
+      if (!existing) return; // Response already sent
 
       const allowedFields = ['name', 'description', 'status', 'currentVersionId', 'thumbnailUrl', 'variantId', 'designJobId', 'orgId'];
       const updates: any = {};
@@ -119,15 +137,14 @@ export function registerDesignLabRoutes(app: Express): void {
   // DELETE /api/design-lab/projects/:id - Soft delete (archive)
   app.delete('/api/design-lab/projects/:id', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
     try {
+      const user = (req as AuthenticatedRequest).user.userData!;
       const id = parseInt(req.params.id);
       if (isNaN(id)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      const existing = await storage.getDesignProject(id);
-      if (!existing) {
-        return res.status(404).json({ message: "Design project not found" });
-      }
+      const existing = await verifyProjectAccess(id, user.id, user.role, res);
+      if (!existing) return; // Response already sent
 
       await storage.updateDesignProject(id, { status: 'archived' as any });
       res.json({ message: "Project archived successfully" });
@@ -142,10 +159,14 @@ export function registerDesignLabRoutes(app: Express): void {
   // GET /api/design-lab/projects/:projectId/versions - List all versions
   app.get('/api/design-lab/projects/:projectId/versions', isAuthenticated, loadUserData, requirePermission('designJobs', 'read'), async (req, res) => {
     try {
+      const user = (req as AuthenticatedRequest).user.userData!;
       const projectId = parseInt(req.params.projectId);
       if (isNaN(projectId)) {
         return res.status(400).json({ message: "Invalid project ID" });
       }
+
+      const project = await verifyProjectAccess(projectId, user.id, user.role, res);
+      if (!project) return;
 
       const versions = await storage.getDesignVersions(projectId);
       res.json(versions);
@@ -164,10 +185,8 @@ export function registerDesignLabRoutes(app: Express): void {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      const project = await storage.getDesignProject(projectId);
-      if (!project) {
-        return res.status(404).json({ message: "Design project not found" });
-      }
+      const project = await verifyProjectAccess(projectId, user.id, user.role, res);
+      if (!project) return;
 
       // Get the latest version number
       const existingVersions = await storage.getDesignVersions(projectId);
@@ -223,6 +242,7 @@ export function registerDesignLabRoutes(app: Express): void {
   // POST /api/design-lab/projects/:projectId/versions/:versionId/restore - Restore a version as current
   app.post('/api/design-lab/projects/:projectId/versions/:versionId/restore', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
     try {
+      const user = (req as AuthenticatedRequest).user.userData!;
       const projectId = parseInt(req.params.projectId);
       const versionId = parseInt(req.params.versionId);
       
@@ -230,10 +250,8 @@ export function registerDesignLabRoutes(app: Express): void {
         return res.status(400).json({ message: "Invalid project or version ID" });
       }
 
-      const project = await storage.getDesignProject(projectId);
-      if (!project) {
-        return res.status(404).json({ message: "Design project not found" });
-      }
+      const project = await verifyProjectAccess(projectId, user.id, user.role, res);
+      if (!project) return;
 
       const version = await storage.getDesignVersion(versionId);
       if (!version) {
@@ -263,14 +281,22 @@ export function registerDesignLabRoutes(app: Express): void {
   // GET /api/design-lab/projects/:projectId/versions/:versionId - Get version with layers
   app.get('/api/design-lab/projects/:projectId/versions/:versionId', isAuthenticated, loadUserData, requirePermission('designJobs', 'read'), async (req, res) => {
     try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const projectId = parseInt(req.params.projectId);
       const versionId = parseInt(req.params.versionId);
-      if (isNaN(versionId)) {
-        return res.status(400).json({ message: "Invalid version ID" });
+      if (isNaN(projectId) || isNaN(versionId)) {
+        return res.status(400).json({ message: "Invalid project or version ID" });
       }
+
+      const project = await verifyProjectAccess(projectId, user.id, user.role, res);
+      if (!project) return;
 
       const version = await storage.getDesignVersion(versionId);
       if (!version) {
         return res.status(404).json({ message: "Design version not found" });
+      }
+      if (version.projectId !== projectId) {
+        return res.status(400).json({ message: "Version does not belong to this project" });
       }
 
       const layers = await storage.getDesignLayers(versionId);
@@ -284,14 +310,22 @@ export function registerDesignLabRoutes(app: Express): void {
   // PATCH /api/design-lab/projects/:projectId/versions/:versionId - Update version
   app.patch('/api/design-lab/projects/:projectId/versions/:versionId', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
     try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const projectId = parseInt(req.params.projectId);
       const versionId = parseInt(req.params.versionId);
-      if (isNaN(versionId)) {
-        return res.status(400).json({ message: "Invalid version ID" });
+      if (isNaN(projectId) || isNaN(versionId)) {
+        return res.status(400).json({ message: "Invalid project or version ID" });
       }
+
+      const project = await verifyProjectAccess(projectId, user.id, user.role, res);
+      if (!project) return;
 
       const existing = await storage.getDesignVersion(versionId);
       if (!existing) {
         return res.status(404).json({ message: "Design version not found" });
+      }
+      if (existing.projectId !== projectId) {
+        return res.status(400).json({ message: "Version does not belong to this project" });
       }
 
       const allowedFields = ['name', 'frontImageUrl', 'backImageUrl', 'compositeFrontUrl', 'compositeBackUrl', 'layerData', 'generationPrompt', 'generationProvider', 'generationDuration'];
@@ -315,10 +349,19 @@ export function registerDesignLabRoutes(app: Express): void {
   // GET /api/design-lab/versions/:versionId/layers - Get all layers
   app.get('/api/design-lab/versions/:versionId/layers', isAuthenticated, loadUserData, requirePermission('designJobs', 'read'), async (req, res) => {
     try {
+      const user = (req as AuthenticatedRequest).user.userData!;
       const versionId = parseInt(req.params.versionId);
       if (isNaN(versionId)) {
         return res.status(400).json({ message: "Invalid version ID" });
       }
+
+      // Verify ownership through version -> project
+      const version = await storage.getDesignVersion(versionId);
+      if (!version) {
+        return res.status(404).json({ message: "Design version not found" });
+      }
+      const project = await verifyProjectAccess(version.projectId, user.id, user.role, res);
+      if (!project) return;
 
       const layers = await storage.getDesignLayers(versionId);
       res.json(layers);
@@ -331,6 +374,7 @@ export function registerDesignLabRoutes(app: Express): void {
   // POST /api/design-lab/versions/:versionId/layers - Add layer
   app.post('/api/design-lab/versions/:versionId/layers', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
     try {
+      const user = (req as AuthenticatedRequest).user.userData!;
       const versionId = parseInt(req.params.versionId);
       if (isNaN(versionId)) {
         return res.status(400).json({ message: "Invalid version ID" });
@@ -340,6 +384,10 @@ export function registerDesignLabRoutes(app: Express): void {
       if (!version) {
         return res.status(404).json({ message: "Design version not found" });
       }
+
+      // Verify ownership through version -> project
+      const project = await verifyProjectAccess(version.projectId, user.id, user.role, res);
+      if (!project) return;
 
       const parsed = insertDesignLayerSchema.omit({ versionId: true }).parse(req.body);
       const layer = await storage.createDesignLayer({
@@ -360,6 +408,7 @@ export function registerDesignLabRoutes(app: Express): void {
   // PATCH /api/design-lab/layers/:layerId - Update layer
   app.patch('/api/design-lab/layers/:layerId', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
     try {
+      const user = (req as AuthenticatedRequest).user.userData!;
       const layerId = parseInt(req.params.layerId);
       if (isNaN(layerId)) {
         return res.status(400).json({ message: "Invalid layer ID" });
@@ -369,6 +418,14 @@ export function registerDesignLabRoutes(app: Express): void {
       if (!existing) {
         return res.status(404).json({ message: "Design layer not found" });
       }
+
+      // Verify ownership through layer -> version -> project
+      const version = await storage.getDesignVersion(existing.versionId);
+      if (!version) {
+        return res.status(404).json({ message: "Design version not found" });
+      }
+      const project = await verifyProjectAccess(version.projectId, user.id, user.role, res);
+      if (!project) return;
 
       const allowedFields = ['name', 'imageUrl', 'position', 'textContent', 'textStyle', 'view', 'zIndex', 'isVisible', 'isLocked', 'opacity', 'blendMode'];
       const updates: any = {};
@@ -389,6 +446,7 @@ export function registerDesignLabRoutes(app: Express): void {
   // DELETE /api/design-lab/layers/:layerId - Remove layer
   app.delete('/api/design-lab/layers/:layerId', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
     try {
+      const user = (req as AuthenticatedRequest).user.userData!;
       const layerId = parseInt(req.params.layerId);
       if (isNaN(layerId)) {
         return res.status(400).json({ message: "Invalid layer ID" });
@@ -398,6 +456,14 @@ export function registerDesignLabRoutes(app: Express): void {
       if (!existing) {
         return res.status(404).json({ message: "Design layer not found" });
       }
+
+      // Verify ownership through layer -> version -> project
+      const version = await storage.getDesignVersion(existing.versionId);
+      if (!version) {
+        return res.status(404).json({ message: "Design version not found" });
+      }
+      const project = await verifyProjectAccess(version.projectId, user.id, user.role, res);
+      if (!project) return;
 
       await storage.deleteDesignLayer(layerId);
       res.json({ message: "Layer deleted successfully" });
