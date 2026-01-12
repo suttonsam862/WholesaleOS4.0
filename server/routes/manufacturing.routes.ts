@@ -1040,9 +1040,9 @@ export function registerManufacturingRoutes(app: Express): void {
       const updateId = parseInt(req.params.id);
       const user = (req as AuthenticatedRequest).user.userData!;
       
-      // Only admin and ops users can refresh line items
-      if (!['admin', 'ops'].includes(user.role)) {
-        return res.status(403).json({ message: "Only admin and ops users can refresh line items" });
+      // Admin, ops, and manufacturer users can refresh line items
+      if (!['admin', 'ops', 'manufacturer'].includes(user.role)) {
+        return res.status(403).json({ message: "Only admin, ops, and manufacturer users can refresh line items" });
       }
       
       // Get the manufacturing update
