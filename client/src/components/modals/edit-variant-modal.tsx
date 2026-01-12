@@ -108,6 +108,10 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
       form.setValue("backTemplateUrl", variant.backTemplateUrl || "");
       form.setValue("defaultManufacturerId", variant.defaultManufacturerId || undefined);
       form.setValue("backupManufacturerId", variant.backupManufacturerId || undefined);
+      // Initialize upload states from variant
+      setUploadedImageUrl(variant.imageUrl || "");
+      setUploadedFrontTemplateUrl(variant.frontTemplateUrl || "");
+      setUploadedBackTemplateUrl(variant.backTemplateUrl || "");
     }
   }, [variant, form]);
 
@@ -134,7 +138,14 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
   });
 
   const onSubmit = (data: EditVariantForm) => {
-    editVariantMutation.mutate(data);
+    // Ensure uploaded URLs are included in submission
+    const submissionData = {
+      ...data,
+      imageUrl: uploadedImageUrl || data.imageUrl || "",
+      frontTemplateUrl: uploadedFrontTemplateUrl || data.frontTemplateUrl || "",
+      backTemplateUrl: uploadedBackTemplateUrl || data.backTemplateUrl || "",
+    };
+    editVariantMutation.mutate(submissionData);
   };
 
   return (
