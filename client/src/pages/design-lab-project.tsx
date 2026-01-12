@@ -72,7 +72,17 @@ import {
   Columns,
   X,
   Timer,
+  CheckCircle2,
+  LinkIcon,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { formatDistanceToNow } from "date-fns";
 
 interface DesignProject {
@@ -130,6 +140,14 @@ interface DesignLayer {
 interface ProjectWithDetails extends DesignProject {
   currentVersion?: DesignVersion;
   layers?: DesignLayer[];
+}
+
+interface DesignJobOption {
+  id: number;
+  jobCode: string;
+  brief?: string;
+  status: string;
+  orderId?: number;
 }
 
 type ViewType = "front" | "back";
@@ -211,6 +229,8 @@ export function DesignLabProject() {
   const [previewVersion, setPreviewVersion] = useState<DesignVersion | null>(null);
   const [comparisonMode, setComparisonMode] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
+  const [selectedDesignJobId, setSelectedDesignJobId] = useState<string>("");
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -369,6 +389,49 @@ export function DesignLabProject() {
 
   const handleRestoreVersion = (versionId: number) => {
     restoreVersionMutation.mutate(versionId);
+  };
+
+  const { data: designJobs = [], isLoading: designJobsLoading } = useQuery<DesignJobOption[]>({
+    queryKey: ["/api/design-jobs"],
+    enabled: finalizeDialogOpen && isAuthenticated,
+  });
+
+  const finalizeProjectMutation = useMutation({
+    mutationFn: async (data: { designJobId?: number | null }) => {
+      return apiRequest<ProjectWithDetails>(`/api/design-lab/projects/${projectId}/finalize`, {
+        method: "POST",
+        body: data,
+      });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/design-lab/projects", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/design-jobs"] });
+      setFinalizeDialogOpen(false);
+      setSelectedDesignJobId("");
+      toast({
+        title: "Design Finalized",
+        description: data.designJobId 
+          ? "Design finalized and attached to the design job successfully."
+          : "Design finalized successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Finalize Failed",
+        description: error?.message || "Failed to finalize design",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleFinalize = () => {
+    const designJobId = selectedDesignJobId ? parseInt(selectedDesignJobId) : undefined;
+    finalizeProjectMutation.mutate({ designJobId });
+  };
+
+  const handleOpenFinalizeDialog = () => {
+    setSelectedDesignJobId(project?.designJobId?.toString() || "");
+    setFinalizeDialogOpen(true);
   };
 
   const handlePreviewVersion = (version: DesignVersion) => {
@@ -727,6 +790,144 @@ export function DesignLabProject() {
     );
   };
 
+  const renderFinalizeDialog = () => (
+    <Dialog open={finalizeDialogOpen} onOpenChange={setFinalizeDialogOpen}>
+      <DialogContent className="bg-zinc-900 border-zinc-700 text-zinc-200 sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-zinc-100">
+            <CheckCircle2 className="h-5 w-5 text-green-400" />
+            Finalize Design
+          </DialogTitle>
+          <DialogDescription className="text-zinc-400">
+            Mark this design as finalized. You can optionally attach it to an existing design job.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div>
+            <label className="text-sm text-zinc-400 mb-2 block">Design Summary</label>
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <p className="text-xs text-zinc-500 mb-1">Front</p>
+                <div className="aspect-square rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden">
+                  {currentVersion?.frontImageUrl ? (
+                    <img
+                      src={currentVersion.frontImageUrl}
+                      alt="Front design"
+                      className="w-full h-full object-contain"
+                      data-testid="img-finalize-front"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ImageIcon className="h-8 w-8 text-zinc-600" />
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-zinc-500 mb-1">Back</p>
+                <div className="aspect-square rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden">
+                  {currentVersion?.backImageUrl ? (
+                    <img
+                      src={currentVersion.backImageUrl}
+                      alt="Back design"
+                      className="w-full h-full object-contain"
+                      data-testid="img-finalize-back"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <ImageIcon className="h-8 w-8 text-zinc-600" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <Separator className="bg-zinc-700" />
+
+          <div>
+            <label className="text-sm text-zinc-400 mb-2 block flex items-center gap-2">
+              <LinkIcon className="h-4 w-4" />
+              Attach to Design Job (Optional)
+            </label>
+            <Select
+              value={selectedDesignJobId}
+              onValueChange={setSelectedDesignJobId}
+            >
+              <SelectTrigger 
+                className="bg-zinc-800 border-zinc-700 text-zinc-200"
+                data-testid="select-design-job"
+              >
+                <SelectValue placeholder="Select a design job (optional)" />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-800 border-zinc-700">
+                <SelectItem value="none" className="text-zinc-400">
+                  No design job
+                </SelectItem>
+                {designJobsLoading ? (
+                  <div className="flex items-center justify-center p-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
+                  </div>
+                ) : (
+                  designJobs.map((job) => (
+                    <SelectItem
+                      key={job.id}
+                      value={job.id.toString()}
+                      className="text-zinc-200"
+                    >
+                      <span className="font-medium">{job.jobCode}</span>
+                      {job.brief && (
+                        <span className="text-zinc-400 text-xs ml-2 truncate">
+                          {job.brief.substring(0, 30)}...
+                        </span>
+                      )}
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+            {selectedDesignJobId && selectedDesignJobId !== "none" && (
+              <p className="text-xs text-green-400 mt-2 flex items-center gap-1">
+                <Check className="h-3 w-3" />
+                Design will be attached to this job
+              </p>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setFinalizeDialogOpen(false)}
+            className="bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700"
+            data-testid="button-cancel-finalize"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleFinalize}
+            disabled={finalizeProjectMutation.isPending}
+            className="bg-green-600 hover:bg-green-700 text-white"
+            data-testid="button-confirm-finalize"
+          >
+            {finalizeProjectMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Finalizing...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                Finalize Design
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   const renderVersionHistoryPanel = () => (
     <Sheet open={historyPanelOpen} onOpenChange={setHistoryPanelOpen}>
       <SheetContent side="right" className="w-[400px] sm:w-[450px] bg-zinc-900 border-zinc-700 p-0">
@@ -963,6 +1164,17 @@ export function DesignLabProject() {
             <Badge className={cn("text-xs", getStatusBadgeStyles(project.status))} data-testid="badge-status">
               {getStatusLabel(project.status)}
             </Badge>
+            {versions.length > 0 && project.status !== "finalized" && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleOpenFinalizeDialog}
+                className="h-8 w-8 p-0 text-green-400"
+                data-testid="button-finalize-mobile"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -975,6 +1187,8 @@ export function DesignLabProject() {
             </Button>
           </div>
         </div>
+
+        {renderFinalizeDialog()}
 
         <div className="flex-1 relative overflow-hidden">
           <div className="absolute inset-0 flex items-center justify-center p-4">
@@ -1187,6 +1401,25 @@ export function DesignLabProject() {
               <p>View version history</p>
             </TooltipContent>
           </Tooltip>
+          {versions.length > 0 && project.status !== "finalized" && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleOpenFinalizeDialog}
+                  className="h-8 bg-green-600 hover:bg-green-700 text-white"
+                  data-testid="button-finalize"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Finalize
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Finalize and complete this design</p>
+              </TooltipContent>
+            </Tooltip>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -1198,6 +1431,7 @@ export function DesignLabProject() {
         </div>
       </div>
 
+      {renderFinalizeDialog()}
       {renderVersionHistoryPanel()}
 
       {previewVersion && (

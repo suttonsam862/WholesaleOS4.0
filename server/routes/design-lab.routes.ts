@@ -794,4 +794,98 @@ export function registerDesignLabRoutes(app: Express): void {
       res.status(500).json({ message: "Failed to cancel generation request" });
     }
   });
+
+  // ==================== FINALIZE PROJECT ====================
+
+  // POST /api/design-lab/projects/:id/finalize - Finalize a project and optionally attach to design job
+  app.post('/api/design-lab/projects/:id/finalize', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid project ID" });
+      }
+
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const { designJobId } = req.body;
+
+      const project = await storage.getDesignProject(id);
+      if (!project) {
+        return res.status(404).json({ message: "Design project not found" });
+      }
+
+      if (project.userId !== user.id && user.role !== 'admin') {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      if (!project.currentVersionId) {
+        return res.status(400).json({ message: "Cannot finalize project without a design version" });
+      }
+
+      const currentVersion = await storage.getDesignVersion(project.currentVersionId);
+      if (!currentVersion) {
+        return res.status(400).json({ message: "Current version not found" });
+      }
+
+      const updates: any = {
+        status: 'finalized',
+      };
+
+      if (designJobId !== undefined) {
+        const parsedJobId = parseInt(designJobId);
+        if (!isNaN(parsedJobId)) {
+          const designJob = await storage.getDesignJob(parsedJobId);
+          if (!designJob) {
+            return res.status(404).json({ message: "Design job not found" });
+          }
+          updates.designJobId = parsedJobId;
+
+          const renditionUrls: string[] = [];
+          if (currentVersion.frontImageUrl) {
+            renditionUrls.push(currentVersion.frontImageUrl);
+          }
+          if (currentVersion.backImageUrl) {
+            renditionUrls.push(currentVersion.backImageUrl);
+          }
+          if (currentVersion.compositeFrontUrl) {
+            renditionUrls.push(currentVersion.compositeFrontUrl);
+          }
+          if (currentVersion.compositeBackUrl) {
+            renditionUrls.push(currentVersion.compositeBackUrl);
+          }
+
+          const existingRenditions = designJob.renditions || [];
+          const updatedRenditions = [...existingRenditions, ...renditionUrls];
+
+          await storage.updateDesignJob(parsedJobId, {
+            renditions: updatedRenditions,
+            renditionCount: updatedRenditions.length,
+            status: 'completed',
+          });
+        } else if (designJobId === null) {
+          updates.designJobId = null;
+        }
+      }
+
+      const updated = await storage.updateDesignProject(id, updates);
+
+      let currentVersionData = null;
+      let layers: any[] = [];
+      if (updated.currentVersionId) {
+        currentVersionData = await storage.getDesignVersion(updated.currentVersionId);
+        if (currentVersionData) {
+          layers = await storage.getDesignLayers(currentVersionData.id);
+        }
+      }
+
+      res.json({ 
+        ...updated, 
+        currentVersion: currentVersionData, 
+        layers,
+        message: "Project finalized successfully" 
+      });
+    } catch (error) {
+      console.error("Error finalizing design project:", error);
+      res.status(500).json({ message: "Failed to finalize design project" });
+    }
+  });
 }
