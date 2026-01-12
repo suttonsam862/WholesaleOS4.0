@@ -68,6 +68,10 @@ import {
   Circle,
   PanelLeftClose,
   PanelRightClose,
+  Clock,
+  Columns,
+  X,
+  Timer,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -202,6 +206,11 @@ export function DesignLabProject() {
   const [generationPrompt, setGenerationPrompt] = useState("");
   const [selectedStyle, setSelectedStyle] = useState<StylePreset>("modern");
   const [requestType, setRequestType] = useState<RequestType>("base_generation");
+  
+  const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
+  const [previewVersion, setPreviewVersion] = useState<DesignVersion | null>(null);
+  const [comparisonMode, setComparisonMode] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -254,6 +263,14 @@ export function DesignLabProject() {
   const currentVersion = project?.currentVersion;
 
   const currentImageUrl = useMemo(() => {
+    if (previewVersion) {
+      return selectedView === "front" ? previewVersion.frontImageUrl : previewVersion.backImageUrl;
+    }
+    if (!currentVersion) return null;
+    return selectedView === "front" ? currentVersion.frontImageUrl : currentVersion.backImageUrl;
+  }, [currentVersion, previewVersion, selectedView]);
+
+  const originalImageUrl = useMemo(() => {
     if (!currentVersion) return null;
     return selectedView === "front" ? currentVersion.frontImageUrl : currentVersion.backImageUrl;
   }, [currentVersion, selectedView]);
@@ -317,6 +334,55 @@ export function DesignLabProject() {
       setIsGenerating(false);
     },
   });
+
+  const restoreVersionMutation = useMutation({
+    mutationFn: async (versionId: number) => {
+      return apiRequest<any>(`/api/design-lab/projects/${projectId}/versions/${versionId}/restore`, {
+        method: "POST",
+      });
+    },
+    onMutate: () => {
+      setIsRestoring(true);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/design-lab/projects", projectId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/design-lab/projects", projectId, "versions"] });
+      setPreviewVersion(null);
+      setComparisonMode(false);
+      setHistoryPanelOpen(false);
+      toast({
+        title: "Version Restored",
+        description: "The selected version has been restored successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Restore Failed",
+        description: error?.message || "Failed to restore version",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setIsRestoring(false);
+    },
+  });
+
+  const handleRestoreVersion = (versionId: number) => {
+    restoreVersionMutation.mutate(versionId);
+  };
+
+  const handlePreviewVersion = (version: DesignVersion) => {
+    setPreviewVersion(version);
+  };
+
+  const handleExitPreview = () => {
+    setPreviewVersion(null);
+    setComparisonMode(false);
+  };
+
+  const handleToggleComparison = () => {
+    setComparisonMode(!comparisonMode);
+  };
 
   const handleSave = async () => {
     if (!project) return;
@@ -661,11 +727,176 @@ export function DesignLabProject() {
     );
   };
 
+  const renderVersionHistoryPanel = () => (
+    <Sheet open={historyPanelOpen} onOpenChange={setHistoryPanelOpen}>
+      <SheetContent side="right" className="w-[400px] sm:w-[450px] bg-zinc-900 border-zinc-700 p-0">
+        <SheetHeader className="p-4 border-b border-zinc-700">
+          <SheetTitle className="text-zinc-200 flex items-center gap-2">
+            <Clock className="h-5 w-5 text-violet-400" />
+            Version History
+          </SheetTitle>
+        </SheetHeader>
+        <ScrollArea className="h-[calc(100vh-80px)]">
+          <div className="p-4 space-y-3">
+            {versionsLoading ? (
+              [1, 2, 3, 4].map(i => (
+                <Skeleton key={i} className="w-full h-32 bg-zinc-800" />
+              ))
+            ) : versions.length === 0 ? (
+              <div className="text-center py-8">
+                <History className="h-12 w-12 mx-auto text-zinc-600 mb-3" />
+                <p className="text-sm text-zinc-400">No versions yet</p>
+                <p className="text-xs text-zinc-500 mt-1">Generate a design to create your first version</p>
+              </div>
+            ) : (
+              [...versions].sort((a, b) => b.versionNumber - a.versionNumber).map((version) => (
+                <div
+                  key={version.id}
+                  className={cn(
+                    "rounded-lg border p-3 transition-all cursor-pointer",
+                    currentVersion?.id === version.id
+                      ? "border-violet-500 bg-violet-900/20"
+                      : previewVersion?.id === version.id
+                      ? "border-blue-500 bg-blue-900/20"
+                      : "border-zinc-700 bg-zinc-800/50 hover:border-zinc-600 hover:bg-zinc-800"
+                  )}
+                  onClick={() => handlePreviewVersion(version)}
+                  data-testid={`version-card-${version.id}`}
+                >
+                  <div className="flex gap-3">
+                    <div className="w-16 h-16 rounded bg-zinc-700 overflow-hidden shrink-0">
+                      {version.frontImageUrl ? (
+                        <img
+                          src={version.frontImageUrl}
+                          alt={`Version ${version.versionNumber}`}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <ImageIcon className="h-6 w-6 text-zinc-500" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-zinc-200">
+                            v{version.versionNumber}
+                          </span>
+                          {version.name && (
+                            <span className="text-xs text-zinc-400 truncate max-w-24">
+                              {version.name}
+                            </span>
+                          )}
+                          {currentVersion?.id === version.id && (
+                            <Badge className="text-xs bg-violet-600/30 text-violet-300 border-violet-500/50">
+                              Current
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs text-zinc-500 flex items-center gap-1 mb-1">
+                        <Clock className="h-3 w-3" />
+                        {formatDistanceToNow(new Date(version.createdAt), { addSuffix: true })}
+                      </p>
+                      {version.generationPrompt && (
+                        <p className="text-xs text-zinc-400 line-clamp-2 mb-1">
+                          "{version.generationPrompt}"
+                        </p>
+                      )}
+                      {version.generationDuration && (
+                        <p className="text-xs text-zinc-500 flex items-center gap-1">
+                          <Timer className="h-3 w-3" />
+                          Generated in {(version.generationDuration / 1000).toFixed(1)}s
+                          {version.generationProvider && (
+                            <span className="ml-1 text-zinc-600">via {version.generationProvider}</span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {(previewVersion?.id === version.id || currentVersion?.id !== version.id) && (
+                    <div className="flex gap-2 mt-3 pt-3 border-t border-zinc-700">
+                      {previewVersion?.id === version.id && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleComparison();
+                            }}
+                            className={cn(
+                              "flex-1 h-8 text-xs",
+                              comparisonMode
+                                ? "bg-blue-600/30 border-blue-500 text-blue-300"
+                                : "bg-zinc-800 border-zinc-700 text-zinc-300"
+                            )}
+                            data-testid={`button-compare-${version.id}`}
+                          >
+                            <Columns className="h-3 w-3 mr-1" />
+                            {comparisonMode ? "Exit Compare" : "Compare"}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExitPreview();
+                            }}
+                            className="h-8 px-2 bg-zinc-800 border-zinc-700 text-zinc-400"
+                            data-testid={`button-exit-preview-${version.id}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
+                      {currentVersion?.id !== version.id && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRestoreVersion(version.id);
+                          }}
+                          disabled={isRestoring}
+                          className="flex-1 h-8 text-xs bg-violet-600 hover:bg-violet-700"
+                          data-testid={`button-restore-${version.id}`}
+                        >
+                          {isRestoring ? (
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-3 w-3 mr-1" />
+                          )}
+                          Restore
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </ScrollArea>
+      </SheetContent>
+    </Sheet>
+  );
+
   const renderVersionHistory = () => (
     <div className="h-20 border-t border-zinc-700 bg-zinc-900/50 px-4 py-2">
       <div className="flex items-center gap-2 mb-2">
         <History className="h-4 w-4 text-zinc-400" />
         <span className="text-xs font-medium text-zinc-300">Version History</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setHistoryPanelOpen(true)}
+          className="h-5 px-2 ml-auto text-xs text-violet-400 hover:text-violet-300"
+          data-testid="button-expand-history"
+        >
+          View All
+        </Button>
       </div>
       <div className="overflow-x-auto">
         <div className="flex gap-2">
@@ -680,10 +911,13 @@ export function DesignLabProject() {
               <Tooltip key={version.id}>
                 <TooltipTrigger asChild>
                   <button
+                    onClick={() => handlePreviewVersion(version)}
                     className={cn(
-                      "w-16 h-10 rounded border shrink-0 flex items-center justify-center text-xs",
+                      "w-16 h-10 rounded border shrink-0 flex items-center justify-center text-xs transition-colors",
                       currentVersion?.id === version.id
                         ? "border-violet-500 bg-violet-900/30"
+                        : previewVersion?.id === version.id
+                        ? "border-blue-500 bg-blue-900/30"
                         : "border-zinc-700 bg-zinc-800 hover:border-zinc-600"
                     )}
                     data-testid={`version-${version.id}`}
@@ -696,6 +930,11 @@ export function DesignLabProject() {
                   <p className="text-xs text-muted-foreground">
                     {formatDistanceToNow(new Date(version.createdAt), { addSuffix: true })}
                   </p>
+                  {version.generationPrompt && (
+                    <p className="text-xs text-muted-foreground mt-1 max-w-48 line-clamp-2">
+                      "{version.generationPrompt}"
+                    </p>
+                  )}
                 </TooltipContent>
               </Tooltip>
             ))
@@ -806,22 +1045,81 @@ export function DesignLabProject() {
           </TabsContent>
           <TabsContent value="history" className="h-48 mt-0 p-2">
             <ScrollArea className="h-full">
-              <div className="flex flex-wrap gap-2 p-2">
-                {versions.map((version) => (
-                  <button
-                    key={version.id}
-                    className={cn(
-                      "w-16 h-16 rounded border flex flex-col items-center justify-center text-xs",
-                      currentVersion?.id === version.id
-                        ? "border-violet-500 bg-violet-900/30"
-                        : "border-zinc-700 bg-zinc-800"
-                    )}
-                    data-testid={`version-mobile-${version.id}`}
-                  >
-                    <span>v{version.versionNumber}</span>
-                    {currentVersion?.id === version.id && <Check className="h-3 w-3 text-violet-400 mt-1" />}
-                  </button>
-                ))}
+              <div className="space-y-2 p-2">
+                {versions.length === 0 ? (
+                  <p className="text-xs text-zinc-500 text-center py-4">No versions yet</p>
+                ) : (
+                  [...versions].sort((a, b) => b.versionNumber - a.versionNumber).map((version) => (
+                    <div
+                      key={version.id}
+                      className={cn(
+                        "rounded-lg border p-2 transition-all",
+                        currentVersion?.id === version.id
+                          ? "border-violet-500 bg-violet-900/30"
+                          : previewVersion?.id === version.id
+                          ? "border-blue-500 bg-blue-900/30"
+                          : "border-zinc-700 bg-zinc-800"
+                      )}
+                      data-testid={`version-mobile-${version.id}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-10 h-10 rounded bg-zinc-700 overflow-hidden shrink-0">
+                          {version.frontImageUrl ? (
+                            <img
+                              src={version.frontImageUrl}
+                              alt={`v${version.versionNumber}`}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ImageIcon className="h-4 w-4 text-zinc-500" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs font-medium text-zinc-200">v{version.versionNumber}</span>
+                            {currentVersion?.id === version.id && (
+                              <Badge className="text-[10px] px-1 py-0 bg-violet-600/30 text-violet-300 border-violet-500/50">
+                                Current
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-zinc-500">
+                            {formatDistanceToNow(new Date(version.createdAt), { addSuffix: true })}
+                          </p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePreviewVersion(version)}
+                            className="h-7 w-7 p-0 text-zinc-400"
+                            data-testid={`button-preview-mobile-${version.id}`}
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                          {currentVersion?.id !== version.id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRestoreVersion(version.id)}
+                              disabled={isRestoring}
+                              className="h-7 w-7 p-0 text-violet-400"
+                              data-testid={`button-restore-mobile-${version.id}`}
+                            >
+                              {isRestoring ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                <RotateCcw className="h-3 w-3" />
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </ScrollArea>
           </TabsContent>
@@ -872,6 +1170,23 @@ export function DesignLabProject() {
             )}
             Save
           </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setHistoryPanelOpen(true)}
+                className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200 hover:bg-zinc-700"
+                data-testid="button-open-history"
+              >
+                <Clock className="h-4 w-4 mr-2" />
+                History
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>View version history</p>
+            </TooltipContent>
+          </Tooltip>
           <Button
             variant="ghost"
             size="sm"
@@ -882,6 +1197,57 @@ export function DesignLabProject() {
           </Button>
         </div>
       </div>
+
+      {renderVersionHistoryPanel()}
+
+      {previewVersion && (
+        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-blue-900/90 rounded-lg px-4 py-2 border border-blue-700 shadow-lg">
+          <Eye className="h-4 w-4 text-blue-300" />
+          <span className="text-sm text-blue-200">
+            Previewing v{previewVersion.versionNumber}
+            {previewVersion.name && ` - ${previewVersion.name}`}
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleToggleComparison}
+            className={cn(
+              "h-7 px-2 text-xs ml-2",
+              comparisonMode
+                ? "bg-blue-600/50 text-blue-200"
+                : "text-blue-300 hover:text-blue-100"
+            )}
+            data-testid="button-toggle-comparison-mode"
+          >
+            <Columns className="h-3 w-3 mr-1" />
+            {comparisonMode ? "Exit Compare" : "Compare"}
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => handleRestoreVersion(previewVersion.id)}
+            disabled={isRestoring || currentVersion?.id === previewVersion.id}
+            className="h-7 px-3 text-xs bg-violet-600 hover:bg-violet-700"
+            data-testid="button-restore-preview"
+          >
+            {isRestoring ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <RotateCcw className="h-3 w-3 mr-1" />
+            )}
+            Restore
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleExitPreview}
+            className="h-7 w-7 p-0 text-blue-300 hover:text-blue-100"
+            data-testid="button-exit-preview"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
 
       <div className="flex-1 flex overflow-hidden">
         {leftPanelOpen && (
@@ -937,7 +1303,53 @@ export function DesignLabProject() {
           </div>
 
           <div className="flex-1 flex items-center justify-center p-8 bg-zinc-950/50">
-            {currentImageUrl ? (
+            {comparisonMode && previewVersion ? (
+              <div className="flex gap-6 items-center justify-center w-full h-full" data-testid="comparison-view">
+                <div className="flex flex-col items-center gap-2 max-w-[45%]">
+                  <div className="text-xs text-zinc-400 bg-zinc-800/80 px-3 py-1 rounded-full mb-2">
+                    Current (v{currentVersion?.versionNumber || "?"})
+                  </div>
+                  {originalImageUrl ? (
+                    <img
+                      src={originalImageUrl}
+                      alt={`Current ${selectedView} view`}
+                      className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-2xl border-2 border-violet-500/50"
+                      style={{ transform: `scale(${zoomLevel / 100})`, transition: "transform 0.2s ease" }}
+                      data-testid="canvas-image-current"
+                    />
+                  ) : (
+                    <div className="w-64 h-64 rounded-lg bg-gradient-to-br from-zinc-800 to-zinc-900 border border-violet-500/50 flex items-center justify-center">
+                      <ImageIcon className="h-8 w-8 text-zinc-600" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-col items-center justify-center">
+                  <div className="w-px h-32 bg-zinc-600" />
+                  <div className="p-2 bg-zinc-800 rounded-full border border-zinc-600 my-2">
+                    <Columns className="h-4 w-4 text-zinc-400" />
+                  </div>
+                  <div className="w-px h-32 bg-zinc-600" />
+                </div>
+                <div className="flex flex-col items-center gap-2 max-w-[45%]">
+                  <div className="text-xs text-blue-300 bg-blue-900/80 px-3 py-1 rounded-full mb-2">
+                    Preview (v{previewVersion.versionNumber})
+                  </div>
+                  {currentImageUrl ? (
+                    <img
+                      src={currentImageUrl}
+                      alt={`Preview ${selectedView} view`}
+                      className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-2xl border-2 border-blue-500/50"
+                      style={{ transform: `scale(${zoomLevel / 100})`, transition: "transform 0.2s ease" }}
+                      data-testid="canvas-image-preview"
+                    />
+                  ) : (
+                    <div className="w-64 h-64 rounded-lg bg-gradient-to-br from-zinc-800 to-zinc-900 border border-blue-500/50 flex items-center justify-center">
+                      <ImageIcon className="h-8 w-8 text-zinc-600" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : currentImageUrl ? (
               <img
                 src={currentImageUrl}
                 alt={`${selectedView} view`}

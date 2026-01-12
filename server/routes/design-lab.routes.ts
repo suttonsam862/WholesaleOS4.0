@@ -220,6 +220,46 @@ export function registerDesignLabRoutes(app: Express): void {
     }
   });
 
+  // POST /api/design-lab/projects/:projectId/versions/:versionId/restore - Restore a version as current
+  app.post('/api/design-lab/projects/:projectId/versions/:versionId/restore', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
+    try {
+      const projectId = parseInt(req.params.projectId);
+      const versionId = parseInt(req.params.versionId);
+      
+      if (isNaN(projectId) || isNaN(versionId)) {
+        return res.status(400).json({ message: "Invalid project or version ID" });
+      }
+
+      const project = await storage.getDesignProject(projectId);
+      if (!project) {
+        return res.status(404).json({ message: "Design project not found" });
+      }
+
+      const version = await storage.getDesignVersion(versionId);
+      if (!version) {
+        return res.status(404).json({ message: "Design version not found" });
+      }
+
+      if (version.projectId !== projectId) {
+        return res.status(400).json({ message: "Version does not belong to this project" });
+      }
+
+      const updated = await storage.updateDesignProject(projectId, { currentVersionId: versionId });
+
+      const layers = await storage.getDesignLayers(versionId);
+      
+      res.json({ 
+        message: "Version restored successfully",
+        project: updated,
+        currentVersion: version,
+        layers 
+      });
+    } catch (error) {
+      console.error("Error restoring design version:", error);
+      res.status(500).json({ message: "Failed to restore design version" });
+    }
+  });
+
   // GET /api/design-lab/projects/:projectId/versions/:versionId - Get version with layers
   app.get('/api/design-lab/projects/:projectId/versions/:versionId', isAuthenticated, loadUserData, requirePermission('designJobs', 'read'), async (req, res) => {
     try {
