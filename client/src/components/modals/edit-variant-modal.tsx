@@ -381,6 +381,7 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
                       size: file.size,
                       mimeType: file.type
                     }) as any;
+                    (file as any).__uploadId = response.uploadId;
                     return {
                       method: "PUT" as const,
                       url: response.uploadURL,
@@ -391,9 +392,12 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
                   }}
                   onComplete={(result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
                     if (result.successful?.[0]) {
-                      const url = (result.successful[0] as any).uploadURL;
-                      setUploadedImageUrl(url);
-                      form.setValue("imageUrl", url);
+                      const uploadId = (result.successful[0] as any).__uploadId;
+                      if (uploadId) {
+                        const publicUrl = `/public-objects/${uploadId}`;
+                        setUploadedImageUrl(publicUrl);
+                        form.setValue("imageUrl", publicUrl);
+                      }
                     }
                   }}
                 >
@@ -442,6 +446,7 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
                       size: file.size,
                       mimeType: file.type
                     }) as any;
+                    (file as any).__uploadId = response.uploadId;
                     return {
                       method: "PUT" as const,
                       url: response.uploadURL,
@@ -452,9 +457,12 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
                   }}
                   onComplete={(result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
                     if (result.successful?.[0]) {
-                      const url = (result.successful[0] as any).uploadURL;
-                      setUploadedFrontTemplateUrl(url);
-                      form.setValue("frontTemplateUrl", url);
+                      const uploadId = (result.successful[0] as any).__uploadId;
+                      if (uploadId) {
+                        const publicUrl = `/public-objects/${uploadId}`;
+                        setUploadedFrontTemplateUrl(publicUrl);
+                        form.setValue("frontTemplateUrl", publicUrl);
+                      }
                     }
                   }}
                 >
@@ -503,6 +511,7 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
                       size: file.size,
                       mimeType: file.type
                     }) as any;
+                    (file as any).__uploadId = response.uploadId;
                     return {
                       method: "PUT" as const,
                       url: response.uploadURL,
@@ -513,9 +522,12 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
                   }}
                   onComplete={(result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
                     if (result.successful?.[0]) {
-                      const url = (result.successful[0] as any).uploadURL;
-                      setUploadedBackTemplateUrl(url);
-                      form.setValue("backTemplateUrl", url);
+                      const uploadId = (result.successful[0] as any).__uploadId;
+                      if (uploadId) {
+                        const publicUrl = `/public-objects/${uploadId}`;
+                        setUploadedBackTemplateUrl(publicUrl);
+                        form.setValue("backTemplateUrl", publicUrl);
+                      }
                     }
                   }}
                 >
