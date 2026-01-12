@@ -357,8 +357,10 @@ export function FirstPieceApprovalPanel({
                 onComplete={(result) => {
                   const uploadedUrls: string[] = [];
                   result.successful?.forEach((file: any) => {
-                    const url = file.response?.body?.url || file.uploadURL;
-                    if (url) uploadedUrls.push(url);
+                    const uploadId = file.__uploadId;
+                    if (uploadId) {
+                      uploadedUrls.push(`/public-objects/${uploadId}`);
+                    }
                   });
                   if (uploadedUrls.length > 0) {
                     uploadMutation.mutate(uploadedUrls, {

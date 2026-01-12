@@ -88,7 +88,7 @@ export function DesignAttachmentManager({
     }
 
     const uploadedUrls = result.successful.map((file: any) => {
-      const uploadId = file.uploadId;
+      const uploadId = file.__uploadId;
       if (uploadId) {
         return `/public-objects/${uploadId}`;
       }
@@ -146,10 +146,10 @@ export function DesignAttachmentManager({
     }
 
     const data = await response.json();
+    (file as any).__uploadId = data.uploadId;
     return {
       method: 'PUT' as const,
       url: data.uploadURL,
-      uploadId: data.uploadId,
       headers: {
         'Content-Type': file.type
       }

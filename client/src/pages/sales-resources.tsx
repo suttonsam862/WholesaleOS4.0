@@ -141,13 +141,16 @@ export default function SalesResourcesPage() {
 
   const handleFileUploadComplete = (result: any) => {
     if (result.successful && result.successful[0]) {
-      const url = result.successful[0].uploadURL;
-      setFileUrl(url);
-      form.setValue("fileUrl", url);
-      toast({
-        title: "File uploaded",
-        description: "File uploaded successfully",
-      });
+      const uploadId = (result.successful[0] as any).__uploadId;
+      if (uploadId) {
+        const publicUrl = `/public-objects/${uploadId}`;
+        setFileUrl(publicUrl);
+        form.setValue("fileUrl", publicUrl);
+        toast({
+          title: "File uploaded",
+          description: "File uploaded successfully",
+        });
+      }
     }
   };
 
@@ -166,6 +169,7 @@ export default function SalesResourcesPage() {
     }
 
     const data = await response.json();
+    (file as any).__uploadId = data.uploadId;
     return {
       method: "PUT" as const,
       url: data.url,

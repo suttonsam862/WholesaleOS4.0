@@ -378,10 +378,13 @@ export default function Organizations() {
 
   const handleLogoUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
     if (result.successful?.[0]) {
-      const url = (result.successful[0] as any).uploadURL?.split('?')[0] || (result.successful[0] as any).uploadURL;
-      setUploadedLogoUrl(url);
-      setFormData(prev => ({ ...prev, logoUrl: url }));
-      extractColorsFromLogo(url);
+      const uploadId = (result.successful[0] as any).__uploadId;
+      if (uploadId) {
+        const publicUrl = `/public-objects/${uploadId}`;
+        setUploadedLogoUrl(publicUrl);
+        setFormData(prev => ({ ...prev, logoUrl: publicUrl }));
+        extractColorsFromLogo(publicUrl);
+      }
     }
   };
 
@@ -507,6 +510,7 @@ export default function Organizations() {
                   mimeType: file.type
                 }
               }) as any;
+              (file as any).__uploadId = response.uploadId;
               return {
                 method: "PUT" as const,
                 url: response.uploadURL,

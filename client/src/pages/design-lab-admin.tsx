@@ -747,7 +747,7 @@ export function DesignLabAdmin() {
                             const response = await apiRequest<{
                               method: "PUT";
                               url: string;
-                              uploadId?: string;
+                              uploadId: string;
                             }>("/api/upload-parameters", {
                               method: "POST",
                               body: JSON.stringify({
@@ -755,14 +755,16 @@ export function DesignLabAdmin() {
                                 fileType: file.type,
                               }),
                             });
+                            (file as any).__uploadId = response.uploadId;
                             return response;
                           }}
                           onComplete={(result) => {
                             if (result.successful && result.successful.length > 0) {
                               const file = result.successful[0] as any;
-                              const url = file.uploadURL;
-                              if (url) {
-                                field.onChange(url);
+                              const uploadId = file.__uploadId;
+                              if (uploadId) {
+                                const publicUrl = `/public-objects/${uploadId}`;
+                                field.onChange(publicUrl);
                               }
                             }
                           }}

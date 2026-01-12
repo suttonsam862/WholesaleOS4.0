@@ -579,6 +579,7 @@ function ManufacturerFormModal({
                       size: file.size,
                       mimeType: file.type
                     }) as any;
+                    (file as any).__uploadId = response.uploadId;
                     return {
                       method: "PUT" as const,
                       url: response.uploadURL,
@@ -589,9 +590,12 @@ function ManufacturerFormModal({
                   }}
                   onComplete={(result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
                     if (result.successful?.[0]) {
-                      const url = (result.successful[0] as any).uploadURL;
-                      setUploadedLogoUrl(url);
-                      form.setValue("logoUrl", url);
+                      const uploadId = (result.successful[0] as any).__uploadId;
+                      if (uploadId) {
+                        const publicUrl = `/public-objects/${uploadId}`;
+                        setUploadedLogoUrl(publicUrl);
+                        form.setValue("logoUrl", publicUrl);
+                      }
                     }
                   }}
                 >

@@ -169,6 +169,7 @@ export function EditCategoryModal({ isOpen, onClose, category }: EditCategoryMod
                       size: file.size,
                       mimeType: file.type
                     }) as any;
+                    (file as any).__uploadId = response.uploadId;
                     return {
                       method: "PUT" as const,
                       url: response.uploadURL,
@@ -179,9 +180,12 @@ export function EditCategoryModal({ isOpen, onClose, category }: EditCategoryMod
                   }}
                   onComplete={(result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
                     if (result.successful?.[0]) {
-                      const url = (result.successful[0] as any).uploadURL;
-                      setUploadedImageUrl(url);
-                      form.setValue("imageUrl", url);
+                      const uploadId = (result.successful[0] as any).__uploadId;
+                      if (uploadId) {
+                        const publicUrl = `/public-objects/${uploadId}`;
+                        setUploadedImageUrl(publicUrl);
+                        form.setValue("imageUrl", publicUrl);
+                      }
                     }
                   }}
                 >
