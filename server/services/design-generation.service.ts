@@ -66,6 +66,23 @@ export interface BuildDesignPromptParams {
   style?: "athletic" | "modern" | "vintage" | "bold";
   view?: "front" | "back";
   additionalModifiers?: string[];
+  primaryColor?: string;
+  stylePresetModifier?: string;
+  designTheme?: string;
+  keyElements?: string;
+  thingsToAvoid?: string;
+}
+
+/**
+ * Extended generation parameters with new workflow fields
+ */
+export interface ExtendedGenerateParams extends GenerateBaseDesignParams {
+  primaryColor?: string;
+  stylePresetId?: number;
+  stylePresetModifier?: string;
+  designTheme?: string;
+  keyElements?: string;
+  thingsToAvoid?: string;
 }
 
 // ==================== STYLE PRESETS ====================
@@ -89,6 +106,10 @@ const MODEL_VERSION = "gpt-image-1";
 
 /**
  * Build a detailed design prompt combining product type, style, and user input
+ * 
+ * UPDATED: Now generates DESIGN ELEMENTS (patterns, graphics, typography) meant to be
+ * composited onto a garment template, rather than generating a complete garment image.
+ * This preserves the original garment structure when designs are applied.
  *
  * @param params - Parameters for prompt building
  * @returns Refined prompt string
@@ -100,14 +121,47 @@ export function buildDesignPrompt(params: BuildDesignPromptParams): string {
   }
 
   const style = params.style || DEFAULT_STYLE;
-  const styleModifier = STYLE_PRESETS[style] || STYLE_PRESETS[DEFAULT_STYLE];
+  const styleModifier = params.stylePresetModifier || STYLE_PRESETS[style] || STYLE_PRESETS[DEFAULT_STYLE];
   const productType = params.productType || "apparel";
-  const viewSuffix = params.view ? ` (${params.view} view)` : "";
+  const view = params.view || "front";
 
-  let refinedPrompt = `Create a professional ${productType} design featuring: ${params.basePrompt}. `;
+  // Build prompt for DESIGN ELEMENTS (not full garments)
+  let refinedPrompt = `Create a high-quality graphic design element for ${productType} customization. `;
+  
+  // Core design description
+  refinedPrompt += `Design concept: ${params.basePrompt}. `;
+  
+  // Add theme/mood if provided
+  if (params.designTheme) {
+    refinedPrompt += `Theme and mood: ${params.designTheme}. `;
+  }
+  
+  // Add key elements if provided
+  if (params.keyElements) {
+    refinedPrompt += `Must include elements: ${params.keyElements}. `;
+  }
+  
+  // Add color guidance
+  if (params.primaryColor) {
+    refinedPrompt += `Primary color palette based on: ${params.primaryColor}. `;
+  }
+  
+  // Style modifiers
   refinedPrompt += `Style: ${styleModifier}. `;
-  refinedPrompt += `Quality: high-resolution, modern sublimation print, clean vector graphics, sportswear aesthetic${viewSuffix}. `;
-
+  
+  // Technical requirements for compositing
+  refinedPrompt += `Technical requirements: `;
+  refinedPrompt += `Create as a standalone design graphic suitable for placement on ${view} of sportswear. `;
+  refinedPrompt += `High resolution, clean edges, suitable for sublimation printing. `;
+  refinedPrompt += `Design should be self-contained and positioned for ${view} placement. `;
+  refinedPrompt += `Professional quality, vector-like clarity, vibrant colors. `;
+  
+  // Things to avoid
+  if (params.thingsToAvoid) {
+    refinedPrompt += `Avoid: ${params.thingsToAvoid}. `;
+  }
+  
+  // Additional modifiers
   if (params.additionalModifiers && params.additionalModifiers.length > 0) {
     refinedPrompt += `Additional details: ${params.additionalModifiers.join(", ")}. `;
   }
@@ -116,17 +170,56 @@ export function buildDesignPrompt(params: BuildDesignPromptParams): string {
 }
 
 /**
+ * Build prompt specifically for design elements that will be composited on templates
+ * This generates graphics meant to be overlaid, not complete garment images
+ */
+export function buildElementPrompt(params: BuildDesignPromptParams): string {
+  if (!params.basePrompt || params.basePrompt.trim().length === 0) {
+    throw new ValidationError("Base prompt is required");
+  }
+
+  const styleModifier = params.stylePresetModifier || STYLE_PRESETS[params.style || DEFAULT_STYLE];
+  const view = params.view || "front";
+
+  let prompt = `Generate a graphic design element for sportswear customization. `;
+  prompt += `Design: ${params.basePrompt}. `;
+  
+  if (params.designTheme) {
+    prompt += `Theme: ${params.designTheme}. `;
+  }
+  
+  if (params.keyElements) {
+    prompt += `Include: ${params.keyElements}. `;
+  }
+  
+  if (params.primaryColor) {
+    prompt += `Color palette: ${params.primaryColor}. `;
+  }
+  
+  prompt += `Style: ${styleModifier}. `;
+  prompt += `For ${view} placement on athletic wear. `;
+  prompt += `High-res, print-ready, professional quality graphic. `;
+  
+  if (params.thingsToAvoid) {
+    prompt += `Avoid: ${params.thingsToAvoid}. `;
+  }
+
+  return prompt;
+}
+
+/**
  * Generate initial front and back designs for a product
  *
- * Generates two images (front and back views) with similar prompts
- * Applies style-specific modifiers and returns base64 encoded images
+ * UPDATED: Now generates DESIGN ELEMENTS that are meant to be composited onto templates,
+ * rather than generating complete garment images. This preserves the original garment
+ * structure when designs are applied.
  *
- * @param params - Generation parameters
+ * @param params - Generation parameters (supports extended workflow with color, presets, etc.)
  * @returns GenerationResult with front/back images and metadata
  * @throws ValidationError if parameters are invalid
  */
 export async function generateBaseDesign(
-  params: GenerateBaseDesignParams
+  params: GenerateBaseDesignParams | ExtendedGenerateParams
 ): Promise<GenerationResult> {
   const startTime = Date.now();
 
@@ -138,11 +231,10 @@ export async function generateBaseDesign(
   const style = params.style || DEFAULT_STYLE;
   const size = params.size || DEFAULT_SIZE;
 
-  // Validate style
-  if (!Object.keys(STYLE_PRESETS).includes(style)) {
-    throw new ValidationError(
-      `Invalid style: ${style}. Must be one of: ${Object.keys(STYLE_PRESETS).join(", ")}`
-    );
+  // Validate style (only if it's a standard preset)
+  if (style && !Object.keys(STYLE_PRESETS).includes(style)) {
+    // Allow custom styles passed via stylePresetModifier
+    console.log(`[DesignGeneration] Using custom style: ${style}`);
   }
 
   // Validate size
@@ -150,13 +242,26 @@ export async function generateBaseDesign(
     throw new ValidationError('Size must be one of: "1024x1024", "512x512"');
   }
 
+  // Extract extended params if present
+  const extendedParams = params as ExtendedGenerateParams;
+  const primaryColor = extendedParams.primaryColor;
+  const stylePresetModifier = extendedParams.stylePresetModifier;
+  const designTheme = extendedParams.designTheme;
+  const keyElements = extendedParams.keyElements;
+  const thingsToAvoid = extendedParams.thingsToAvoid;
+
   try {
-    // Build front and back view prompts
+    // Build front and back view prompts with extended parameters
     const frontPrompt = buildDesignPrompt({
       basePrompt: params.prompt,
       productType: params.productType,
       style,
       view: "front",
+      primaryColor,
+      stylePresetModifier,
+      designTheme,
+      keyElements,
+      thingsToAvoid,
     });
 
     const backPrompt = buildDesignPrompt({
@@ -164,10 +269,17 @@ export async function generateBaseDesign(
       productType: params.productType,
       style,
       view: "back",
+      primaryColor,
+      stylePresetModifier,
+      designTheme,
+      keyElements,
+      thingsToAvoid,
     });
 
     // Generate both images in parallel
-    console.log("[DesignGeneration] Starting parallel image generation");
+    console.log("[DesignGeneration] Starting parallel image generation with enhanced prompts");
+    console.log("[DesignGeneration] Front prompt:", frontPrompt.substring(0, 200) + "...");
+    
     const [frontBuffer, backBuffer] = await Promise.all([
       generateImageBuffer(frontPrompt, size),
       generateImageBuffer(backPrompt, size),

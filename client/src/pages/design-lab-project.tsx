@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +15,11 @@ import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Upload } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -133,8 +138,82 @@ interface DesignLayer {
   isLocked: boolean;
   opacity: number;
   blendMode: string;
+  prompt?: string;
+  referenceImageUrl?: string;
+  bbox?: { x: number; y: number; width: number; height: number };
   createdAt: string;
   updatedAt: string;
+}
+
+interface SortableLayerItemProps {
+  layer: DesignLayer;
+  isSelected: boolean;
+  onSelect: (id: number) => void;
+  onToggleVisibility: (id: number, isVisible: boolean) => void;
+  onToggleLock: (id: number, isLocked: boolean) => void;
+  onDelete: (id: number) => void;
+}
+
+function SortableLayerItem({ layer, isSelected, onSelect, onToggleVisibility, onToggleLock, onDelete }: SortableLayerItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: layer.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={() => onSelect(layer.id)}
+      className={cn(
+        "flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors",
+        isSelected
+          ? "bg-violet-600/30 border border-violet-500/50"
+          : "hover:bg-zinc-800 border border-transparent"
+      )}
+      data-testid={`layer-item-${layer.id}`}
+    >
+      <div {...attributes} {...listeners} className="cursor-grab">
+        <GripVertical className="h-4 w-4 text-zinc-600" />
+      </div>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleVisibility(layer.id, !layer.isVisible);
+        }}
+        className="text-zinc-400 hover:text-zinc-200"
+        data-testid={`button-toggle-visibility-${layer.id}`}
+      >
+        {layer.isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+      </button>
+      <span className="text-zinc-400">
+        {getLayerTypeIcon(layer.layerType)}
+      </span>
+      <span className="text-sm text-zinc-200 flex-1 truncate">{layer.name}</span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleLock(layer.id, !layer.isLocked);
+        }}
+        className="text-zinc-400 hover:text-zinc-200"
+        data-testid={`button-toggle-lock-${layer.id}`}
+      >
+        {layer.isLocked ? <Lock className="h-3 w-3 text-zinc-500" /> : <Unlock className="h-3 w-3 text-zinc-600" />}
+      </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete(layer.id);
+        }}
+        className="text-zinc-400 hover:text-red-400"
+        data-testid={`button-delete-layer-${layer.id}`}
+      >
+        <Trash2 className="h-3 w-3" />
+      </button>
+    </div>
+  );
 }
 
 interface ProjectWithDetails extends DesignProject {
@@ -162,8 +241,19 @@ interface ProductVariant {
   backTemplateUrl?: string;
 }
 
+interface DesignStylePreset {
+  id: number;
+  name: string;
+  description?: string;
+  previewImageUrl?: string;
+  promptSuffix?: string;
+  styleConfig?: any;
+  category?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
 type ViewType = "front" | "back";
-type StylePreset = "athletic" | "modern" | "vintage" | "bold";
 type RequestType = "base_generation" | "typography_iteration";
 
 function getStatusBadgeStyles(status: DesignProject["status"]) {
@@ -234,8 +324,13 @@ export function DesignLabProject() {
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   const [generationPrompt, setGenerationPrompt] = useState("");
-  const [selectedStyle, setSelectedStyle] = useState<StylePreset>("modern");
   const [requestType, setRequestType] = useState<RequestType>("base_generation");
+  
+  const [selectedColor, setSelectedColor] = useState("#3B82F6");
+  const [selectedPresetId, setSelectedPresetId] = useState<number | null>(null);
+  const [designTheme, setDesignTheme] = useState("");
+  const [keyElements, setKeyElements] = useState("");
+  const [thingsToAvoid, setThingsToAvoid] = useState("");
   
   const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
   const [previewVersion, setPreviewVersion] = useState<DesignVersion | null>(null);
@@ -276,6 +371,18 @@ export function DesignLabProject() {
     retry: false,
   });
 
+  // Fetch style presets for design generation
+  const { data: stylePresets = [], isLoading: presetsLoading } = useQuery<DesignStylePreset[]>({
+    queryKey: ["/api/design-lab/style-presets"],
+    enabled: isAuthenticated,
+    retry: false,
+  });
+
+  // Get currently selected preset
+  const selectedPreset = useMemo(() => {
+    return stylePresets.find(p => p.id === selectedPresetId) || null;
+  }, [stylePresets, selectedPresetId]);
+
   useEffect(() => {
     if (projectError) {
       toast({
@@ -303,12 +410,18 @@ export function DesignLabProject() {
 
   const currentImageUrl = useMemo(() => {
     if (previewVersion) {
-      return selectedView === "front" ? previewVersion.frontImageUrl : previewVersion.backImageUrl;
+      // For preview, prefer composite version if available
+      const compositeUrl = selectedView === "front" ? previewVersion.compositeFrontUrl : previewVersion.compositeBackUrl;
+      const rawUrl = selectedView === "front" ? previewVersion.frontImageUrl : previewVersion.backImageUrl;
+      return compositeUrl || rawUrl;
     }
-    // First try to get from current version's generated design
+    // First try to get composite version (design on template)
     if (currentVersion) {
-      const versionImage = selectedView === "front" ? currentVersion.frontImageUrl : currentVersion.backImageUrl;
-      if (versionImage) return versionImage;
+      const compositeUrl = selectedView === "front" ? currentVersion.compositeFrontUrl : currentVersion.compositeBackUrl;
+      if (compositeUrl) return compositeUrl;
+      // Fallback to raw generated design
+      const rawUrl = selectedView === "front" ? currentVersion.frontImageUrl : currentVersion.backImageUrl;
+      if (rawUrl) return rawUrl;
     }
     // Fallback to variant's template images
     if (variant) {
@@ -319,6 +432,10 @@ export function DesignLabProject() {
 
   const originalImageUrl = useMemo(() => {
     if (!currentVersion) return null;
+    // Prefer composite version (design on template) for display
+    const compositeUrl = selectedView === "front" ? currentVersion.compositeFrontUrl : currentVersion.compositeBackUrl;
+    if (compositeUrl) return compositeUrl;
+    // Fallback to raw generated design
     return selectedView === "front" ? currentVersion.frontImageUrl : currentVersion.backImageUrl;
   }, [currentVersion, selectedView]);
 
@@ -347,15 +464,35 @@ export function DesignLabProject() {
   });
 
   const generateDesignMutation = useMutation({
-    mutationFn: async (data: { prompt: string; style: StylePreset; requestType: RequestType }) => {
+    mutationFn: async (data: { 
+      prompt: string; 
+      requestType: RequestType;
+      primaryColor: string;
+      stylePresetId?: number;
+      promptModifier?: string;
+      designTheme?: string;
+      keyElements?: string;
+      thingsToAvoid?: string;
+    }) => {
+      const combinedPrompt = [
+        data.prompt,
+        data.promptModifier && `Style: ${data.promptModifier}`,
+        data.designTheme && `Theme/Mood: ${data.designTheme}`,
+        data.keyElements && `Include: ${data.keyElements}`,
+        data.thingsToAvoid && `Avoid: ${data.thingsToAvoid}`,
+        `Primary color: ${data.primaryColor}`,
+      ].filter(Boolean).join('. ');
+
       return apiRequest<any>("/api/design-lab/generate", {
         method: "POST",
         body: {
           projectId,
-          prompt: data.prompt,
-          style: data.style,
+          prompt: combinedPrompt,
           requestType: data.requestType,
           view: selectedView,
+          style: 'modern',
+          primaryColor: data.primaryColor,
+          stylePresetId: data.stylePresetId,
         },
       });
     },
@@ -460,6 +597,240 @@ export function DesignLabProject() {
     });
   };
 
+  const createLayerMutation = useMutation({
+    mutationFn: async (data: { layerType: DesignLayer["layerType"]; name: string; view: ViewType }) => {
+      if (!currentVersion) throw new Error("No version available");
+      return apiRequest<DesignLayer>(`/api/design-lab/versions/${currentVersion.id}/layers`, {
+        method: "POST",
+        body: {
+          ...data,
+          position: { x: 50, y: 50, width: 100, height: 100, rotation: 0, scale: 1 },
+          zIndex: (project?.layers?.length || 0) + 1,
+          isVisible: true,
+          isLocked: false,
+          opacity: "1.0",
+          blendMode: "normal",
+        },
+      });
+    },
+    onSuccess: (newLayer) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/design-lab/projects", projectId] });
+      setSelectedLayerId(newLayer.id);
+      toast({
+        title: "Layer Created",
+        description: `${newLayer.name} layer added successfully.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Create Failed",
+        description: error?.message || "Failed to create layer",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteLayerMutation = useMutation({
+    mutationFn: async (layerId: number) => {
+      return apiRequest<any>(`/api/design-lab/layers/${layerId}`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/design-lab/projects", projectId] });
+      setSelectedLayerId(null);
+      toast({
+        title: "Layer Deleted",
+        description: "Layer removed successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Delete Failed",
+        description: error?.message || "Failed to delete layer",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateLayer = (layerType: DesignLayer["layerType"]) => {
+    if (!currentVersion) {
+      toast({
+        title: "No Version",
+        description: "Please generate a design first to add layers.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const names: Record<DesignLayer["layerType"], string> = {
+      base: "Base Layer",
+      generated: "Generated Layer",
+      typography: "Text Layer",
+      logo: "Logo Layer",
+      graphic: "Graphic Layer",
+      overlay: "Overlay Layer",
+    };
+    createLayerMutation.mutate({
+      layerType,
+      name: names[layerType],
+      view: selectedView,
+    });
+  };
+
+  const handleDeleteLayer = (layerId: number) => {
+    deleteLayerMutation.mutate(layerId);
+  };
+
+  const handleToggleLayerVisibility = (layerId: number, isVisible: boolean) => {
+    updateLayerMutation.mutate({
+      layerId,
+      updates: { isVisible },
+    });
+  };
+
+  const handleToggleLayerLock = (layerId: number, isLocked: boolean) => {
+    updateLayerMutation.mutate({
+      layerId,
+      updates: { isLocked },
+    });
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      const oldIndex = layers.findIndex((l) => l.id === active.id);
+      const newIndex = layers.findIndex((l) => l.id === over.id);
+      
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reorderedLayers = arrayMove(layers, oldIndex, newIndex);
+        reorderedLayers.forEach((layer, index) => {
+          const newZIndex = reorderedLayers.length - index;
+          if (layer.zIndex !== newZIndex) {
+            updateLayerMutation.mutate({
+              layerId: layer.id,
+              updates: { zIndex: newZIndex },
+            });
+          }
+        });
+      }
+    }
+  };
+
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+
+  const handlePositionBoxMouseDown = (e: React.MouseEvent, handle?: string) => {
+    e.stopPropagation();
+    if (!selectedLayer || selectedLayer.isLocked) return;
+    
+    if (handle) {
+      setIsResizing(true);
+      setResizeHandle(handle);
+    } else {
+      setIsDragging(true);
+    }
+    setDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handlePositionBoxMouseMove = useCallback((e: MouseEvent) => {
+    if (!selectedLayer || !dragStart || (!isDragging && !isResizing)) return;
+    
+    const deltaX = e.clientX - dragStart.x;
+    const deltaY = e.clientY - dragStart.y;
+    const currentPosition = selectedLayer.position || { x: 0, y: 0, width: 100, height: 100, rotation: 0, scale: 1 };
+    
+    if (isDragging) {
+      const newX = currentPosition.x + deltaX;
+      const newY = currentPosition.y + deltaY;
+      updateLayerMutation.mutate({
+        layerId: selectedLayer.id,
+        updates: {
+          position: { ...currentPosition, x: newX, y: newY },
+        },
+      });
+      setDragStart({ x: e.clientX, y: e.clientY });
+    } else if (isResizing && resizeHandle) {
+      let newWidth = currentPosition.width;
+      let newHeight = currentPosition.height;
+      let newX = currentPosition.x;
+      let newY = currentPosition.y;
+
+      if (resizeHandle.includes('e')) newWidth += deltaX;
+      if (resizeHandle.includes('w')) { newWidth -= deltaX; newX += deltaX; }
+      if (resizeHandle.includes('s')) newHeight += deltaY;
+      if (resizeHandle.includes('n')) { newHeight -= deltaY; newY += deltaY; }
+
+      newWidth = Math.max(20, newWidth);
+      newHeight = Math.max(20, newHeight);
+
+      updateLayerMutation.mutate({
+        layerId: selectedLayer.id,
+        updates: {
+          position: { ...currentPosition, x: newX, y: newY, width: newWidth, height: newHeight },
+        },
+      });
+      setDragStart({ x: e.clientX, y: e.clientY });
+    }
+  }, [selectedLayer, dragStart, isDragging, isResizing, resizeHandle, updateLayerMutation]);
+
+  const handlePositionBoxMouseUp = useCallback(() => {
+    setIsDragging(false);
+    setIsResizing(false);
+    setDragStart(null);
+    setResizeHandle(null);
+  }, []);
+
+  useEffect(() => {
+    if (isDragging || isResizing) {
+      window.addEventListener('mousemove', handlePositionBoxMouseMove);
+      window.addEventListener('mouseup', handlePositionBoxMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handlePositionBoxMouseMove);
+        window.removeEventListener('mouseup', handlePositionBoxMouseUp);
+      };
+    }
+  }, [isDragging, isResizing, handlePositionBoxMouseMove, handlePositionBoxMouseUp]);
+
+  const handleReferenceImageUpload = async (file: any): Promise<{ method: "PUT"; url: string; uploadId?: string }> => {
+    const response = await apiRequest<{ url: string; uploadId: string }>('/api/upload/presigned-url', {
+      method: 'POST',
+      body: {
+        fileName: file.name,
+        fileType: file.type,
+        folder: 'design-lab-references',
+      },
+    });
+    return { method: "PUT", url: response.url, uploadId: response.uploadId };
+  };
+
+  const handleReferenceUploadComplete = (result: any) => {
+    if (!selectedLayer || !result.successful?.[0]) return;
+    const uploadedFile = result.successful[0];
+    const uploadId = uploadedFile.uploadId;
+    
+    if (uploadId) {
+      apiRequest<{ publicUrl: string }>('/api/upload/confirm', {
+        method: 'POST',
+        body: { uploadId, isPublic: true },
+      }).then((confirmResult) => {
+        updateLayerMutation.mutate({
+          layerId: selectedLayer.id,
+          updates: { referenceImageUrl: confirmResult.publicUrl },
+        });
+      });
+    }
+  };
+
   const { data: designJobs = [], isLoading: designJobsLoading } = useQuery<DesignJobOption[]>({
     queryKey: ["/api/design-jobs"],
     enabled: finalizeDialogOpen && isAuthenticated,
@@ -537,8 +908,13 @@ export function DesignLabProject() {
     }
     generateDesignMutation.mutate({
       prompt: generationPrompt,
-      style: selectedStyle,
       requestType,
+      primaryColor: selectedColor,
+      stylePresetId: selectedPresetId || undefined,
+      promptModifier: selectedPreset?.promptSuffix,
+      designTheme,
+      keyElements,
+      thingsToAvoid,
     });
   };
 
@@ -605,6 +981,7 @@ export function DesignLabProject() {
             <DropdownMenuItem
               className="text-zinc-200 focus:bg-zinc-700"
               data-testid="menu-item-add-typography"
+              onClick={() => handleCreateLayer("typography")}
             >
               <Type className="h-4 w-4 mr-2" />
               Typography
@@ -612,6 +989,7 @@ export function DesignLabProject() {
             <DropdownMenuItem
               className="text-zinc-200 focus:bg-zinc-700"
               data-testid="menu-item-add-logo"
+              onClick={() => handleCreateLayer("logo")}
             >
               <Circle className="h-4 w-4 mr-2" />
               Logo
@@ -619,6 +997,7 @@ export function DesignLabProject() {
             <DropdownMenuItem
               className="text-zinc-200 focus:bg-zinc-700"
               data-testid="menu-item-add-graphic"
+              onClick={() => handleCreateLayer("graphic")}
             >
               <ImageIcon className="h-4 w-4 mr-2" />
               Graphic
@@ -633,35 +1012,25 @@ export function DesignLabProject() {
               No layers yet. Generate a design or add layers manually.
             </div>
           ) : (
-            layers.map((layer) => (
-              <div
-                key={layer.id}
-                onClick={() => setSelectedLayerId(layer.id)}
-                className={cn(
-                  "flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors",
-                  selectedLayerId === layer.id
-                    ? "bg-violet-600/30 border border-violet-500/50"
-                    : "hover:bg-zinc-800 border border-transparent"
-                )}
-                data-testid={`layer-item-${layer.id}`}
-              >
-                <GripVertical className="h-4 w-4 text-zinc-600 cursor-grab" />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                  }}
-                  className="text-zinc-400 hover:text-zinc-200"
-                  data-testid={`button-toggle-visibility-${layer.id}`}
-                >
-                  {layer.isVisible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                </button>
-                <span className="text-zinc-400">
-                  {getLayerTypeIcon(layer.layerType)}
-                </span>
-                <span className="text-sm text-zinc-200 flex-1 truncate">{layer.name}</span>
-                {layer.isLocked && <Lock className="h-3 w-3 text-zinc-500" />}
-              </div>
-            ))
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext items={layers.map(l => l.id)} strategy={verticalListSortingStrategy}>
+                {layers.map((layer) => (
+                  <SortableLayerItem
+                    key={layer.id}
+                    layer={layer}
+                    isSelected={selectedLayerId === layer.id}
+                    onSelect={setSelectedLayerId}
+                    onToggleVisibility={handleToggleLayerVisibility}
+                    onToggleLock={handleToggleLayerLock}
+                    onDelete={handleDeleteLayer}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       </ScrollArea>
@@ -800,10 +1169,65 @@ export function DesignLabProject() {
 
               <Separator className="bg-zinc-700" />
 
+              <div>
+                <label className="text-xs text-zinc-400 mb-2 block">Layer Prompt</label>
+                <Textarea
+                  placeholder="Describe what you want for this layer..."
+                  value={selectedLayer.prompt || ""}
+                  onChange={(e) => handleUpdateLayerProperty(selectedLayer.id, "prompt", e.target.value)}
+                  className="min-h-16 bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-500 resize-none text-sm"
+                  data-testid="textarea-layer-prompt"
+                />
+                <p className="text-xs text-zinc-500 mt-1">This prompt will be used when generating content for this layer.</p>
+              </div>
+
+              <Separator className="bg-zinc-700" />
+
+              <div>
+                <label className="text-xs text-zinc-400 mb-2 block">Reference Image</label>
+                {selectedLayer.referenceImageUrl ? (
+                  <div className="space-y-2">
+                    <div className="relative w-full aspect-video rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden">
+                      <img
+                        src={selectedLayer.referenceImageUrl}
+                        alt="Reference"
+                        className="w-full h-full object-contain"
+                        data-testid="img-layer-reference"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-2 right-2 h-6 w-6 p-0"
+                        onClick={() => handleUpdateLayerProperty(selectedLayer.id, "referenceImageUrl", null)}
+                        data-testid="button-remove-reference"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <ObjectUploader
+                    maxNumberOfFiles={1}
+                    maxFileSize={10485760}
+                    allowedFileTypes={['image/*']}
+                    onGetUploadParameters={handleReferenceImageUpload}
+                    onComplete={handleReferenceUploadComplete}
+                    buttonClassName="w-full h-9 bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Reference Image
+                  </ObjectUploader>
+                )}
+                <p className="text-xs text-zinc-500 mt-1">Upload an image to guide AI generation for this layer.</p>
+              </div>
+
+              <Separator className="bg-zinc-700" />
+
               <Button
                 variant="destructive"
                 size="sm"
                 className="w-full"
+                onClick={() => handleDeleteLayer(selectedLayer.id)}
                 data-testid="button-delete-layer"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -824,45 +1248,156 @@ export function DesignLabProject() {
           </h3>
         </div>
         <ScrollArea className="flex-1">
-          <div className="p-4 space-y-4">
+          <div className="p-4 space-y-5">
             <div>
-              <label className="text-xs text-zinc-400 mb-2 block">Describe Your Design</label>
+              <label className="text-xs text-zinc-400 mb-2 block font-medium flex items-center gap-1.5">
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px] font-bold">1</span>
+                Primary Color
+              </label>
+              <div className="flex items-center gap-3">
+                <div 
+                  className="w-10 h-10 rounded-lg border-2 border-zinc-600 shadow-inner" 
+                  style={{ backgroundColor: selectedColor }}
+                  data-testid="color-preview-swatch"
+                />
+                <Input
+                  type="text"
+                  value={selectedColor}
+                  onChange={(e) => setSelectedColor(e.target.value)}
+                  placeholder="#3B82F6"
+                  className="flex-1 h-9 bg-zinc-800 border-zinc-700 text-zinc-200 font-mono text-sm"
+                  data-testid="input-color-hex"
+                />
+                <input
+                  type="color"
+                  value={selectedColor}
+                  onChange={(e) => setSelectedColor(e.target.value)}
+                  className="w-10 h-9 p-0 rounded cursor-pointer border border-zinc-600"
+                  data-testid="input-color-picker"
+                />
+              </div>
+            </div>
+
+            <Separator className="bg-zinc-700/50" />
+
+            <div>
+              <label className="text-xs text-zinc-400 mb-2 block font-medium flex items-center gap-1.5">
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px] font-bold">2</span>
+                Style Preset
+              </label>
+              {presetsLoading ? (
+                <div className="flex gap-2 overflow-hidden">
+                  {[1, 2, 3].map(i => (
+                    <Skeleton key={i} className="w-24 h-20 bg-zinc-800 flex-shrink-0 rounded-lg" />
+                  ))}
+                </div>
+              ) : stylePresets.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
+                  {stylePresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => setSelectedPresetId(selectedPresetId === preset.id ? null : preset.id)}
+                      className={cn(
+                        "flex-shrink-0 w-24 rounded-lg border-2 overflow-hidden transition-all duration-200",
+                        selectedPresetId === preset.id
+                          ? "border-violet-500 ring-2 ring-violet-500/30"
+                          : "border-zinc-700 hover:border-zinc-500"
+                      )}
+                      data-testid={`button-preset-${preset.id}`}
+                    >
+                      {preset.previewImageUrl ? (
+                        <img
+                          src={preset.previewImageUrl}
+                          alt={preset.name}
+                          className="w-full h-14 object-cover bg-zinc-800"
+                        />
+                      ) : (
+                        <div className="w-full h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 flex items-center justify-center">
+                          <Sparkles className="h-5 w-5 text-zinc-500" />
+                        </div>
+                      )}
+                      <div className="px-2 py-1.5 bg-zinc-800/80">
+                        <p className="text-[10px] text-zinc-300 truncate font-medium">{preset.name}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs text-zinc-500 text-center py-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
+                  No style presets available
+                </div>
+              )}
+              {selectedPreset && (
+                <p className="text-xs text-violet-400 mt-2">
+                  Selected: {selectedPreset.name}
+                </p>
+              )}
+            </div>
+
+            <Separator className="bg-zinc-700/50" />
+
+            <div>
+              <label className="text-xs text-zinc-400 mb-3 block font-medium flex items-center gap-1.5">
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px] font-bold">3</span>
+                Base Attributes
+              </label>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs text-zinc-500 mb-1 block">Design Theme / Mood</label>
+                  <Input
+                    type="text"
+                    value={designTheme}
+                    onChange={(e) => setDesignTheme(e.target.value)}
+                    placeholder="e.g., Energetic, Professional, Fierce"
+                    className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500"
+                    data-testid="input-design-theme"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500 mb-1 block">Key Elements to Include</label>
+                  <Input
+                    type="text"
+                    value={keyElements}
+                    onChange={(e) => setKeyElements(e.target.value)}
+                    placeholder="e.g., Lightning bolts, Team mascot, Stripes"
+                    className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500"
+                    data-testid="input-key-elements"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500 mb-1 block">Things to Avoid</label>
+                  <Input
+                    type="text"
+                    value={thingsToAvoid}
+                    onChange={(e) => setThingsToAvoid(e.target.value)}
+                    placeholder="e.g., Busy patterns, Neon colors, Text"
+                    className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500"
+                    data-testid="input-things-to-avoid"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <Separator className="bg-zinc-700/50" />
+
+            <div>
+              <label className="text-xs text-zinc-400 mb-2 block font-medium flex items-center gap-1.5">
+                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px] font-bold">4</span>
+                Design Description
+              </label>
               <Textarea
-                placeholder="A bold athletic jersey with dynamic geometric patterns, featuring team colors..."
+                placeholder="Describe the overall design you want, e.g., 'A bold athletic jersey with dynamic geometric patterns...'"
                 value={generationPrompt}
                 onChange={(e) => setGenerationPrompt(e.target.value)}
-                className="min-h-24 bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-500 resize-none"
+                className="min-h-20 bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-500 resize-none text-sm"
                 data-testid="textarea-generation-prompt"
               />
             </div>
 
             <div>
-              <label className="text-xs text-zinc-400 mb-2 block">Style Preset</label>
-              <div className="grid grid-cols-2 gap-2">
-                {(["athletic", "modern", "vintage", "bold"] as StylePreset[]).map((style) => (
-                  <Button
-                    key={style}
-                    variant={selectedStyle === style ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setSelectedStyle(style)}
-                    className={cn(
-                      "capitalize",
-                      selectedStyle === style
-                        ? "bg-violet-600 hover:bg-violet-700 border-violet-500"
-                        : "bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700"
-                    )}
-                    data-testid={`button-style-${style}`}
-                  >
-                    {style}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <div>
               <label className="text-xs text-zinc-400 mb-2 block">Request Type</label>
               <Select value={requestType} onValueChange={(v) => setRequestType(v as RequestType)}>
-                <SelectTrigger className="bg-zinc-800 border-zinc-700 text-zinc-200" data-testid="select-request-type">
+                <SelectTrigger className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200 text-sm" data-testid="select-request-type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-zinc-800 border-zinc-700">
@@ -925,9 +1460,9 @@ export function DesignLabProject() {
               <div className="flex-1">
                 <p className="text-xs text-zinc-500 mb-1">Front</p>
                 <div className="aspect-square rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden">
-                  {currentVersion?.frontImageUrl ? (
+                  {(currentVersion?.compositeFrontUrl || currentVersion?.frontImageUrl) ? (
                     <img
-                      src={currentVersion.frontImageUrl}
+                      src={currentVersion.compositeFrontUrl || currentVersion.frontImageUrl}
                       alt="Front design"
                       className="w-full h-full object-contain"
                       data-testid="img-finalize-front"
@@ -942,9 +1477,9 @@ export function DesignLabProject() {
               <div className="flex-1">
                 <p className="text-xs text-zinc-500 mb-1">Back</p>
                 <div className="aspect-square rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden">
-                  {currentVersion?.backImageUrl ? (
+                  {(currentVersion?.compositeBackUrl || currentVersion?.backImageUrl) ? (
                     <img
-                      src={currentVersion.backImageUrl}
+                      src={currentVersion.compositeBackUrl || currentVersion.backImageUrl}
                       alt="Back design"
                       className="w-full h-full object-contain"
                       data-testid="img-finalize-back"
@@ -1651,7 +2186,7 @@ export function DesignLabProject() {
             </Button>
           </div>
 
-          <div className="flex-1 flex items-center justify-center p-8 bg-zinc-950/50">
+          <div ref={canvasRef} className="flex-1 flex items-center justify-center p-8 bg-zinc-950/50 relative">
             {comparisonMode && previewVersion ? (
               <div className="flex gap-6 items-center justify-center w-full h-full" data-testid="comparison-view">
                 <div className="flex flex-col items-center gap-2 max-w-[45%]">
@@ -1698,26 +2233,57 @@ export function DesignLabProject() {
                   )}
                 </div>
               </div>
-            ) : currentImageUrl ? (
-              <img
-                src={currentImageUrl}
-                alt={`${selectedView} view`}
-                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-                style={{ transform: `scale(${zoomLevel / 100})`, transition: "transform 0.2s ease" }}
-                data-testid="canvas-image"
-              />
             ) : (
-              <div
-                className="w-96 h-96 rounded-lg bg-gradient-to-br from-zinc-800 to-zinc-900 border border-zinc-700 flex items-center justify-center"
-                data-testid="canvas-placeholder"
-              >
-                <div className="text-center">
-                  <div className="p-4 rounded-full bg-zinc-800 mb-4 inline-block">
-                    <ImageIcon className="h-8 w-8 text-zinc-600" />
+              <div className="relative">
+                {currentImageUrl ? (
+                  <img
+                    src={currentImageUrl}
+                    alt={`${selectedView} view`}
+                    className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                    style={{ transform: `scale(${zoomLevel / 100})`, transition: "transform 0.2s ease" }}
+                    data-testid="canvas-image"
+                  />
+                ) : (
+                  <div
+                    className="w-96 h-96 rounded-lg bg-gradient-to-br from-zinc-800 to-zinc-900 border border-zinc-700 flex items-center justify-center"
+                    data-testid="canvas-placeholder"
+                  >
+                    <div className="text-center">
+                      <div className="p-4 rounded-full bg-zinc-800 mb-4 inline-block">
+                        <ImageIcon className="h-8 w-8 text-zinc-600" />
+                      </div>
+                      <p className="text-sm text-zinc-400">No design yet</p>
+                      <p className="text-xs text-zinc-600 mt-1">Use the AI panel to generate your design</p>
+                    </div>
                   </div>
-                  <p className="text-sm text-zinc-400">No design yet</p>
-                  <p className="text-xs text-zinc-600 mt-1">Use the AI panel to generate your design</p>
-                </div>
+                )}
+                
+                {selectedLayer && selectedLayer.isVisible && !selectedLayer.isLocked && (
+                  <div
+                    className="absolute border-2 border-violet-500 bg-violet-500/10 cursor-move"
+                    style={{
+                      left: `${selectedLayer.position?.x || 0}px`,
+                      top: `${selectedLayer.position?.y || 0}px`,
+                      width: `${selectedLayer.position?.width || 100}px`,
+                      height: `${selectedLayer.position?.height || 100}px`,
+                      transform: `rotate(${selectedLayer.position?.rotation || 0}deg) scale(${selectedLayer.position?.scale || 1})`,
+                    }}
+                    onMouseDown={(e) => handlePositionBoxMouseDown(e)}
+                    data-testid="layer-position-box"
+                  >
+                    <div className="absolute -top-1 -left-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-nw-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'nw')} />
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-ne-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'ne')} />
+                    <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-sw-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'sw')} />
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-se-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'se')} />
+                    <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-w-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'w')} />
+                    <div className="absolute top-1/2 -translate-y-1/2 -right-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-e-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'e')} />
+                    <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-n-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'n')} />
+                    <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-s-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 's')} />
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <span className="text-xs text-violet-300 bg-violet-900/80 px-2 py-0.5 rounded">{selectedLayer.name}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

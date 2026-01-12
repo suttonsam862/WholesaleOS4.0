@@ -2140,6 +2140,7 @@ export const designVersions = pgTable("design_versions", {
   generationPrompt: text("generation_prompt"),
   generationProvider: varchar("generation_provider"),
   generationDuration: integer("generation_duration"),
+  baseAttributes: jsonb("base_attributes"),
   createdBy: varchar("created_by").references(() => users.id).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
@@ -2162,6 +2163,9 @@ export const designLayers = pgTable("design_layers", {
   isLocked: boolean("is_locked").default(false),
   opacity: decimal("opacity", { precision: 4, scale: 2 }).default("1.0"),
   blendMode: varchar("blend_mode").default("normal"),
+  prompt: text("prompt"),
+  referenceImageUrl: text("reference_image_url"),
+  bbox: jsonb("bbox"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -2190,6 +2194,58 @@ export const designGenerationRequests = pgTable("design_generation_requests", {
 }, (table) => [
   index("idx_design_generation_requests_project_id").on(table.projectId),
   index("idx_design_generation_requests_status").on(table.status),
+]);
+
+// ==================== DESIGN AI TRAINING SYSTEM ====================
+
+// Design AI Training Sets - Collections of training images for AI context
+export const designAiTrainingSets = pgTable("design_ai_training_sets", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  tags: text("tags").array(),
+  isActive: boolean("is_active").default(true),
+  imageCount: integer("image_count").default(0),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_design_ai_training_sets_is_active").on(table.isActive),
+]);
+
+// Design AI Training Images - Individual training images in a set
+export const designAiTrainingImages = pgTable("design_ai_training_images", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  trainingSetId: integer("training_set_id").references(() => designAiTrainingSets.id, { onDelete: 'cascade' }).notNull(),
+  imageUrl: text("image_url").notNull(),
+  thumbnailUrl: text("thumbnail_url"),
+  originalFilename: varchar("original_filename"),
+  caption: text("caption"),
+  tags: text("tags").array(),
+  metadata: jsonb("metadata"),
+  uploadedBy: varchar("uploaded_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_design_ai_training_images_training_set_id").on(table.trainingSetId),
+]);
+
+// Design Style Presets - Predefined style configurations
+export const designStylePresets = pgTable("design_style_presets", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  name: varchar("name").notNull(),
+  description: text("description"),
+  previewImageUrl: text("preview_image_url"),
+  promptSuffix: text("prompt_suffix"),
+  styleConfig: jsonb("style_config"),
+  category: varchar("category"),
+  sortOrder: integer("sort_order").default(0),
+  isActive: boolean("is_active").default(true),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_design_style_presets_is_active").on(table.isActive),
+  index("idx_design_style_presets_category").on(table.category),
 ]);
 
 // ==================== TOUR MERCH BUNDLES ====================
@@ -2426,6 +2482,21 @@ export const designLayersRelations = relations(designLayers, ({ one }) => ({
 export const designGenerationRequestsRelations = relations(designGenerationRequests, ({ one }) => ({
   project: one(designProjects, { fields: [designGenerationRequests.projectId], references: [designProjects.id] }),
   version: one(designVersions, { fields: [designGenerationRequests.versionId], references: [designVersions.id] }),
+}));
+
+// Design AI Training Relations
+export const designAiTrainingSetsRelations = relations(designAiTrainingSets, ({ one, many }) => ({
+  createdByUser: one(users, { fields: [designAiTrainingSets.createdBy], references: [users.id] }),
+  images: many(designAiTrainingImages),
+}));
+
+export const designAiTrainingImagesRelations = relations(designAiTrainingImages, ({ one }) => ({
+  trainingSet: one(designAiTrainingSets, { fields: [designAiTrainingImages.trainingSetId], references: [designAiTrainingSets.id] }),
+  uploadedByUser: one(users, { fields: [designAiTrainingImages.uploadedBy], references: [users.id] }),
+}));
+
+export const designStylePresetsRelations = relations(designStylePresets, ({ one }) => ({
+  createdByUser: one(users, { fields: [designStylePresets.createdBy], references: [users.id] }),
 }));
 
 // Insert schemas
@@ -3559,6 +3630,9 @@ export const insertDesignLayerSchema = createInsertSchema(designLayers).omit({
   isLocked: z.boolean().optional(),
   opacity: z.string().optional(),
   blendMode: z.string().optional(),
+  prompt: z.string().optional(),
+  referenceImageUrl: z.string().optional(),
+  bbox: z.any().optional(),
 });
 
 export type DesignLayer = typeof designLayers.$inferSelect;
@@ -3658,6 +3732,57 @@ export const insertPrintfulSyncRecordSchema = createInsertSchema(printfulSyncRec
 
 export type PrintfulSyncRecord = typeof printfulSyncRecords.$inferSelect;
 export type InsertPrintfulSyncRecord = z.infer<typeof insertPrintfulSyncRecordSchema>;
+
+// Design AI Training Schemas
+export const insertDesignAiTrainingSetSchema = createInsertSchema(designAiTrainingSets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  imageCount: true,
+}).extend({
+  name: z.string().min(1, "Training set name is required"),
+  description: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type DesignAiTrainingSet = typeof designAiTrainingSets.$inferSelect;
+export type InsertDesignAiTrainingSet = z.infer<typeof insertDesignAiTrainingSetSchema>;
+
+export const insertDesignAiTrainingImageSchema = createInsertSchema(designAiTrainingImages).omit({
+  id: true,
+  createdAt: true,
+}).extend({
+  trainingSetId: z.number().int().positive("Training set ID is required"),
+  imageUrl: z.string().min(1, "Image URL is required"),
+  thumbnailUrl: z.string().optional(),
+  originalFilename: z.string().optional(),
+  caption: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  metadata: z.any().optional(),
+});
+
+export type DesignAiTrainingImage = typeof designAiTrainingImages.$inferSelect;
+export type InsertDesignAiTrainingImage = z.infer<typeof insertDesignAiTrainingImageSchema>;
+
+// Design Style Presets Schemas
+export const insertDesignStylePresetSchema = createInsertSchema(designStylePresets).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  name: z.string().min(1, "Preset name is required"),
+  description: z.string().optional(),
+  previewImageUrl: z.string().optional(),
+  promptSuffix: z.string().optional(),
+  styleConfig: z.any().optional(),
+  category: z.string().optional(),
+  sortOrder: z.number().int().optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type DesignStylePreset = typeof designStylePresets.$inferSelect;
+export type InsertDesignStylePreset = z.infer<typeof insertDesignStylePresetSchema>;
 
 // AI Chat models (used by OpenAI integration)
 export * from "./models/chat";

@@ -119,3 +119,31 @@ Preferred communication style: Simple, everyday language.
   - Focus area mask upload in template forms
   - Overlay position/size inputs (positionX, positionY, width, height)
   - Improved template configuration for guided AI generation
+
+### AI Design Lab - Training & Layer System (January 2026)
+- **AI Training System**: Admin tools for training AI models
+  - New tables: `designAiTrainingSets`, `designAiTrainingImages`, `designStylePresets`
+  - Training set management with image upload and categorization
+  - Style preset creation with customizable prompt modifiers
+  - Admin UI tab for managing training data and presets
+
+- **Enhanced Generation Workflow**: Redesigned Generate tab
+  - Color picker for primary design color selection
+  - Style preset selector (fetches from admin-created presets)
+  - Base attributes form: theme/mood, key elements, things to avoid
+  - Extended prompt building with all parameters
+  - Design generation now creates elements for template compositing
+
+- **Functional Layer System**: Complete layer management
+  - Create layers by type (typography, logo, graphic)
+  - Drag-to-reorder layers with @dnd-kit integration
+  - Editable position boxes on canvas (drag, resize)
+  - Layer visibility, lock, and delete controls
+  - Per-layer reference image upload
+  - Per-layer AI prompts for targeted generation
+
+- **Template-Preserving Compositing**: Improved design output
+  - Generated designs are composited onto product templates
+  - Frontend now displays composite URLs when available
+  - Raw AI output stored separately for layer editing
+  - Garment structure preserved in final output

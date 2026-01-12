@@ -1,7 +1,7 @@
 import type { Express, Response } from "express";
 import { storage } from "../storage";
 import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
-import { insertDesignProjectSchema, createDesignProjectClientSchema, insertDesignVersionSchema, insertDesignLayerSchema, insertDesignTemplateSchema, insertDesignLockedOverlaySchema, insertDesignGenerationRequestSchema, type DesignProject } from "@shared/schema";
+import { insertDesignProjectSchema, createDesignProjectClientSchema, insertDesignVersionSchema, insertDesignLayerSchema, insertDesignTemplateSchema, insertDesignLockedOverlaySchema, insertDesignGenerationRequestSchema, insertDesignAiTrainingSetSchema, insertDesignAiTrainingImageSchema, insertDesignStylePresetSchema, type DesignProject } from "@shared/schema";
 import { z } from "zod";
 import { generateBaseDesign, generateTypographyIteration } from "../services/design-generation.service";
 import { generateCompositeImages } from "../services/image-composite.service";
@@ -428,7 +428,7 @@ export function registerDesignLabRoutes(app: Express): void {
       const project = await verifyProjectAccess(version.projectId, user.id, user.role, res);
       if (!project) return;
 
-      const allowedFields = ['name', 'imageUrl', 'position', 'textContent', 'textStyle', 'view', 'zIndex', 'isVisible', 'isLocked', 'opacity', 'blendMode'];
+      const allowedFields = ['name', 'imageUrl', 'position', 'textContent', 'textStyle', 'view', 'zIndex', 'isVisible', 'isLocked', 'opacity', 'blendMode', 'prompt', 'referenceImageUrl', 'bbox'];
       const updates: any = {};
       for (const key of allowedFields) {
         if (req.body[key] !== undefined) {
@@ -716,7 +716,14 @@ export function registerDesignLabRoutes(app: Express): void {
         fontFamily,
         fontSize,
         textColor,
-        focusArea
+        focusArea,
+        // New extended workflow parameters
+        primaryColor,
+        stylePresetId,
+        promptModifier,
+        designTheme,
+        keyElements,
+        thingsToAvoid
       } = req.body;
 
       // Validate based on request type
@@ -744,7 +751,16 @@ export function registerDesignLabRoutes(app: Express): void {
       // Build input config based on request type
       const inputConfig = requestType === 'typography_iteration' 
         ? { textContent, fontFamily, fontSize, textColor, focusArea }
-        : { style, productType };
+        : { 
+            style, 
+            productType, 
+            primaryColor, 
+            stylePresetId, 
+            promptModifier, 
+            designTheme, 
+            keyElements, 
+            thingsToAvoid 
+          };
 
       // Create generation request record
       const generationRequest = await storage.createDesignGenerationRequest({
@@ -820,11 +836,18 @@ export function registerDesignLabRoutes(app: Express): void {
               ],
             });
           } else {
-            // Base generation - original logic
+            // Base generation - with extended workflow parameters
             const result = await generateBaseDesign({
               prompt,
               style: style as 'athletic' | 'modern' | 'vintage' | 'bold',
               productType,
+              // Extended workflow parameters
+              primaryColor,
+              stylePresetId,
+              stylePresetModifier: promptModifier,
+              designTheme,
+              keyElements,
+              thingsToAvoid,
             });
 
             await storage.updateDesignGenerationRequest(generationRequest.id, { progress: 80 });
@@ -1052,6 +1075,271 @@ export function registerDesignLabRoutes(app: Express): void {
     } catch (error) {
       console.error("Error finalizing design project:", error);
       res.status(500).json({ message: "Failed to finalize design project" });
+    }
+  });
+
+  // ==================== AI TRAINING SETS (ADMIN) ====================
+
+  // GET /api/design-lab/admin/training-sets - List all training sets
+  app.get('/api/design-lab/admin/training-sets', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const trainingSets = await storage.getDesignAiTrainingSets();
+      res.json(trainingSets);
+    } catch (error) {
+      console.error("Error fetching training sets:", error);
+      res.status(500).json({ message: "Failed to fetch training sets" });
+    }
+  });
+
+  // POST /api/design-lab/admin/training-sets - Create training set
+  app.post('/api/design-lab/admin/training-sets', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const parsed = insertDesignAiTrainingSetSchema.parse({
+        ...req.body,
+        createdBy: user.id,
+      });
+
+      const trainingSet = await storage.createDesignAiTrainingSet(parsed);
+      res.status(201).json(trainingSet);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Error creating training set:", error);
+      res.status(500).json({ message: "Failed to create training set" });
+    }
+  });
+
+  // GET /api/design-lab/admin/training-sets/:id - Get training set with images
+  app.get('/api/design-lab/admin/training-sets/:id', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid training set ID" });
+      }
+
+      const trainingSet = await storage.getDesignAiTrainingSet(id);
+      if (!trainingSet) {
+        return res.status(404).json({ message: "Training set not found" });
+      }
+
+      const images = await storage.getDesignAiTrainingImages(id);
+      res.json({ ...trainingSet, images });
+    } catch (error) {
+      console.error("Error fetching training set:", error);
+      res.status(500).json({ message: "Failed to fetch training set" });
+    }
+  });
+
+  // PATCH /api/design-lab/admin/training-sets/:id - Update training set
+  app.patch('/api/design-lab/admin/training-sets/:id', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid training set ID" });
+      }
+
+      const allowedFields = ['name', 'description', 'category', 'status'];
+      const updates: any = {};
+      for (const key of allowedFields) {
+        if (req.body[key] !== undefined) {
+          updates[key] = req.body[key];
+        }
+      }
+
+      const updated = await storage.updateDesignAiTrainingSet(id, updates);
+      if (!updated) {
+        return res.status(404).json({ message: "Training set not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating training set:", error);
+      res.status(500).json({ message: "Failed to update training set" });
+    }
+  });
+
+  // DELETE /api/design-lab/admin/training-sets/:id - Delete training set
+  app.delete('/api/design-lab/admin/training-sets/:id', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid training set ID" });
+      }
+
+      await storage.deleteDesignAiTrainingSet(id);
+      res.json({ message: "Training set deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting training set:", error);
+      res.status(500).json({ message: "Failed to delete training set" });
+    }
+  });
+
+  // ==================== AI TRAINING IMAGES (ADMIN) ====================
+
+  // POST /api/design-lab/admin/training-sets/:id/images - Add training image
+  app.post('/api/design-lab/admin/training-sets/:id/images', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const trainingSetId = parseInt(req.params.id);
+      if (isNaN(trainingSetId)) {
+        return res.status(400).json({ message: "Invalid training set ID" });
+      }
+
+      const trainingSet = await storage.getDesignAiTrainingSet(trainingSetId);
+      if (!trainingSet) {
+        return res.status(404).json({ message: "Training set not found" });
+      }
+
+      const parsed = insertDesignAiTrainingImageSchema.parse({
+        ...req.body,
+        trainingSetId,
+        uploadedBy: user.id,
+      });
+
+      const image = await storage.createDesignAiTrainingImage(parsed);
+      res.status(201).json(image);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Error adding training image:", error);
+      res.status(500).json({ message: "Failed to add training image" });
+    }
+  });
+
+  // DELETE /api/design-lab/admin/training-images/:id - Delete training image
+  app.delete('/api/design-lab/admin/training-images/:id', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid image ID" });
+      }
+
+      await storage.deleteDesignAiTrainingImage(id);
+      res.json({ message: "Training image deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting training image:", error);
+      res.status(500).json({ message: "Failed to delete training image" });
+    }
+  });
+
+  // ==================== STYLE PRESETS (ADMIN + PUBLIC) ====================
+
+  // GET /api/design-lab/style-presets - List all active style presets (public)
+  app.get('/api/design-lab/style-presets', isAuthenticated, loadUserData, async (req, res) => {
+    try {
+      const presets = await storage.getDesignStylePresets();
+      res.json(presets);
+    } catch (error) {
+      console.error("Error fetching style presets:", error);
+      res.status(500).json({ message: "Failed to fetch style presets" });
+    }
+  });
+
+  // POST /api/design-lab/admin/style-presets - Create style preset (admin)
+  app.post('/api/design-lab/admin/style-presets', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const parsed = insertDesignStylePresetSchema.parse(req.body);
+      const preset = await storage.createDesignStylePreset(parsed);
+      res.status(201).json(preset);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Validation error", errors: error.errors });
+      }
+      console.error("Error creating style preset:", error);
+      res.status(500).json({ message: "Failed to create style preset" });
+    }
+  });
+
+  // PATCH /api/design-lab/admin/style-presets/:id - Update style preset (admin)
+  app.patch('/api/design-lab/admin/style-presets/:id', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid preset ID" });
+      }
+
+      const allowedFields = ['name', 'description', 'promptModifier', 'thumbnailUrl', 'sortOrder', 'category'];
+      const updates: any = {};
+      for (const key of allowedFields) {
+        if (req.body[key] !== undefined) {
+          updates[key] = req.body[key];
+        }
+      }
+
+      const updated = await storage.updateDesignStylePreset(id, updates);
+      if (!updated) {
+        return res.status(404).json({ message: "Style preset not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating style preset:", error);
+      res.status(500).json({ message: "Failed to update style preset" });
+    }
+  });
+
+  // DELETE /api/design-lab/admin/style-presets/:id - Delete style preset (admin)
+  app.delete('/api/design-lab/admin/style-presets/:id', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      if (user.role !== 'admin') {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid preset ID" });
+      }
+
+      await storage.deleteDesignStylePreset(id);
+      res.json({ message: "Style preset deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting style preset:", error);
+      res.status(500).json({ message: "Failed to delete style preset" });
     }
   });
 }

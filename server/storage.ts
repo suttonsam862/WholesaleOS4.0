@@ -273,6 +273,9 @@ import {
   designVersions,
   designLayers,
   designGenerationRequests,
+  designAiTrainingSets,
+  designAiTrainingImages,
+  designStylePresets,
   type DesignTemplate,
   type InsertDesignTemplate,
   type DesignLockedOverlay,
@@ -285,6 +288,12 @@ import {
   type InsertDesignLayer,
   type DesignGenerationRequest,
   type InsertDesignGenerationRequest,
+  type DesignAiTrainingSet,
+  type InsertDesignAiTrainingSet,
+  type DesignAiTrainingImage,
+  type InsertDesignAiTrainingImage,
+  type DesignStylePreset,
+  type InsertDesignStylePreset,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, like, or, and, sql, count, getTableColumns, gte, lte, lt, inArray, isNotNull, isNull } from "drizzle-orm";
@@ -987,6 +996,26 @@ export interface IStorage {
   getDesignGenerationRequestByCode(code: string): Promise<DesignGenerationRequest | undefined>;
   createDesignGenerationRequest(data: InsertDesignGenerationRequest): Promise<DesignGenerationRequest>;
   updateDesignGenerationRequest(id: number, data: Partial<InsertDesignGenerationRequest>): Promise<DesignGenerationRequest | undefined>;
+
+  // Design Lab - AI Training Sets
+  getDesignAiTrainingSets(): Promise<DesignAiTrainingSet[]>;
+  getDesignAiTrainingSet(id: number): Promise<DesignAiTrainingSet | undefined>;
+  createDesignAiTrainingSet(data: InsertDesignAiTrainingSet): Promise<DesignAiTrainingSet>;
+  updateDesignAiTrainingSet(id: number, data: Partial<InsertDesignAiTrainingSet>): Promise<DesignAiTrainingSet | undefined>;
+  deleteDesignAiTrainingSet(id: number): Promise<boolean>;
+
+  // Design Lab - AI Training Images
+  getDesignAiTrainingImages(trainingSetId: number): Promise<DesignAiTrainingImage[]>;
+  getDesignAiTrainingImage(id: number): Promise<DesignAiTrainingImage | undefined>;
+  createDesignAiTrainingImage(data: InsertDesignAiTrainingImage): Promise<DesignAiTrainingImage>;
+  deleteDesignAiTrainingImage(id: number): Promise<boolean>;
+
+  // Design Lab - Style Presets
+  getDesignStylePresets(): Promise<DesignStylePreset[]>;
+  getDesignStylePreset(id: number): Promise<DesignStylePreset | undefined>;
+  createDesignStylePreset(data: InsertDesignStylePreset): Promise<DesignStylePreset>;
+  updateDesignStylePreset(id: number, data: Partial<InsertDesignStylePreset>): Promise<DesignStylePreset | undefined>;
+  deleteDesignStylePreset(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -7155,6 +7184,150 @@ export class DatabaseStorage implements IStorage {
       .where(eq(designGenerationRequests.id, id))
       .returning();
     return updated;
+  }
+
+  // ==================== DESIGN AI TRAINING OPERATIONS ====================
+
+  // AI Training Sets
+  async getDesignAiTrainingSets(): Promise<DesignAiTrainingSet[]> {
+    return await db
+      .select()
+      .from(designAiTrainingSets)
+      .where(eq(designAiTrainingSets.isActive, true))
+      .orderBy(desc(designAiTrainingSets.createdAt));
+  }
+
+  async getDesignAiTrainingSet(id: number): Promise<DesignAiTrainingSet | undefined> {
+    const [set] = await db
+      .select()
+      .from(designAiTrainingSets)
+      .where(eq(designAiTrainingSets.id, id));
+    return set;
+  }
+
+  async createDesignAiTrainingSet(data: InsertDesignAiTrainingSet): Promise<DesignAiTrainingSet> {
+    const [created] = await db
+      .insert(designAiTrainingSets)
+      .values(data as any)
+      .returning();
+    return created;
+  }
+
+  async updateDesignAiTrainingSet(id: number, data: Partial<InsertDesignAiTrainingSet>): Promise<DesignAiTrainingSet | undefined> {
+    const [updated] = await db
+      .update(designAiTrainingSets)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(designAiTrainingSets.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDesignAiTrainingSet(id: number): Promise<boolean> {
+    await db
+      .update(designAiTrainingSets)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(designAiTrainingSets.id, id));
+    return true;
+  }
+
+  // AI Training Images
+  async getDesignAiTrainingImages(trainingSetId: number): Promise<DesignAiTrainingImage[]> {
+    return await db
+      .select()
+      .from(designAiTrainingImages)
+      .where(eq(designAiTrainingImages.trainingSetId, trainingSetId))
+      .orderBy(desc(designAiTrainingImages.createdAt));
+  }
+
+  async getDesignAiTrainingImage(id: number): Promise<DesignAiTrainingImage | undefined> {
+    const [image] = await db
+      .select()
+      .from(designAiTrainingImages)
+      .where(eq(designAiTrainingImages.id, id));
+    return image;
+  }
+
+  async createDesignAiTrainingImage(data: InsertDesignAiTrainingImage): Promise<DesignAiTrainingImage> {
+    const [created] = await db
+      .insert(designAiTrainingImages)
+      .values(data as any)
+      .returning();
+    
+    // Update image count in training set
+    await db
+      .update(designAiTrainingSets)
+      .set({ 
+        imageCount: sql`image_count + 1`,
+        updatedAt: new Date() 
+      })
+      .where(eq(designAiTrainingSets.id, data.trainingSetId));
+    
+    return created;
+  }
+
+  async deleteDesignAiTrainingImage(id: number): Promise<boolean> {
+    const [image] = await db
+      .select()
+      .from(designAiTrainingImages)
+      .where(eq(designAiTrainingImages.id, id));
+    
+    if (image) {
+      await db
+        .delete(designAiTrainingImages)
+        .where(eq(designAiTrainingImages.id, id));
+      
+      // Update image count in training set
+      await db
+        .update(designAiTrainingSets)
+        .set({ 
+          imageCount: sql`GREATEST(image_count - 1, 0)`,
+          updatedAt: new Date() 
+        })
+        .where(eq(designAiTrainingSets.id, image.trainingSetId));
+    }
+    return true;
+  }
+
+  // Style Presets
+  async getDesignStylePresets(): Promise<DesignStylePreset[]> {
+    return await db
+      .select()
+      .from(designStylePresets)
+      .where(eq(designStylePresets.isActive, true))
+      .orderBy(asc(designStylePresets.sortOrder), desc(designStylePresets.createdAt));
+  }
+
+  async getDesignStylePreset(id: number): Promise<DesignStylePreset | undefined> {
+    const [preset] = await db
+      .select()
+      .from(designStylePresets)
+      .where(eq(designStylePresets.id, id));
+    return preset;
+  }
+
+  async createDesignStylePreset(data: InsertDesignStylePreset): Promise<DesignStylePreset> {
+    const [created] = await db
+      .insert(designStylePresets)
+      .values(data as any)
+      .returning();
+    return created;
+  }
+
+  async updateDesignStylePreset(id: number, data: Partial<InsertDesignStylePreset>): Promise<DesignStylePreset | undefined> {
+    const [updated] = await db
+      .update(designStylePresets)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(designStylePresets.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDesignStylePreset(id: number): Promise<boolean> {
+    await db
+      .update(designStylePresets)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(designStylePresets.id, id));
+    return true;
   }
 }
 
