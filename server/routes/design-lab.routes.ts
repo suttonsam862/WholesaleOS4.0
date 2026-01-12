@@ -4,6 +4,7 @@ import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedReq
 import { insertDesignProjectSchema, insertDesignVersionSchema, insertDesignLayerSchema, insertDesignTemplateSchema, insertDesignLockedOverlaySchema, insertDesignGenerationRequestSchema, type DesignProject } from "@shared/schema";
 import { z } from "zod";
 import { generateBaseDesign, generateTypographyIteration } from "../services/design-generation.service";
+import { generateCompositeImages } from "../services/image-composite.service";
 
 // Helper to verify project ownership - returns project if authorized, null if not
 async function verifyProjectAccess(
@@ -852,6 +853,24 @@ export function registerDesignLabRoutes(app: Express): void {
                 `data:image/png;base64,${result.backImageBase64.substring(0, 100)}...`,
               ],
             });
+          }
+
+          // Generate composite images if variant has templates
+          try {
+            const compositeResult = await generateCompositeImages(
+              projectId,
+              newVersion.frontImageUrl || undefined,
+              newVersion.backImageUrl || undefined
+            );
+            
+            if (compositeResult.compositeFrontUrl || compositeResult.compositeBackUrl) {
+              await storage.updateDesignVersion(newVersion.id, {
+                compositeFrontUrl: compositeResult.compositeFrontUrl,
+                compositeBackUrl: compositeResult.compositeBackUrl,
+              });
+            }
+          } catch (compositeError) {
+            console.warn(`Composite generation failed for version ${newVersion.id}:`, compositeError);
           }
 
           // Update project with new version
