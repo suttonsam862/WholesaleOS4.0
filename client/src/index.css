@@ -190,8 +190,8 @@
   /* Dock heights - used for bottom padding to prevent content overlap */
   --dock-height-desktop: 80px;
   --dock-height-mobile: 100px;
-  --dock-safe-padding-desktop: calc(var(--dock-height-desktop) + 48px);
-  --dock-safe-padding-mobile: calc(var(--dock-height-mobile) + env(safe-area-inset-bottom, 0px) + 16px);
+  --dock-safe-padding-desktop: calc(var(--dock-height-desktop) + 80px);
+  --dock-safe-padding-mobile: calc(var(--dock-height-mobile) + env(safe-area-inset-bottom, 0px) + 24px);
 }
 
 @keyframes shimmer {
