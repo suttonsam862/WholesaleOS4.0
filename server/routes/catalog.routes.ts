@@ -563,6 +563,29 @@ export function registerCatalogRoutes(app: Express): void {
     }
   });
 
+  // Get single variant by ID
+  app.get('/api/variants/:id', isAuthenticated, loadUserData, requirePermission('catalog', 'read'), async (req, res) => {
+    try {
+      const user = (req as AuthenticatedRequest).user.userData!;
+      const variantId = parseInt(req.params.id);
+      if (isNaN(variantId)) {
+        return res.status(400).json({ message: "Invalid variant ID" });
+      }
+      
+      const variant = await storage.getProductVariant(variantId);
+      if (!variant) {
+        return res.status(404).json({ message: "Variant not found" });
+      }
+      
+      // Strip financial data for manufacturer role
+      const [filteredVariant] = stripFinancialData([variant], user.role);
+      res.json(filteredVariant);
+    } catch (error) {
+      console.error("Error fetching variant:", error);
+      res.status(500).json({ message: "Failed to fetch variant" });
+    }
+  });
+
   // Create new variant
   app.post('/api/variants', isAuthenticated, loadUserData, requirePermission('catalog', 'write'), async (req, res) => {
     try {
