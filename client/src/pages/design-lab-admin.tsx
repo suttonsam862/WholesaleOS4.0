@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { ObjectUploader } from "@/components/ObjectUploader";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -97,6 +98,7 @@ const templateSchema = z.object({
   name: z.string().min(1, "Name is required"),
   templateType: z.enum(["front", "back", "sleeve", "custom"]),
   baseImageUrl: z.string().min(1, "Base image URL is required"),
+  focusAreaMask: z.string().optional(),
   variantId: z.number().optional(),
   isActive: z.boolean().optional(),
 });
@@ -105,6 +107,10 @@ const overlaySchema = z.object({
   name: z.string().min(1, "Name is required"),
   templateType: z.enum(["front", "back", "sleeve", "custom"]),
   overlayImageUrl: z.string().min(1, "Overlay image URL is required"),
+  positionX: z.number().optional(),
+  positionY: z.number().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
   zIndex: z.number().int().optional(),
   variantId: z.number().optional(),
   isActive: z.boolean().optional(),
@@ -164,6 +170,7 @@ export function DesignLabAdmin() {
       name: "",
       templateType: "front",
       baseImageUrl: "",
+      focusAreaMask: "",
       isActive: true,
     },
   });
@@ -174,6 +181,10 @@ export function DesignLabAdmin() {
       name: "",
       templateType: "front",
       overlayImageUrl: "",
+      positionX: 0,
+      positionY: 0,
+      width: 100,
+      height: 100,
       zIndex: 100,
       isActive: true,
     },
@@ -315,6 +326,7 @@ export function DesignLabAdmin() {
       name: "",
       templateType: "front",
       baseImageUrl: "",
+      focusAreaMask: "",
       isActive: true,
     });
     setIsTemplateDialogOpen(true);
@@ -326,6 +338,7 @@ export function DesignLabAdmin() {
       name: template.name,
       templateType: template.templateType,
       baseImageUrl: template.baseImageUrl,
+      focusAreaMask: template.focusAreaMask,
       variantId: template.variantId,
       isActive: template.isActive,
     });
@@ -346,6 +359,10 @@ export function DesignLabAdmin() {
       name: "",
       templateType: "front",
       overlayImageUrl: "",
+      positionX: 0,
+      positionY: 0,
+      width: 100,
+      height: 100,
       zIndex: 100,
       isActive: true,
     });
@@ -358,6 +375,10 @@ export function DesignLabAdmin() {
       name: overlay.name,
       templateType: overlay.templateType,
       overlayImageUrl: overlay.overlayImageUrl,
+      positionX: overlay.position?.x ?? 0,
+      positionY: overlay.position?.y ?? 0,
+      width: overlay.position?.width ?? 100,
+      height: overlay.position?.height ?? 100,
       zIndex: overlay.zIndex,
       variantId: overlay.variantId,
       isActive: overlay.isActive,
@@ -705,6 +726,57 @@ export function DesignLabAdmin() {
                 )}
               />
 
+              <FormField
+                control={templateForm.control}
+                name="focusAreaMask"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-zinc-300">Focus Area Mask (optional)</FormLabel>
+                    <p className="text-xs text-zinc-400 mb-2">Upload a mask image defining the design focus area</p>
+                    <FormControl>
+                      <div className="space-y-2">
+                        {field.value && (
+                          <div className="text-sm text-zinc-400">
+                            <p>Current: {field.value.split('/').pop()}</p>
+                          </div>
+                        )}
+                        <ObjectUploader
+                          maxNumberOfFiles={1}
+                          allowedFileTypes={['image/*']}
+                          onGetUploadParameters={async (file) => {
+                            const response = await apiRequest<{
+                              method: "PUT";
+                              url: string;
+                              uploadId?: string;
+                            }>("/api/upload-parameters", {
+                              method: "POST",
+                              body: JSON.stringify({
+                                fileName: file.name,
+                                fileType: file.type,
+                              }),
+                            });
+                            return response;
+                          }}
+                          onComplete={(result) => {
+                            if (result.successful && result.successful.length > 0) {
+                              const file = result.successful[0] as any;
+                              const url = file.uploadURL;
+                              if (url) {
+                                field.onChange(url);
+                              }
+                            }
+                          }}
+                          buttonClassName="w-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700"
+                        >
+                          Upload Mask Image
+                        </ObjectUploader>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <DialogFooter>
                 <Button
                   type="button"
@@ -802,6 +874,92 @@ export function DesignLabAdmin() {
                   </FormItem>
                 )}
               />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={overlayForm.control}
+                  name="positionX"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-300">Position X</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                          placeholder="0"
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          data-testid="input-overlay-position-x"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={overlayForm.control}
+                  name="positionY"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-300">Position Y</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                          placeholder="0"
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          data-testid="input-overlay-position-y"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={overlayForm.control}
+                  name="width"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-300">Width</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                          placeholder="100"
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 100)}
+                          data-testid="input-overlay-width"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={overlayForm.control}
+                  name="height"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-zinc-300">Height</FormLabel>
+                      <FormControl>
+                        <Input
+                          {...field}
+                          type="number"
+                          className="bg-zinc-800 border-zinc-700 text-zinc-100"
+                          placeholder="100"
+                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 100)}
+                          data-testid="input-overlay-height"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
 
               <FormField
                 control={overlayForm.control}

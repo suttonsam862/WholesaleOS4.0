@@ -391,6 +391,48 @@ export function DesignLabProject() {
     restoreVersionMutation.mutate(versionId);
   };
 
+  const updateLayerMutation = useMutation({
+    mutationFn: async (data: { layerId: number; updates: Partial<DesignLayer> }) => {
+      return apiRequest<DesignLayer>(`/api/design-lab/layers/${data.layerId}`, {
+        method: "PATCH",
+        body: data.updates,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/design-lab/projects", projectId] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update Failed",
+        description: error?.message || "Failed to update layer",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleUpdateLayerProperty = (layerId: number, key: string, value: any) => {
+    updateLayerMutation.mutate({
+      layerId,
+      updates: { [key]: value },
+    });
+  };
+
+  const handleUpdateLayerPosition = (layerId: number, positionKey: string, value: number) => {
+    const layer = project?.layers?.find(l => l.id === layerId);
+    if (!layer) return;
+    
+    const currentPosition = layer.position || { x: 0, y: 0, width: 100, height: 100, rotation: 0, scale: 1 };
+    updateLayerMutation.mutate({
+      layerId,
+      updates: {
+        position: {
+          ...currentPosition,
+          [positionKey]: value,
+        },
+      },
+    });
+  };
+
   const { data: designJobs = [], isLoading: designJobsLoading } = useQuery<DesignJobOption[]>({
     queryKey: ["/api/design-jobs"],
     enabled: finalizeDialogOpen && isAuthenticated,
@@ -617,6 +659,7 @@ export function DesignLabProject() {
                     <Input
                       type="number"
                       value={selectedLayer.position?.x || 0}
+                      onChange={(e) => handleUpdateLayerPosition(selectedLayer.id, "x", parseFloat(e.target.value) || 0)}
                       className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200"
                       data-testid="input-position-x"
                     />
@@ -626,15 +669,23 @@ export function DesignLabProject() {
                     <Input
                       type="number"
                       value={selectedLayer.position?.y || 0}
+                      onChange={(e) => handleUpdateLayerPosition(selectedLayer.id, "y", parseFloat(e.target.value) || 0)}
                       className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200"
                       data-testid="input-position-y"
                     />
                   </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-400 mb-2 block">Size</label>
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <span className="text-xs text-zinc-500">Width</span>
                     <Input
                       type="number"
                       value={selectedLayer.position?.width || 100}
+                      onChange={(e) => handleUpdateLayerPosition(selectedLayer.id, "width", parseFloat(e.target.value) || 100)}
                       className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200"
                       data-testid="input-position-width"
                     />
@@ -644,11 +695,44 @@ export function DesignLabProject() {
                     <Input
                       type="number"
                       value={selectedLayer.position?.height || 100}
+                      onChange={(e) => handleUpdateLayerPosition(selectedLayer.id, "height", parseFloat(e.target.value) || 100)}
                       className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200"
                       data-testid="input-position-height"
                     />
                   </div>
                 </div>
+              </div>
+
+              <Separator className="bg-zinc-700" />
+
+              <div>
+                <label className="text-xs text-zinc-400 mb-2 block">
+                  Rotation: {selectedLayer.position?.rotation || 0}°
+                </label>
+                <Slider
+                  value={[selectedLayer.position?.rotation || 0]}
+                  min={-180}
+                  max={180}
+                  step={1}
+                  onValueChange={(value) => handleUpdateLayerPosition(selectedLayer.id, "rotation", value[0])}
+                  className="[&_[role=slider]]:bg-violet-500"
+                  data-testid="slider-rotation"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs text-zinc-400 mb-2 block">
+                  Scale: {(selectedLayer.position?.scale || 1).toFixed(2)}x
+                </label>
+                <Slider
+                  value={[selectedLayer.position?.scale || 1]}
+                  min={0.1}
+                  max={3}
+                  step={0.1}
+                  onValueChange={(value) => handleUpdateLayerPosition(selectedLayer.id, "scale", value[0])}
+                  className="[&_[role=slider]]:bg-violet-500"
+                  data-testid="slider-scale"
+                />
               </div>
 
               <Separator className="bg-zinc-700" />
@@ -661,6 +745,7 @@ export function DesignLabProject() {
                   value={[selectedLayer.opacity]}
                   max={100}
                   step={1}
+                  onValueChange={(value) => handleUpdateLayerProperty(selectedLayer.id, "opacity", value[0])}
                   className="[&_[role=slider]]:bg-violet-500"
                   data-testid="slider-opacity"
                 />
@@ -668,7 +753,10 @@ export function DesignLabProject() {
 
               <div>
                 <label className="text-xs text-zinc-400 mb-2 block">Blend Mode</label>
-                <Select defaultValue={selectedLayer.blendMode}>
+                <Select 
+                  value={selectedLayer.blendMode || "normal"}
+                  onValueChange={(value) => handleUpdateLayerProperty(selectedLayer.id, "blendMode", value)}
+                >
                   <SelectTrigger className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200" data-testid="select-blend-mode">
                     <SelectValue />
                   </SelectTrigger>

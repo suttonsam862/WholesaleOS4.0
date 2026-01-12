@@ -39,8 +39,11 @@ export interface GenerationResult {
 export interface TypographyIterationParams {
   baseImageBase64: string; // existing design to iterate on
   textContent: string; // text to add/modify
-  style?: string; // font style hints
-  placement?: "chest" | "back" | "sleeve";
+  fontFamily?: string; // font family name (e.g., "Arial", "Impact", "Roboto")
+  fontSize?: string; // font size hint (e.g., "large", "medium", "small")
+  textColor?: string; // text color (e.g., "#FF0000", "red", "white")
+  focusArea?: "chest" | "back" | "sleeve" | "full"; // area to focus typography on
+  style?: string; // additional style hints
 }
 
 /**
@@ -230,22 +233,26 @@ export async function generateTypographyIteration(
     throw new ValidationError("Text content is required");
   }
 
-  const placement = params.placement || "chest";
-  const style = params.style || "modern";
+  const focusArea = params.focusArea || "chest";
+  const fontFamily = params.fontFamily || "modern athletic";
+  const fontSize = params.fontSize || "large";
+  const textColor = params.textColor || "white";
+  const style = params.style || "bold";
 
-  // Validate placement
-  if (!["chest", "back", "sleeve"].includes(placement)) {
+  // Validate focusArea
+  if (!["chest", "back", "sleeve", "full"].includes(focusArea)) {
     throw new ValidationError(
-      "Placement must be one of: chest, back, sleeve"
+      "focusArea must be one of: chest, back, sleeve, full"
     );
   }
 
   try {
-    // Build edit prompt
-    let editPrompt = `Add typography to this design: "${params.textContent}" `;
-    editPrompt += `placed on the ${placement}. `;
-    editPrompt += `Font style: ${style}. `;
-    editPrompt += `Maintain the original design quality and aesthetic while integrating the text seamlessly.`;
+    // Build edit prompt with typography details
+    let editPrompt = `Create a professional sportswear design with typography: "${params.textContent}". `;
+    editPrompt += `Typography placement: ${focusArea} area. `;
+    editPrompt += `Font style: ${fontFamily}, ${fontSize} size, ${textColor} color. `;
+    editPrompt += `Overall style: ${style}, athletic wear aesthetic. `;
+    editPrompt += `Ensure the typography is prominent, readable, and professionally integrated into the design.`;
 
     console.log(
       "[DesignGeneration] Starting typography iteration with edit API"
@@ -295,7 +302,7 @@ export async function generateTypographyIteration(
     return {
       modifiedImageBase64,
       textContent: params.textContent,
-      placement,
+      placement: focusArea,
       provider: PROVIDER,
       durationMs,
     };

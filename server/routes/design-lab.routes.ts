@@ -3,7 +3,7 @@ import { storage } from "../storage";
 import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
 import { insertDesignProjectSchema, insertDesignVersionSchema, insertDesignLayerSchema, insertDesignTemplateSchema, insertDesignLockedOverlaySchema, insertDesignGenerationRequestSchema, type DesignProject } from "@shared/schema";
 import { z } from "zod";
-import { generateBaseDesign } from "../services/design-generation.service";
+import { generateBaseDesign, generateTypographyIteration } from "../services/design-generation.service";
 
 // Helper to verify project ownership - returns project if authorized, null if not
 async function verifyProjectAccess(
@@ -705,10 +705,30 @@ export function registerDesignLabRoutes(app: Express): void {
   app.post('/api/design-lab/generate', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
     try {
       const user = (req as AuthenticatedRequest).user.userData!;
-      const { projectId, prompt, requestType = 'base_generation', style = 'athletic', productType } = req.body;
+      const { 
+        projectId, 
+        prompt, 
+        requestType = 'base_generation', 
+        style = 'athletic', 
+        productType,
+        textContent,
+        fontFamily,
+        fontSize,
+        textColor,
+        focusArea
+      } = req.body;
 
-      if (!projectId || !prompt) {
-        return res.status(400).json({ message: "projectId and prompt are required" });
+      // Validate based on request type
+      if (requestType === 'base_generation') {
+        if (!projectId || !prompt) {
+          return res.status(400).json({ message: "projectId and prompt are required for base_generation" });
+        }
+      } else if (requestType === 'typography_iteration') {
+        if (!projectId || !textContent) {
+          return res.status(400).json({ message: "projectId and textContent are required for typography_iteration" });
+        }
+      } else {
+        return res.status(400).json({ message: "Invalid requestType. Must be 'base_generation' or 'typography_iteration'" });
       }
 
       // Verify project exists and user has access
@@ -720,12 +740,17 @@ export function registerDesignLabRoutes(app: Express): void {
         return res.status(403).json({ message: "Access denied" });
       }
 
+      // Build input config based on request type
+      const inputConfig = requestType === 'typography_iteration' 
+        ? { textContent, fontFamily, fontSize, textColor, focusArea }
+        : { style, productType };
+
       // Create generation request record
       const generationRequest = await storage.createDesignGenerationRequest({
         projectId,
-        prompt,
+        prompt: requestType === 'typography_iteration' ? textContent : prompt,
         requestType,
-        inputConfig: { style, productType },
+        inputConfig,
         status: 'processing',
         progress: 0,
         aiProvider: 'openai',
@@ -739,47 +764,100 @@ export function registerDesignLabRoutes(app: Express): void {
         try {
           await storage.updateDesignGenerationRequest(generationRequest.id, { progress: 10 });
 
-          const result = await generateBaseDesign({
-            prompt,
-            style: style as 'athletic' | 'modern' | 'vintage' | 'bold',
-            productType,
-          });
-
-          await storage.updateDesignGenerationRequest(generationRequest.id, { progress: 80 });
-
-          // Create a new version with generated images
+          // Get existing versions for numbering
           const versions = await storage.getDesignVersions(projectId);
           const nextVersionNumber = versions.length + 1;
 
-          const newVersion = await storage.createDesignVersion({
-            projectId,
-            versionNumber: nextVersionNumber,
-            name: `Generated v${nextVersionNumber}`,
-            frontImageUrl: `data:image/png;base64,${result.frontImageBase64}`,
-            backImageUrl: `data:image/png;base64,${result.backImageBase64}`,
-            generationPrompt: prompt,
-            generationProvider: result.provider,
-            generationDuration: result.durationMs,
-            createdBy: user.id,
-          });
+          let newVersion;
+
+          if (requestType === 'typography_iteration') {
+            // For typography iteration, get the current version's image as base
+            let baseImageBase64 = '';
+            if (project.currentVersionId) {
+              const currentVersion = await storage.getDesignVersion(project.currentVersionId);
+              if (currentVersion?.frontImageUrl) {
+                // Extract base64 from data URL if present
+                const dataUrlMatch = currentVersion.frontImageUrl.match(/^data:image\/\w+;base64,(.+)$/);
+                baseImageBase64 = dataUrlMatch ? dataUrlMatch[1] : currentVersion.frontImageUrl;
+              }
+            }
+
+            await storage.updateDesignGenerationRequest(generationRequest.id, { progress: 30 });
+
+            const typographyResult = await generateTypographyIteration({
+              baseImageBase64,
+              textContent,
+              fontFamily,
+              fontSize,
+              textColor,
+              focusArea: focusArea as 'chest' | 'back' | 'sleeve' | 'full' | undefined,
+              style,
+            });
+
+            await storage.updateDesignGenerationRequest(generationRequest.id, { progress: 80 });
+
+            newVersion = await storage.createDesignVersion({
+              projectId,
+              versionNumber: nextVersionNumber,
+              name: `Typography v${nextVersionNumber}`,
+              frontImageUrl: `data:image/png;base64,${typographyResult.modifiedImageBase64}`,
+              generationPrompt: textContent,
+              generationProvider: typographyResult.provider,
+              generationDuration: typographyResult.durationMs,
+              createdBy: user.id,
+            });
+
+            // Complete the generation request
+            await storage.updateDesignGenerationRequest(generationRequest.id, {
+              status: 'completed',
+              progress: 100,
+              versionId: newVersion.id,
+              modelVersion: 'gpt-image-1',
+              durationMs: typographyResult.durationMs,
+              resultImageUrls: [
+                `data:image/png;base64,${typographyResult.modifiedImageBase64.substring(0, 100)}...`,
+              ],
+            });
+          } else {
+            // Base generation - original logic
+            const result = await generateBaseDesign({
+              prompt,
+              style: style as 'athletic' | 'modern' | 'vintage' | 'bold',
+              productType,
+            });
+
+            await storage.updateDesignGenerationRequest(generationRequest.id, { progress: 80 });
+
+            newVersion = await storage.createDesignVersion({
+              projectId,
+              versionNumber: nextVersionNumber,
+              name: `Generated v${nextVersionNumber}`,
+              frontImageUrl: `data:image/png;base64,${result.frontImageBase64}`,
+              backImageUrl: `data:image/png;base64,${result.backImageBase64}`,
+              generationPrompt: prompt,
+              generationProvider: result.provider,
+              generationDuration: result.durationMs,
+              createdBy: user.id,
+            });
+
+            // Complete the generation request
+            await storage.updateDesignGenerationRequest(generationRequest.id, {
+              status: 'completed',
+              progress: 100,
+              versionId: newVersion.id,
+              modelVersion: result.modelVersion,
+              durationMs: result.durationMs,
+              resultImageUrls: [
+                `data:image/png;base64,${result.frontImageBase64.substring(0, 100)}...`,
+                `data:image/png;base64,${result.backImageBase64.substring(0, 100)}...`,
+              ],
+            });
+          }
 
           // Update project with new version
           await storage.updateDesignProject(projectId, {
             currentVersionId: newVersion.id,
             status: 'in_progress',
-          });
-
-          // Complete the generation request
-          await storage.updateDesignGenerationRequest(generationRequest.id, {
-            status: 'completed',
-            progress: 100,
-            versionId: newVersion.id,
-            modelVersion: result.modelVersion,
-            durationMs: result.durationMs,
-            resultImageUrls: [
-              `data:image/png;base64,${result.frontImageBase64.substring(0, 100)}...`,
-              `data:image/png;base64,${result.backImageBase64.substring(0, 100)}...`,
-            ],
           });
 
           console.log(`Generation ${generationRequest.requestCode} completed successfully`);
@@ -919,11 +997,11 @@ export function registerDesignLabRoutes(app: Express): void {
             renditionUrls.push(currentVersion.compositeBackUrl);
           }
 
-          const existingRenditions = designJob.renditions || [];
+          const existingRenditions = designJob.renditionUrls || [];
           const updatedRenditions = [...existingRenditions, ...renditionUrls];
 
           await storage.updateDesignJob(parsedJobId, {
-            renditions: updatedRenditions,
+            renditionUrls: updatedRenditions,
             renditionCount: updatedRenditions.length,
             status: 'completed',
           });
@@ -933,6 +1011,9 @@ export function registerDesignLabRoutes(app: Express): void {
       }
 
       const updated = await storage.updateDesignProject(id, updates);
+      if (!updated) {
+        return res.status(500).json({ message: "Failed to update project" });
+      }
 
       let currentVersionData = null;
       let layers: any[] = [];

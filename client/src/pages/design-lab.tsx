@@ -91,6 +91,13 @@ interface ProductVariant {
   backTemplateUrl?: string;
 }
 
+interface DesignJobOption {
+  id: number;
+  jobCode: string;
+  brief?: string;
+  status: string;
+}
+
 function getVariantDisplayName(variant: ProductVariant): string {
   const parts = [variant.variantCode];
   if (variant.color) parts.push(variant.color);
@@ -102,6 +109,7 @@ const createProjectSchema = z.object({
   name: z.string().min(1, "Project name is required").max(100, "Name too long"),
   description: z.string().max(500, "Description too long").optional(),
   variantId: z.number().optional(),
+  designJobId: z.number().optional(),
 });
 
 type CreateProjectFormData = z.infer<typeof createProjectSchema>;
@@ -179,6 +187,11 @@ export function DesignLab() {
     retry: false,
   });
 
+  const { data: designJobs = [] } = useQuery<DesignJobOption[]>({
+    queryKey: ["/api/design-jobs"],
+    retry: false,
+  });
+
   const variantMap = useMemo(() => {
     const map = new Map<number, ProductVariant>();
     for (const variant of variants) {
@@ -193,6 +206,7 @@ export function DesignLab() {
       name: "",
       description: "",
       variantId: undefined,
+      designJobId: undefined,
     },
   });
 
@@ -651,6 +665,44 @@ export function DesignLab() {
                             {getVariantDisplayName(variant)}
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="designJobId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Link to Design Job (optional)</FormLabel>
+                    <Select 
+                      onValueChange={(value) => field.onChange(value ? parseInt(value) : undefined)}
+                      value={field.value?.toString() || ""}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-design-job">
+                          <SelectValue placeholder="Select a design job" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {designJobs
+                          .filter((job) => job.status === "pending" || job.status === "in_progress")
+                          .map((job) => {
+                            const briefText = job.brief ? job.brief.substring(0, 30) : "";
+                            const displayText = briefText ? `${job.jobCode} - ${briefText}` : job.jobCode;
+                            return (
+                              <SelectItem 
+                                key={job.id} 
+                                value={job.id.toString()}
+                                data-testid={`option-design-job-${job.id}`}
+                              >
+                                {displayText}
+                              </SelectItem>
+                            );
+                          })}
                       </SelectContent>
                     </Select>
                     <FormMessage />

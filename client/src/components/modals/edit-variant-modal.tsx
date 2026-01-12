@@ -44,6 +44,8 @@ const editVariantSchema = z.object({
     .optional()
     .refine((val) => !val || (val && /^\d+(\.\d{1,2})?$/.test(val) && parseFloat(val) > 0), "Cost must be a positive number greater than 0"),
   imageUrl: z.string().url().optional().or(z.literal("")),
+  frontTemplateUrl: z.string().url().optional().or(z.literal("")),
+  backTemplateUrl: z.string().url().optional().or(z.literal("")),
   defaultManufacturerId: z.number().optional(),
   backupManufacturerId: z.number().optional(),
 });
@@ -60,6 +62,8 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>("");
+  const [uploadedFrontTemplateUrl, setUploadedFrontTemplateUrl] = useState<string>("");
+  const [uploadedBackTemplateUrl, setUploadedBackTemplateUrl] = useState<string>("");
 
   const form = useForm<EditVariantForm>({
     resolver: zodResolver(editVariantSchema),
@@ -72,6 +76,8 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
       msrp: "",
       cost: "",
       imageUrl: "",
+      frontTemplateUrl: "",
+      backTemplateUrl: "",
       defaultManufacturerId: undefined,
       backupManufacturerId: undefined,
     },
@@ -98,6 +104,8 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
       form.setValue("msrp", variant.msrp || "");
       form.setValue("cost", variant.cost || "");
       form.setValue("imageUrl", variant.imageUrl || "");
+      form.setValue("frontTemplateUrl", variant.frontTemplateUrl || "");
+      form.setValue("backTemplateUrl", variant.backTemplateUrl || "");
       form.setValue("defaultManufacturerId", variant.defaultManufacturerId || undefined);
       form.setValue("backupManufacturerId", variant.backupManufacturerId || undefined);
     }
@@ -392,6 +400,128 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
                   <span className="flex items-center gap-2">
                     <i className="fas fa-upload"></i>
                     Upload Variant Image
+                  </span>
+                </ObjectUploader>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <FormLabel>Front Template (for AI Design)</FormLabel>
+              <p className="text-xs text-muted-foreground">Upload a template image of the front of the product for AI mockup generation</p>
+              {(uploadedFrontTemplateUrl || variant?.frontTemplateUrl) ? (
+                <div className="relative inline-block">
+                  <img 
+                    src={uploadedFrontTemplateUrl || variant?.frontTemplateUrl} 
+                    alt="Front template preview" 
+                    className="h-32 w-32 object-cover rounded-lg border"
+                    onError={(e) => {
+                      console.error('Failed to load image:', uploadedFrontTemplateUrl || variant?.frontTemplateUrl);
+                      e.currentTarget.style.display = 'none';
+                    }}
+                    data-testid="img-front-template-preview-edit"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full bg-destructive text-destructive-foreground"
+                    onClick={() => {
+                      setUploadedFrontTemplateUrl("");
+                      form.setValue("frontTemplateUrl", "");
+                    }}
+                  >
+                    ×
+                  </Button>
+                </div>
+              ) : (
+                <ObjectUploader
+                  maxNumberOfFiles={1}
+                  onGetUploadParameters={async (file) => {
+                    const response = await apiRequest("POST", "/api/upload/image", {
+                      filename: file.name,
+                      size: file.size,
+                      mimeType: file.type
+                    }) as any;
+                    return {
+                      method: "PUT" as const,
+                      url: response.uploadURL,
+                      headers: {
+                        'Content-Type': file.type
+                      }
+                    };
+                  }}
+                  onComplete={(result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+                    if (result.successful?.[0]) {
+                      const url = (result.successful[0] as any).uploadURL;
+                      setUploadedFrontTemplateUrl(url);
+                      form.setValue("frontTemplateUrl", url);
+                    }
+                  }}
+                >
+                  <span className="flex items-center gap-2">
+                    <i className="fas fa-upload"></i>
+                    Upload Front Template
+                  </span>
+                </ObjectUploader>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <FormLabel>Back Template (for AI Design)</FormLabel>
+              <p className="text-xs text-muted-foreground">Upload a template image of the back of the product for AI mockup generation</p>
+              {(uploadedBackTemplateUrl || variant?.backTemplateUrl) ? (
+                <div className="relative inline-block">
+                  <img 
+                    src={uploadedBackTemplateUrl || variant?.backTemplateUrl} 
+                    alt="Back template preview" 
+                    className="h-32 w-32 object-cover rounded-lg border"
+                    onError={(e) => {
+                      console.error('Failed to load image:', uploadedBackTemplateUrl || variant?.backTemplateUrl);
+                      e.currentTarget.style.display = 'none';
+                    }}
+                    data-testid="img-back-template-preview-edit"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full bg-destructive text-destructive-foreground"
+                    onClick={() => {
+                      setUploadedBackTemplateUrl("");
+                      form.setValue("backTemplateUrl", "");
+                    }}
+                  >
+                    ×
+                  </Button>
+                </div>
+              ) : (
+                <ObjectUploader
+                  maxNumberOfFiles={1}
+                  onGetUploadParameters={async (file) => {
+                    const response = await apiRequest("POST", "/api/upload/image", {
+                      filename: file.name,
+                      size: file.size,
+                      mimeType: file.type
+                    }) as any;
+                    return {
+                      method: "PUT" as const,
+                      url: response.uploadURL,
+                      headers: {
+                        'Content-Type': file.type
+                      }
+                    };
+                  }}
+                  onComplete={(result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+                    if (result.successful?.[0]) {
+                      const url = (result.successful[0] as any).uploadURL;
+                      setUploadedBackTemplateUrl(url);
+                      form.setValue("backTemplateUrl", url);
+                    }
+                  }}
+                >
+                  <span className="flex items-center gap-2">
+                    <i className="fas fa-upload"></i>
+                    Upload Back Template
                   </span>
                 </ObjectUploader>
               )}
