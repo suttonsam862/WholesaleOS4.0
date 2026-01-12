@@ -139,12 +139,12 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg" data-testid="modal-edit-variant">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col" data-testid="modal-edit-variant">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Edit Product Variant</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 overflow-y-auto flex-1 pr-2">
             <FormField
               control={form.control}
               name="productId"
@@ -526,7 +526,7 @@ export function EditVariantModal({ isOpen, onClose, variant }: EditVariantModalP
                 </ObjectUploader>
               )}
             </div>
-            <div className="flex justify-end space-x-2">
+            <div className="flex justify-end space-x-2 pt-4 border-t sticky bottom-0 bg-background pb-1">
               <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancel-edit-variant">
                 Cancel
               </Button>
