@@ -1,7 +1,7 @@
 import type { Express, Response } from "express";
 import { storage } from "../storage";
 import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
-import { insertDesignProjectSchema, insertDesignVersionSchema, insertDesignLayerSchema, insertDesignTemplateSchema, insertDesignLockedOverlaySchema, insertDesignGenerationRequestSchema, type DesignProject } from "@shared/schema";
+import { insertDesignProjectSchema, createDesignProjectClientSchema, insertDesignVersionSchema, insertDesignLayerSchema, insertDesignTemplateSchema, insertDesignLockedOverlaySchema, insertDesignGenerationRequestSchema, type DesignProject } from "@shared/schema";
 import { z } from "zod";
 import { generateBaseDesign, generateTypographyIteration } from "../services/design-generation.service";
 import { generateCompositeImages } from "../services/image-composite.service";
@@ -60,7 +60,7 @@ export function registerDesignLabRoutes(app: Express): void {
   app.post('/api/design-lab/projects', isAuthenticated, loadUserData, requirePermission('designJobs', 'write'), async (req, res) => {
     try {
       const user = (req as AuthenticatedRequest).user.userData!;
-      const parsed = insertDesignProjectSchema.parse(req.body);
+      const parsed = createDesignProjectClientSchema.parse(req.body);
       
       const project = await storage.createDesignProject({
         ...parsed,

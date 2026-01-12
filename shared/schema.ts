@@ -3499,11 +3499,11 @@ export type InsertDesignLockedOverlay = z.infer<typeof insertDesignLockedOverlay
 export const insertDesignProjectSchema = createInsertSchema(designProjects).omit({
   id: true,
   projectCode: true,
-  userId: true,  // Set server-side from session
   createdAt: true,
   updatedAt: true,
 }).extend({
   name: z.string().min(1, "Project name is required"),
+  userId: z.string().min(1, "User ID is required"),  // Set server-side from session
   description: z.string().optional(),
   variantId: z.number().int().optional(),
   designJobId: z.number().int().optional(),
@@ -3511,6 +3511,11 @@ export const insertDesignProjectSchema = createInsertSchema(designProjects).omit
   status: z.enum(["draft", "generating", "in_progress", "review", "finalized", "archived"]).optional(),
   currentVersionId: z.number().int().optional(),
   thumbnailUrl: z.string().optional(),
+});
+
+// Client-facing schema for creating design projects (userId excluded, set server-side)
+export const createDesignProjectClientSchema = insertDesignProjectSchema.omit({
+  userId: true,
 });
 
 export type DesignProject = typeof designProjects.$inferSelect;
