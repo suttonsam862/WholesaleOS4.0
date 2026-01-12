@@ -43,9 +43,9 @@ const editVariantSchema = z.object({
   cost: z.string()
     .optional()
     .refine((val) => !val || (val && /^\d+(\.\d{1,2})?$/.test(val) && parseFloat(val) > 0), "Cost must be a positive number greater than 0"),
-  imageUrl: z.string().url().optional().or(z.literal("")),
-  frontTemplateUrl: z.string().url().optional().or(z.literal("")),
-  backTemplateUrl: z.string().url().optional().or(z.literal("")),
+  imageUrl: z.string().optional().or(z.literal("")),
+  frontTemplateUrl: z.string().optional().or(z.literal("")),
+  backTemplateUrl: z.string().optional().or(z.literal("")),
   defaultManufacturerId: z.number().optional(),
   backupManufacturerId: z.number().optional(),
 });
