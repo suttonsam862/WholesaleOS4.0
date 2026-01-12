@@ -3497,7 +3497,9 @@ export type InsertDesignLockedOverlay = z.infer<typeof insertDesignLockedOverlay
 
 // Design Projects Schemas
 export const insertDesignProjectSchema = createInsertSchema(designProjects).omit({
+  id: true,
   projectCode: true,
+  userId: true,  // Set server-side from session
   createdAt: true,
   updatedAt: true,
 }).extend({
