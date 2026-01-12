@@ -150,6 +150,18 @@ interface DesignJobOption {
   orderId?: number;
 }
 
+interface ProductVariant {
+  id: number;
+  productId: number;
+  variantCode: string;
+  color?: string;
+  size?: string;
+  material?: string;
+  imageUrl?: string;
+  frontTemplateUrl?: string;
+  backTemplateUrl?: string;
+}
+
 type ViewType = "front" | "back";
 type StylePreset = "athletic" | "modern" | "vintage" | "bold";
 type RequestType = "base_generation" | "typography_iteration";
@@ -257,6 +269,13 @@ export function DesignLabProject() {
     retry: false,
   });
 
+  // Fetch variant data to show template images
+  const { data: variant } = useQuery<ProductVariant>({
+    queryKey: ["/api/variants", project?.variantId],
+    enabled: !!project?.variantId && isAuthenticated,
+    retry: false,
+  });
+
   useEffect(() => {
     if (projectError) {
       toast({
@@ -286,9 +305,17 @@ export function DesignLabProject() {
     if (previewVersion) {
       return selectedView === "front" ? previewVersion.frontImageUrl : previewVersion.backImageUrl;
     }
-    if (!currentVersion) return null;
-    return selectedView === "front" ? currentVersion.frontImageUrl : currentVersion.backImageUrl;
-  }, [currentVersion, previewVersion, selectedView]);
+    // First try to get from current version's generated design
+    if (currentVersion) {
+      const versionImage = selectedView === "front" ? currentVersion.frontImageUrl : currentVersion.backImageUrl;
+      if (versionImage) return versionImage;
+    }
+    // Fallback to variant's template images
+    if (variant) {
+      return selectedView === "front" ? variant.frontTemplateUrl : variant.backTemplateUrl;
+    }
+    return null;
+  }, [currentVersion, previewVersion, selectedView, variant]);
 
   const originalImageUrl = useMemo(() => {
     if (!currentVersion) return null;
