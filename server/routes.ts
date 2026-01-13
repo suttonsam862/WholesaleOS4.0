@@ -44,7 +44,7 @@ import { ObjectPermission } from "./objectAcl";
 import { FileUploadSecurityService, type FileUploadValidationRequest } from "./fileUploadSecurity";
 import { db } from "./db";
 import { eq } from "drizzle-orm";
-import { productVariants, orderLineItems, users, manufacturingUpdateLineItems } from "@shared/schema";
+import { productVariants, orderLineItems, users, manufacturingUpdateLineItems, products } from "@shared/schema";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import archiver from "archiver";
@@ -1275,10 +1275,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete('/api/categories/:id', isAuthenticated, loadUserData, requirePermission('catalog', 'delete'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
+      const force = req.query.force === 'true';
+      const reassignTo = req.query.reassignTo ? parseInt(req.query.reassignTo as string) : null;
 
       const existingCategory = await storage.getCategory(id);
       if (!existingCategory) {
         return res.status(404).json({ message: "Category not found" });
+      }
+
+      // Check for products using this category
+      const productsUsingCategory = await db
+        .select({ id: products.id, name: products.name })
+        .from(products)
+        .where(eq(products.categoryId, id));
+
+      if (productsUsingCategory.length > 0) {
+        if (force && reassignTo) {
+          // Verify the target category exists
+          const targetCategory = await storage.getCategory(reassignTo);
+          if (!targetCategory) {
+            return res.status(400).json({ 
+              message: "Target category for reassignment not found",
+              error: "invalid_reassign_target"
+            });
+          }
+          // Reassign all products to the new category
+          await db.update(products)
+            .set({ categoryId: reassignTo })
+            .where(eq(products.categoryId, id));
+        } else if (force) {
+          // Force delete - archive the products instead
+          await db.update(products)
+            .set({ archived: true, archivedAt: new Date() })
+            .where(eq(products.categoryId, id));
+        } else {
+          return res.status(400).json({ 
+            message: `Cannot delete category. ${productsUsingCategory.length} product(s) are using this category.`,
+            error: "category_in_use",
+            productCount: productsUsingCategory.length,
+            products: productsUsingCategory.slice(0, 5),
+            hint: "Use ?force=true to archive products, or ?force=true&reassignTo=<categoryId> to reassign them"
+          });
+        }
       }
 
       await storage.deleteCategory(id);
