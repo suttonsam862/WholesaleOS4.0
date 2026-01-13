@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { ImageWithFallback } from "@/components/ui/image-with-fallback";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { ArchiveRestore, ArrowLeft } from "lucide-react";
+import { ArchiveRestore, ArrowLeft, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -23,7 +23,7 @@ interface Category {
 
 export default function ArchivedCategories() {
   const { toast } = useToast();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery<Category[]>({
@@ -46,6 +46,26 @@ export default function ArchivedCategories() {
       toast({
         title: "Error",
         description: "Failed to restore category",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: (categoryId: number) =>
+      apiRequest(`/api/categories/${categoryId}?force=true`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/categories/archived"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      toast({
+        title: "Success",
+        description: "Category permanently deleted",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete category",
         variant: "destructive",
       });
     },
@@ -135,19 +155,37 @@ export default function ArchivedCategories() {
                       )}
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (confirm(`Restore "${category.name}" from archive?`)) {
-                        unarchiveMutation.mutate(category.id);
-                      }
-                    }}
-                    data-testid={`button-restore-category-${category.id}`}
-                  >
-                    <ArchiveRestore className="w-4 h-4 mr-2" />
-                    Restore
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (confirm(`Restore "${category.name}" from archive?`)) {
+                          unarchiveMutation.mutate(category.id);
+                        }
+                      }}
+                      data-testid={`button-restore-category-${category.id}`}
+                    >
+                      <ArchiveRestore className="w-4 h-4 mr-2" />
+                      Restore
+                    </Button>
+                    {user?.role === 'admin' && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm(`PERMANENTLY DELETE "${category.name}"? This will archive all products in this category. This action cannot be undone.`)) {
+                            deleteCategoryMutation.mutate(category.id);
+                          }
+                        }}
+                        disabled={deleteCategoryMutation.isPending}
+                        data-testid={`button-delete-category-${category.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

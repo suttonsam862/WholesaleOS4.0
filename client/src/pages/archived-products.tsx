@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { ArchiveRestore, ArrowLeft } from "lucide-react";
+import { ArchiveRestore, ArrowLeft, Trash2 } from "lucide-react";
 import { Link } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -32,6 +32,8 @@ export default function ArchivedProducts() {
     retry: false,
   });
 
+  const { user } = useAuth();
+
   const unarchiveMutation = useMutation({
     mutationFn: (productId: number) =>
       apiRequest("PUT", `/api/products/${productId}/unarchive`, {}),
@@ -48,6 +50,27 @@ export default function ArchivedProducts() {
       toast({
         title: "Error",
         description: "Failed to restore product",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteProductMutation = useMutation({
+    mutationFn: (productId: number) =>
+      apiRequest(`/api/catalog/${productId}?force=true`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products/archived"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/catalog"] });
+      toast({
+        title: "Success",
+        description: "Product permanently deleted",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete product",
         variant: "destructive",
       });
     },
@@ -141,19 +164,37 @@ export default function ArchivedProducts() {
                       <span className="text-sm font-medium ml-2">${product.basePrice}</span>
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      if (confirm(`Restore "${product.name}" from archive?`)) {
-                        unarchiveMutation.mutate(product.id);
-                      }
-                    }}
-                    data-testid={`button-restore-product-${product.id}`}
-                  >
-                    <ArchiveRestore className="w-4 h-4 mr-2" />
-                    Restore
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (confirm(`Restore "${product.name}" from archive?`)) {
+                          unarchiveMutation.mutate(product.id);
+                        }
+                      }}
+                      data-testid={`button-restore-product-${product.id}`}
+                    >
+                      <ArchiveRestore className="w-4 h-4 mr-2" />
+                      Restore
+                    </Button>
+                    {user?.role === 'admin' && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm(`PERMANENTLY DELETE "${product.name}"? This action cannot be undone.`)) {
+                            deleteProductMutation.mutate(product.id);
+                          }
+                        }}
+                        disabled={deleteProductMutation.isPending}
+                        data-testid={`button-delete-product-${product.id}`}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
