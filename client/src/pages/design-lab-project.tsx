@@ -338,6 +338,9 @@ export function DesignLabProject() {
   const [isRestoring, setIsRestoring] = useState(false);
   const [finalizeDialogOpen, setFinalizeDialogOpen] = useState(false);
   const [selectedDesignJobId, setSelectedDesignJobId] = useState<string>("");
+  
+  // Track selected area preset for layer creation
+  const [selectedAreaPreset, setSelectedAreaPreset] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -597,14 +600,36 @@ export function DesignLabProject() {
     });
   };
 
+  // Quick area presets for easy design placement
+  const QUICK_AREA_PRESETS = {
+    centerChest: { x: 0.25, y: 0.15, w: 0.5, h: 0.25, label: "Center Chest" },
+    leftChest: { x: 0.55, y: 0.12, w: 0.2, h: 0.15, label: "Left Chest" },
+    fullFront: { x: 0.1, y: 0.1, w: 0.8, h: 0.6, label: "Full Front" },
+    upperBack: { x: 0.2, y: 0.1, w: 0.6, h: 0.25, label: "Upper Back" },
+  } as const;
+
+  // Idea chips for AI prompt suggestions
+  const AI_GRAPHIC_IDEA_CHIPS = ["Flames", "Lightning", "Wings", "Mascot", "Abstract", "Geometric"];
+  const TEXT_STYLE_IDEA_CHIPS = ["Varsity", "Vintage", "Modern", "Athletic"];
+  const FONT_STYLE_OPTIONS = ["Script", "Block", "Athletic", "Retro"] as const;
+
   const createLayerMutation = useMutation({
-    mutationFn: async (data: { layerType: DesignLayer["layerType"]; name: string; view: ViewType }) => {
+    mutationFn: async (data: { 
+      layerType: DesignLayer["layerType"]; 
+      name: string; 
+      view: ViewType;
+      position?: { x: number; y: number; width: number; height: number; rotation: number; scale: number };
+      bbox?: { x: number; y: number; w: number; h: number };
+    }) => {
       if (!currentVersion) throw new Error("No version available");
       return apiRequest<DesignLayer>(`/api/design-lab/versions/${currentVersion.id}/layers`, {
         method: "POST",
         body: {
-          ...data,
-          position: { x: 50, y: 50, width: 100, height: 100, rotation: 0, scale: 1 },
+          layerType: data.layerType,
+          name: data.name,
+          view: data.view,
+          position: data.position || { x: 50, y: 50, width: 100, height: 100, rotation: 0, scale: 1 },
+          bbox: data.bbox,
           zIndex: (project?.layers?.length || 0) + 1,
           isVisible: true,
           isLocked: false,
@@ -653,12 +678,12 @@ export function DesignLabProject() {
     },
   });
 
-  const handleCreateLayer = (layerType: DesignLayer["layerType"]) => {
+  const handleCreateLayer = (layerType: DesignLayer["layerType"], bboxNorm?: { x: number; y: number; w: number; h: number }) => {
     if (!currentVersion) {
       toast({
-        title: "No Version",
-        description: "Please generate a design first to add layers.",
-        variant: "destructive",
+        title: "Loading",
+        description: "Project is still loading, please wait...",
+        variant: "default",
       });
       return;
     }
@@ -670,10 +695,39 @@ export function DesignLabProject() {
       graphic: "Graphic Layer",
       overlay: "Overlay Layer",
     };
+    
+    // Reference canvas size for converting normalized coords to pixels
+    // These will be recalculated when rendering based on actual template dimensions
+    const canvasRefWidth = 400;
+    const canvasRefHeight = 500;
+    
+    // Use provided bbox, selected preset, or default center chest area
+    let bbox = bboxNorm;
+    if (!bbox && selectedAreaPreset && QUICK_AREA_PRESETS[selectedAreaPreset as keyof typeof QUICK_AREA_PRESETS]) {
+      const preset = QUICK_AREA_PRESETS[selectedAreaPreset as keyof typeof QUICK_AREA_PRESETS];
+      bbox = { x: preset.x, y: preset.y, w: preset.w, h: preset.h };
+    }
+    bbox = bbox || { x: 0.25, y: 0.15, w: 0.5, h: 0.3 };
+    
+    // Convert normalized bbox to pixel position
+    const position = {
+      x: Math.round(bbox.x * canvasRefWidth),
+      y: Math.round(bbox.y * canvasRefHeight),
+      width: Math.round(bbox.w * canvasRefWidth),
+      height: Math.round(bbox.h * canvasRefHeight),
+      rotation: 0,
+      scale: 1,
+    };
+    
+    // Clear the preset after using it
+    setSelectedAreaPreset(null);
+    
     createLayerMutation.mutate({
       layerType,
       name: names[layerType],
       view: selectedView,
+      position,
+      bbox,
     });
   };
 
@@ -1038,393 +1092,484 @@ export function DesignLabProject() {
   );
 
   const renderPropertiesPanel = () => {
+    // === EDIT LAYER MODE ===
     if (selectedLayer) {
+      const getLayerTypeBadge = () => {
+        const badgeConfig: Record<string, { label: string; color: string }> = {
+          typography: { label: "Text", color: "bg-blue-600" },
+          logo: { label: "Logo", color: "bg-emerald-600" },
+          graphic: { label: "AI Graphic", color: "bg-violet-600" },
+          generated: { label: "AI Graphic", color: "bg-violet-600" },
+          base: { label: "Base", color: "bg-zinc-600" },
+          overlay: { label: "Overlay", color: "bg-amber-600" },
+        };
+        const config = badgeConfig[selectedLayer.layerType] || { label: selectedLayer.layerType, color: "bg-zinc-600" };
+        return (
+          <Badge className={cn("text-xs", config.color)} data-testid="badge-layer-type">
+            {config.label}
+          </Badge>
+        );
+      };
+
+      const renderTypographyEditor = () => (
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs text-zinc-400 mb-2 block">Text Content</label>
+            <Textarea
+              placeholder="Enter your text..."
+              value={selectedLayer.textContent || ""}
+              onChange={(e) => handleUpdateLayerProperty(selectedLayer.id, "textContent", e.target.value)}
+              className="min-h-20 bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-500 resize-none text-sm"
+              data-testid="textarea-text-content"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400 mb-2 block">Font Style</label>
+            <div className="grid grid-cols-2 gap-2">
+              {FONT_STYLE_OPTIONS.map((style) => (
+                <Button
+                  key={style}
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "h-9 border-zinc-700 text-zinc-300 hover:bg-zinc-700",
+                    selectedLayer.textStyle?.font === style && "border-violet-500 bg-violet-600/20 text-violet-300"
+                  )}
+                  onClick={() => handleUpdateLayerProperty(selectedLayer.id, "textStyle", {
+                    ...selectedLayer.textStyle,
+                    font: style
+                  })}
+                  data-testid={`button-font-style-${style.toLowerCase()}`}
+                >
+                  {style}
+                </Button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400 mb-2 block">Style Inspiration</label>
+            <div className="flex flex-wrap gap-1.5">
+              {TEXT_STYLE_IDEA_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  onClick={() => {
+                    const currentPrompt = selectedLayer.prompt || "";
+                    const newPrompt = currentPrompt ? `${currentPrompt}, ${chip}` : chip;
+                    handleUpdateLayerProperty(selectedLayer.id, "prompt", newPrompt);
+                  }}
+                  className="px-2.5 py-1 text-xs rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-violet-600/20 hover:border-violet-500 hover:text-violet-300 transition-colors"
+                  data-testid={`chip-text-style-${chip.toLowerCase()}`}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full border-violet-600/50 text-violet-400 hover:bg-violet-600/20"
+            onClick={() => {
+              toast({
+                title: "Coming Soon",
+                description: "AI text styling will be available soon!",
+              });
+            }}
+            data-testid="button-generate-text-style"
+          >
+            <Sparkles className="h-4 w-4 mr-2" />
+            Generate Style with AI
+          </Button>
+        </div>
+      );
+
+      const renderLogoEditor = () => (
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs text-zinc-400 mb-2 block">Logo Image</label>
+            {selectedLayer.imageUrl ? (
+              <div className="space-y-2">
+                <div className="relative w-full aspect-square rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden">
+                  <img
+                    src={selectedLayer.imageUrl}
+                    alt="Logo"
+                    className="w-full h-full object-contain"
+                    data-testid="img-logo-layer"
+                  />
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="absolute top-2 right-2 h-6 w-6 p-0"
+                    onClick={() => handleUpdateLayerProperty(selectedLayer.id, "imageUrl", null)}
+                    data-testid="button-remove-logo"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <ObjectUploader
+                maxNumberOfFiles={1}
+                maxFileSize={10485760}
+                allowedFileTypes={['image/*']}
+                onGetUploadParameters={handleReferenceImageUpload}
+                onComplete={(result) => {
+                  if (!selectedLayer || !result.successful?.[0]) return;
+                  const uploadedFile = result.successful[0] as any;
+                  const uploadId = uploadedFile.uploadId;
+                  
+                  if (uploadId) {
+                    apiRequest<{ publicUrl: string }>('/api/upload/confirm', {
+                      method: 'POST',
+                      body: { uploadId, isPublic: true },
+                    }).then((confirmResult) => {
+                      updateLayerMutation.mutate({
+                        layerId: selectedLayer.id,
+                        updates: { imageUrl: confirmResult.publicUrl },
+                      });
+                    });
+                  }
+                }}
+                buttonClassName="w-full h-20 bg-zinc-800 border-zinc-700 border-dashed text-zinc-300 hover:bg-zinc-700"
+              >
+                <div className="flex flex-col items-center gap-1">
+                  <Upload className="h-5 w-5" />
+                  <span className="text-xs">Upload Logo</span>
+                </div>
+              </ObjectUploader>
+            )}
+          </div>
+          <Separator className="bg-zinc-700" />
+          <div>
+            <label className="text-xs text-zinc-400 mb-2 block">AI Transforms</label>
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start border-zinc-700 text-zinc-300 hover:bg-zinc-700"
+                onClick={() => toast({ title: "Coming Soon", description: "Clean edges AI transform coming soon!" })}
+                data-testid="button-ai-clean-edges"
+              >
+                <Sparkles className="h-4 w-4 mr-2 text-violet-400" />
+                Clean Edges
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start border-zinc-700 text-zinc-300 hover:bg-zinc-700"
+                onClick={() => toast({ title: "Coming Soon", description: "Simplify AI transform coming soon!" })}
+                data-testid="button-ai-simplify"
+              >
+                <Sparkles className="h-4 w-4 mr-2 text-violet-400" />
+                Simplify
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start border-zinc-700 text-zinc-300 hover:bg-zinc-700"
+                onClick={() => toast({ title: "Coming Soon", description: "Recolor AI transform coming soon!" })}
+                data-testid="button-ai-recolor"
+              >
+                <Sparkles className="h-4 w-4 mr-2 text-violet-400" />
+                Recolor
+              </Button>
+            </div>
+          </div>
+        </div>
+      );
+
+      const renderAIGraphicEditor = () => (
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs text-zinc-400 mb-2 block">Design Prompt</label>
+            <Textarea
+              placeholder="Describe the graphic you want to generate..."
+              value={selectedLayer.prompt || ""}
+              onChange={(e) => handleUpdateLayerProperty(selectedLayer.id, "prompt", e.target.value)}
+              className="min-h-24 bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-500 resize-none text-sm"
+              data-testid="textarea-ai-graphic-prompt"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400 mb-2 block">Idea Chips</label>
+            <div className="flex flex-wrap gap-1.5">
+              {AI_GRAPHIC_IDEA_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  onClick={() => {
+                    const currentPrompt = selectedLayer.prompt || "";
+                    const newPrompt = currentPrompt ? `${currentPrompt}, ${chip}` : chip;
+                    handleUpdateLayerProperty(selectedLayer.id, "prompt", newPrompt);
+                  }}
+                  className="px-2.5 py-1 text-xs rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 hover:bg-violet-600/20 hover:border-violet-500 hover:text-violet-300 transition-colors"
+                  data-testid={`chip-ai-graphic-${chip.toLowerCase()}`}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400 mb-2 block">Reference Image</label>
+            {selectedLayer.referenceImageUrl ? (
+              <div className="space-y-2">
+                <div className="relative w-full aspect-video rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden">
+                  <img
+                    src={selectedLayer.referenceImageUrl}
+                    alt="Reference"
+                    className="w-full h-full object-contain"
+                    data-testid="img-layer-reference"
+                  />
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="absolute top-2 right-2 h-6 w-6 p-0"
+                    onClick={() => handleUpdateLayerProperty(selectedLayer.id, "referenceImageUrl", null)}
+                    data-testid="button-remove-reference"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <ObjectUploader
+                maxNumberOfFiles={1}
+                maxFileSize={10485760}
+                allowedFileTypes={['image/*']}
+                onGetUploadParameters={handleReferenceImageUpload}
+                onComplete={handleReferenceUploadComplete}
+                buttonClassName="w-full h-9 bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Reference Image
+              </ObjectUploader>
+            )}
+          </div>
+          <Button
+            onClick={() => {
+              if (!selectedLayer.prompt?.trim()) {
+                toast({ title: "Prompt Required", description: "Please enter a description for your graphic.", variant: "destructive" });
+                return;
+              }
+              generateDesignMutation.mutate({
+                prompt: selectedLayer.prompt,
+                requestType: "base_generation",
+                primaryColor: selectedColor,
+              });
+            }}
+            disabled={isGenerating || !selectedLayer.prompt?.trim()}
+            className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700"
+            data-testid="button-generate-layer"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Generate Graphic
+              </>
+            )}
+          </Button>
+        </div>
+      );
+
+      const renderCommonControls = () => (
+        <div className="space-y-4">
+          <Separator className="bg-zinc-700" />
+          <div>
+            <label className="text-xs text-zinc-400 mb-2 block">
+              Opacity: {selectedLayer.opacity}%
+            </label>
+            <Slider
+              value={[selectedLayer.opacity]}
+              max={100}
+              step={1}
+              onValueChange={(value) => handleUpdateLayerProperty(selectedLayer.id, "opacity", value[0])}
+              className="[&_[role=slider]]:bg-violet-500"
+              data-testid="slider-opacity"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-zinc-400 mb-2 block">Position</label>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <span className="text-xs text-zinc-500">X</span>
+                <Input
+                  type="number"
+                  value={selectedLayer.position?.x || 0}
+                  onChange={(e) => handleUpdateLayerPosition(selectedLayer.id, "x", parseFloat(e.target.value) || 0)}
+                  className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200"
+                  data-testid="input-position-x"
+                />
+              </div>
+              <div>
+                <span className="text-xs text-zinc-500">Y</span>
+                <Input
+                  type="number"
+                  value={selectedLayer.position?.y || 0}
+                  onChange={(e) => handleUpdateLayerPosition(selectedLayer.id, "y", parseFloat(e.target.value) || 0)}
+                  className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200"
+                  data-testid="input-position-y"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <div>
+                <span className="text-xs text-zinc-500">Width</span>
+                <Input
+                  type="number"
+                  value={selectedLayer.position?.width || 100}
+                  onChange={(e) => handleUpdateLayerPosition(selectedLayer.id, "width", parseFloat(e.target.value) || 100)}
+                  className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200"
+                  data-testid="input-position-width"
+                />
+              </div>
+              <div>
+                <span className="text-xs text-zinc-500">Height</span>
+                <Input
+                  type="number"
+                  value={selectedLayer.position?.height || 100}
+                  onChange={(e) => handleUpdateLayerPosition(selectedLayer.id, "height", parseFloat(e.target.value) || 100)}
+                  className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200"
+                  data-testid="input-position-height"
+                />
+              </div>
+            </div>
+          </div>
+          <Separator className="bg-zinc-700" />
+          <Button
+            variant="destructive"
+            size="sm"
+            className="w-full"
+            onClick={() => handleDeleteLayer(selectedLayer.id)}
+            data-testid="button-delete-layer"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Delete Layer
+          </Button>
+        </div>
+      );
+
       return (
         <div className="flex flex-col h-full">
           <div className="p-3 border-b border-zinc-700">
-            <h3 className="text-sm font-medium text-zinc-200">Properties</h3>
-            <p className="text-xs text-zinc-500 mt-1">{selectedLayer.name}</p>
+            <div className="flex items-center justify-between mb-1">
+              <h3 className="text-sm font-medium text-zinc-200">Edit Layer</h3>
+              {getLayerTypeBadge()}
+            </div>
+            <p className="text-xs text-zinc-500">{selectedLayer.name}</p>
           </div>
           <ScrollArea className="flex-1">
             <div className="p-4 space-y-4">
-              <div>
-                <label className="text-xs text-zinc-400 mb-2 block">Position</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-xs text-zinc-500">X</span>
-                    <Input
-                      type="number"
-                      value={selectedLayer.position?.x || 0}
-                      onChange={(e) => handleUpdateLayerPosition(selectedLayer.id, "x", parseFloat(e.target.value) || 0)}
-                      className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200"
-                      data-testid="input-position-x"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-xs text-zinc-500">Y</span>
-                    <Input
-                      type="number"
-                      value={selectedLayer.position?.y || 0}
-                      onChange={(e) => handleUpdateLayerPosition(selectedLayer.id, "y", parseFloat(e.target.value) || 0)}
-                      className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200"
-                      data-testid="input-position-y"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs text-zinc-400 mb-2 block">Size</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-xs text-zinc-500">Width</span>
-                    <Input
-                      type="number"
-                      value={selectedLayer.position?.width || 100}
-                      onChange={(e) => handleUpdateLayerPosition(selectedLayer.id, "width", parseFloat(e.target.value) || 100)}
-                      className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200"
-                      data-testid="input-position-width"
-                    />
-                  </div>
-                  <div>
-                    <span className="text-xs text-zinc-500">Height</span>
-                    <Input
-                      type="number"
-                      value={selectedLayer.position?.height || 100}
-                      onChange={(e) => handleUpdateLayerPosition(selectedLayer.id, "height", parseFloat(e.target.value) || 100)}
-                      className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200"
-                      data-testid="input-position-height"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Separator className="bg-zinc-700" />
-
-              <div>
-                <label className="text-xs text-zinc-400 mb-2 block">
-                  Rotation: {selectedLayer.position?.rotation || 0}°
-                </label>
-                <Slider
-                  value={[selectedLayer.position?.rotation || 0]}
-                  min={-180}
-                  max={180}
-                  step={1}
-                  onValueChange={(value) => handleUpdateLayerPosition(selectedLayer.id, "rotation", value[0])}
-                  className="[&_[role=slider]]:bg-violet-500"
-                  data-testid="slider-rotation"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-zinc-400 mb-2 block">
-                  Scale: {(selectedLayer.position?.scale || 1).toFixed(2)}x
-                </label>
-                <Slider
-                  value={[selectedLayer.position?.scale || 1]}
-                  min={0.1}
-                  max={3}
-                  step={0.1}
-                  onValueChange={(value) => handleUpdateLayerPosition(selectedLayer.id, "scale", value[0])}
-                  className="[&_[role=slider]]:bg-violet-500"
-                  data-testid="slider-scale"
-                />
-              </div>
-
-              <Separator className="bg-zinc-700" />
-
-              <div>
-                <label className="text-xs text-zinc-400 mb-2 block">
-                  Opacity: {selectedLayer.opacity}%
-                </label>
-                <Slider
-                  value={[selectedLayer.opacity]}
-                  max={100}
-                  step={1}
-                  onValueChange={(value) => handleUpdateLayerProperty(selectedLayer.id, "opacity", value[0])}
-                  className="[&_[role=slider]]:bg-violet-500"
-                  data-testid="slider-opacity"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs text-zinc-400 mb-2 block">Blend Mode</label>
-                <Select 
-                  value={selectedLayer.blendMode || "normal"}
-                  onValueChange={(value) => handleUpdateLayerProperty(selectedLayer.id, "blendMode", value)}
-                >
-                  <SelectTrigger className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200" data-testid="select-blend-mode">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-zinc-800 border-zinc-700">
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="multiply">Multiply</SelectItem>
-                    <SelectItem value="screen">Screen</SelectItem>
-                    <SelectItem value="overlay">Overlay</SelectItem>
-                    <SelectItem value="darken">Darken</SelectItem>
-                    <SelectItem value="lighten">Lighten</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Separator className="bg-zinc-700" />
-
-              <div>
-                <label className="text-xs text-zinc-400 mb-2 block">Layer Prompt</label>
-                <Textarea
-                  placeholder="Describe what you want for this layer..."
-                  value={selectedLayer.prompt || ""}
-                  onChange={(e) => handleUpdateLayerProperty(selectedLayer.id, "prompt", e.target.value)}
-                  className="min-h-16 bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-500 resize-none text-sm"
-                  data-testid="textarea-layer-prompt"
-                />
-                <p className="text-xs text-zinc-500 mt-1">This prompt will be used when generating content for this layer.</p>
-              </div>
-
-              <Separator className="bg-zinc-700" />
-
-              <div>
-                <label className="text-xs text-zinc-400 mb-2 block">Reference Image</label>
-                {selectedLayer.referenceImageUrl ? (
-                  <div className="space-y-2">
-                    <div className="relative w-full aspect-video rounded-lg bg-zinc-800 border border-zinc-700 overflow-hidden">
-                      <img
-                        src={selectedLayer.referenceImageUrl}
-                        alt="Reference"
-                        className="w-full h-full object-contain"
-                        data-testid="img-layer-reference"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="absolute top-2 right-2 h-6 w-6 p-0"
-                        onClick={() => handleUpdateLayerProperty(selectedLayer.id, "referenceImageUrl", null)}
-                        data-testid="button-remove-reference"
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <ObjectUploader
-                    maxNumberOfFiles={1}
-                    maxFileSize={10485760}
-                    allowedFileTypes={['image/*']}
-                    onGetUploadParameters={handleReferenceImageUpload}
-                    onComplete={handleReferenceUploadComplete}
-                    buttonClassName="w-full h-9 bg-zinc-800 border-zinc-700 text-zinc-300 hover:bg-zinc-700"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload Reference Image
-                  </ObjectUploader>
-                )}
-                <p className="text-xs text-zinc-500 mt-1">Upload an image to guide AI generation for this layer.</p>
-              </div>
-
-              <Separator className="bg-zinc-700" />
-
-              <Button
-                variant="destructive"
-                size="sm"
-                className="w-full"
-                onClick={() => handleDeleteLayer(selectedLayer.id)}
-                data-testid="button-delete-layer"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Delete Layer
-              </Button>
+              {selectedLayer.layerType === "typography" && renderTypographyEditor()}
+              {selectedLayer.layerType === "logo" && renderLogoEditor()}
+              {(selectedLayer.layerType === "graphic" || selectedLayer.layerType === "generated") && renderAIGraphicEditor()}
+              {renderCommonControls()}
             </div>
           </ScrollArea>
         </div>
       );
     }
 
+    // === ADD DESIGN MODE (no layer selected) ===
     return (
       <div className="flex flex-col h-full">
         <div className="p-3 border-b border-zinc-700">
           <h3 className="text-sm font-medium text-zinc-200 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-violet-400" />
-            AI Generation
+            <Plus className="h-4 w-4 text-violet-400" />
+            Add Design
           </h3>
+          <p className="text-xs text-zinc-500 mt-1">Select an area and add design elements</p>
         </div>
         <ScrollArea className="flex-1">
           <div className="p-4 space-y-5">
             <div>
-              <label className="text-xs text-zinc-400 mb-2 block font-medium flex items-center gap-1.5">
-                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px] font-bold">1</span>
-                Primary Color
-              </label>
-              <div className="flex items-center gap-3">
-                <div 
-                  className="w-10 h-10 rounded-lg border-2 border-zinc-600 shadow-inner" 
-                  style={{ backgroundColor: selectedColor }}
-                  data-testid="color-preview-swatch"
-                />
-                <Input
-                  type="text"
-                  value={selectedColor}
-                  onChange={(e) => setSelectedColor(e.target.value)}
-                  placeholder="#3B82F6"
-                  className="flex-1 h-9 bg-zinc-800 border-zinc-700 text-zinc-200 font-mono text-sm"
-                  data-testid="input-color-hex"
-                />
-                <input
-                  type="color"
-                  value={selectedColor}
-                  onChange={(e) => setSelectedColor(e.target.value)}
-                  className="w-10 h-9 p-0 rounded cursor-pointer border border-zinc-600"
-                  data-testid="input-color-picker"
-                />
+              <label className="text-xs text-zinc-400 mb-3 block font-medium">Quick Area Presets</label>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.entries(QUICK_AREA_PRESETS).map(([key, preset]) => (
+                  <Button
+                    key={key}
+                    variant="outline"
+                    size="sm"
+                    className={`h-10 border-zinc-700 text-zinc-300 hover:bg-zinc-700 hover:border-violet-500 ${selectedAreaPreset === key ? "bg-violet-600/30 border-violet-500" : ""}`}
+                    onClick={() => {
+                      if (key === "upperBack" && selectedView !== "back") {
+                        setSelectedView("back");
+                      } else if (key !== "upperBack" && selectedView !== "front") {
+                        setSelectedView("front");
+                      }
+                      setSelectedAreaPreset(key);
+                      toast({
+                        title: `${preset.label} Selected`,
+                        description: "Now add a layer to this area",
+                      });
+                    }}
+                    data-testid={`button-preset-area-${key}`}
+                  >
+                    {preset.label}
+                  </Button>
+                ))}
               </div>
             </div>
 
             <Separator className="bg-zinc-700/50" />
 
             <div>
-              <label className="text-xs text-zinc-400 mb-2 block font-medium flex items-center gap-1.5">
-                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px] font-bold">2</span>
-                Style Preset
-              </label>
-              {presetsLoading ? (
-                <div className="flex gap-2 overflow-hidden">
-                  {[1, 2, 3].map(i => (
-                    <Skeleton key={i} className="w-24 h-20 bg-zinc-800 flex-shrink-0 rounded-lg" />
-                  ))}
-                </div>
-              ) : stylePresets.length > 0 ? (
-                <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1">
-                  {stylePresets.map((preset) => (
-                    <button
-                      key={preset.id}
-                      onClick={() => setSelectedPresetId(selectedPresetId === preset.id ? null : preset.id)}
-                      className={cn(
-                        "flex-shrink-0 w-24 rounded-lg border-2 overflow-hidden transition-all duration-200",
-                        selectedPresetId === preset.id
-                          ? "border-violet-500 ring-2 ring-violet-500/30"
-                          : "border-zinc-700 hover:border-zinc-500"
-                      )}
-                      data-testid={`button-preset-${preset.id}`}
-                    >
-                      {preset.previewImageUrl ? (
-                        <img
-                          src={preset.previewImageUrl}
-                          alt={preset.name}
-                          className="w-full h-14 object-cover bg-zinc-800"
-                        />
-                      ) : (
-                        <div className="w-full h-14 bg-gradient-to-br from-zinc-800 to-zinc-700 flex items-center justify-center">
-                          <Sparkles className="h-5 w-5 text-zinc-500" />
-                        </div>
-                      )}
-                      <div className="px-2 py-1.5 bg-zinc-800/80">
-                        <p className="text-[10px] text-zinc-300 truncate font-medium">{preset.name}</p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-xs text-zinc-500 text-center py-4 bg-zinc-800/50 rounded-lg border border-zinc-700/50">
-                  No style presets available
-                </div>
-              )}
-              {selectedPreset && (
-                <p className="text-xs text-violet-400 mt-2">
-                  Selected: {selectedPreset.name}
-                </p>
-              )}
-            </div>
-
-            <Separator className="bg-zinc-700/50" />
-
-            <div>
-              <label className="text-xs text-zinc-400 mb-3 block font-medium flex items-center gap-1.5">
-                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px] font-bold">3</span>
-                Base Attributes
-              </label>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-xs text-zinc-500 mb-1 block">Design Theme / Mood</label>
-                  <Input
-                    type="text"
-                    value={designTheme}
-                    onChange={(e) => setDesignTheme(e.target.value)}
-                    placeholder="e.g., Energetic, Professional, Fierce"
-                    className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500"
-                    data-testid="input-design-theme"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-zinc-500 mb-1 block">Key Elements to Include</label>
-                  <Input
-                    type="text"
-                    value={keyElements}
-                    onChange={(e) => setKeyElements(e.target.value)}
-                    placeholder="e.g., Lightning bolts, Team mascot, Stripes"
-                    className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500"
-                    data-testid="input-key-elements"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-zinc-500 mb-1 block">Things to Avoid</label>
-                  <Input
-                    type="text"
-                    value={thingsToAvoid}
-                    onChange={(e) => setThingsToAvoid(e.target.value)}
-                    placeholder="e.g., Busy patterns, Neon colors, Text"
-                    className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200 text-sm placeholder:text-zinc-500"
-                    data-testid="input-things-to-avoid"
-                  />
-                </div>
+              <label className="text-xs text-zinc-400 mb-3 block font-medium">Add Layer</label>
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full h-14 justify-start border-zinc-700 text-zinc-200 hover:bg-zinc-700 hover:border-blue-500"
+                  onClick={() => handleCreateLayer("typography")}
+                  data-testid="button-add-text-layer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center">
+                      <Type className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium">Text Layer</p>
+                      <p className="text-xs text-zinc-500">Add custom typography</p>
+                    </div>
+                  </div>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full h-14 justify-start border-zinc-700 text-zinc-200 hover:bg-zinc-700 hover:border-emerald-500"
+                  onClick={() => handleCreateLayer("logo")}
+                  data-testid="button-add-logo-layer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-600/20 flex items-center justify-center">
+                      <ImageIcon className="h-5 w-5 text-emerald-400" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium">Logo / Image Layer</p>
+                      <p className="text-xs text-zinc-500">Upload logos or graphics</p>
+                    </div>
+                  </div>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full h-14 justify-start border-zinc-700 text-zinc-200 hover:bg-zinc-700 hover:border-violet-500"
+                  onClick={() => handleCreateLayer("graphic")}
+                  data-testid="button-add-ai-graphic-layer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-violet-600/20 flex items-center justify-center">
+                      <Sparkles className="h-5 w-5 text-violet-400" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-medium">AI Graphic Layer</p>
+                      <p className="text-xs text-zinc-500">Generate with AI</p>
+                    </div>
+                  </div>
+                </Button>
               </div>
             </div>
-
-            <Separator className="bg-zinc-700/50" />
-
-            <div>
-              <label className="text-xs text-zinc-400 mb-2 block font-medium flex items-center gap-1.5">
-                <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-violet-600 text-white text-[10px] font-bold">4</span>
-                Design Description
-              </label>
-              <Textarea
-                placeholder="Describe the overall design you want, e.g., 'A bold athletic jersey with dynamic geometric patterns...'"
-                value={generationPrompt}
-                onChange={(e) => setGenerationPrompt(e.target.value)}
-                className="min-h-20 bg-zinc-800 border-zinc-700 text-zinc-200 placeholder:text-zinc-500 resize-none text-sm"
-                data-testid="textarea-generation-prompt"
-              />
-            </div>
-
-            <div>
-              <label className="text-xs text-zinc-400 mb-2 block">Request Type</label>
-              <Select value={requestType} onValueChange={(v) => setRequestType(v as RequestType)}>
-                <SelectTrigger className="h-8 bg-zinc-800 border-zinc-700 text-zinc-200 text-sm" data-testid="select-request-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-zinc-800 border-zinc-700">
-                  <SelectItem value="base_generation">Base Generation</SelectItem>
-                  <SelectItem value="typography_iteration">Typography Iteration</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button
-              onClick={handleGenerate}
-              disabled={isGenerating || !generationPrompt.trim()}
-              className="w-full bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700"
-              data-testid="button-generate"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Generate Design
-                </>
-              )}
-            </Button>
 
             {project.status === "generating" && (
               <div className="p-3 bg-violet-900/20 border border-violet-700/50 rounded-md">
@@ -2234,13 +2379,17 @@ export function DesignLabProject() {
                 </div>
               </div>
             ) : (
-              <div className="relative">
+              <div 
+                className="relative"
+                style={{ transform: `scale(${zoomLevel / 100})`, transition: "transform 0.2s ease" }}
+                data-testid="canvas-container"
+              >
+                {/* Base template image */}
                 {currentImageUrl ? (
                   <img
                     src={currentImageUrl}
                     alt={`${selectedView} view`}
                     className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-                    style={{ transform: `scale(${zoomLevel / 100})`, transition: "transform 0.2s ease" }}
                     data-testid="canvas-image"
                   />
                 ) : (
@@ -2252,38 +2401,96 @@ export function DesignLabProject() {
                       <div className="p-4 rounded-full bg-zinc-800 mb-4 inline-block">
                         <ImageIcon className="h-8 w-8 text-zinc-600" />
                       </div>
-                      <p className="text-sm text-zinc-400">No design yet</p>
-                      <p className="text-xs text-zinc-600 mt-1">Use the AI panel to generate your design</p>
+                      <p className="text-sm text-zinc-400">No template selected</p>
+                      <p className="text-xs text-zinc-600 mt-1">Add layers using the panel on the right</p>
                     </div>
                   </div>
                 )}
-                
-                {selectedLayer && selectedLayer.isVisible && !selectedLayer.isLocked && (
-                  <div
-                    className="absolute border-2 border-violet-500 bg-violet-500/10 cursor-move"
-                    style={{
-                      left: `${selectedLayer.position?.x || 0}px`,
-                      top: `${selectedLayer.position?.y || 0}px`,
-                      width: `${selectedLayer.position?.width || 100}px`,
-                      height: `${selectedLayer.position?.height || 100}px`,
-                      transform: `rotate(${selectedLayer.position?.rotation || 0}deg) scale(${selectedLayer.position?.scale || 1})`,
-                    }}
-                    onMouseDown={(e) => handlePositionBoxMouseDown(e)}
-                    data-testid="layer-position-box"
-                  >
-                    <div className="absolute -top-1 -left-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-nw-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'nw')} />
-                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-ne-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'ne')} />
-                    <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-sw-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'sw')} />
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-se-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'se')} />
-                    <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-w-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'w')} />
-                    <div className="absolute top-1/2 -translate-y-1/2 -right-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-e-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'e')} />
-                    <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-n-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'n')} />
-                    <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-s-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 's')} />
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <span className="text-xs text-violet-300 bg-violet-900/80 px-2 py-0.5 rounded">{selectedLayer.name}</span>
+
+                {/* Render ALL visible layers (sorted by zIndex, lowest first) */}
+                {[...layers].sort((a, b) => a.zIndex - b.zIndex).map((layer) => {
+                  if (!layer.isVisible) return null;
+                  const isSelected = selectedLayerId === layer.id;
+                  const pos = layer.position || { x: 50, y: 50, width: 100, height: 100, rotation: 0, scale: 1 };
+                  const layerOpacity = typeof layer.opacity === 'string' 
+                    ? parseFloat(layer.opacity) 
+                    : (layer.opacity ?? 100);
+                  
+                  return (
+                    <div
+                      key={layer.id}
+                      className={cn(
+                        "absolute overflow-hidden",
+                        isSelected && !layer.isLocked && "ring-2 ring-violet-500 ring-offset-1 ring-offset-transparent cursor-move"
+                      )}
+                      style={{
+                        left: `${pos.x}px`,
+                        top: `${pos.y}px`,
+                        width: `${pos.width}px`,
+                        height: `${pos.height}px`,
+                        transform: `rotate(${pos.rotation || 0}deg) scale(${pos.scale || 1})`,
+                        opacity: layerOpacity / 100,
+                        zIndex: layer.zIndex,
+                        mixBlendMode: (layer.blendMode as any) || 'normal',
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedLayerId(layer.id);
+                      }}
+                      onMouseDown={(e) => {
+                        if (isSelected && !layer.isLocked) {
+                          handlePositionBoxMouseDown(e);
+                        }
+                      }}
+                      data-testid={`layer-render-${layer.id}`}
+                    >
+                      {/* Layer content based on type */}
+                      {layer.imageUrl && (
+                        <img 
+                          src={layer.imageUrl} 
+                          alt={layer.name}
+                          className="w-full h-full object-contain pointer-events-none"
+                          draggable={false}
+                        />
+                      )}
+                      
+                      {/* Typography layer - show text content */}
+                      {layer.layerType === 'typography' && layer.textContent && !layer.imageUrl && (
+                        <div 
+                          className="w-full h-full flex items-center justify-center p-2 pointer-events-none"
+                          style={{
+                            fontFamily: layer.textStyle?.font || 'Arial',
+                            fontSize: `${layer.textStyle?.size || 24}px`,
+                            color: layer.textStyle?.color || '#ffffff',
+                          }}
+                        >
+                          {layer.textContent}
+                        </div>
+                      )}
+
+                      {/* Empty layer placeholder */}
+                      {!layer.imageUrl && !layer.textContent && (
+                        <div className="w-full h-full flex items-center justify-center bg-zinc-800/50 border border-dashed border-zinc-600 rounded">
+                          <span className="text-xs text-zinc-500">{layer.name}</span>
+                        </div>
+                      )}
+
+                      {/* Selection handles for selected, unlocked layer */}
+                      {isSelected && !layer.isLocked && (
+                        <>
+                          <div className="absolute -top-1 -left-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-nw-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'nw')} />
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-ne-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'ne')} />
+                          <div className="absolute -bottom-1 -left-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-sw-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'sw')} />
+                          <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-se-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'se')} />
+                          <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-w-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'w')} />
+                          <div className="absolute top-1/2 -translate-y-1/2 -right-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-e-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'e')} />
+                          <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-n-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 'n')} />
+                          <div className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-3 h-3 bg-violet-500 border border-white rounded-sm cursor-s-resize" onMouseDown={(e) => handlePositionBoxMouseDown(e, 's')} />
+                        </>
+                      )}
                     </div>
-                  </div>
-                )}
+                  );
+                })}
               </div>
             )}
           </div>

@@ -67,7 +67,24 @@ export function registerDesignLabRoutes(app: Express): void {
         userId: user.id,
       });
 
-      res.status(201).json(project);
+      // Auto-bootstrap version v1 so users can add layers immediately
+      const version = await storage.createDesignVersion({
+        projectId: project.id,
+        versionNumber: 1,
+        name: 'Initial Version',
+        createdBy: user.id,
+      });
+
+      // Update project with the current version
+      const updatedProject = await storage.updateDesignProject(project.id, { 
+        currentVersionId: version.id 
+      });
+
+      res.status(201).json({ 
+        ...updatedProject, 
+        currentVersion: version, 
+        layers: [] 
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Validation error", errors: error.errors });
@@ -86,7 +103,7 @@ export function registerDesignLabRoutes(app: Express): void {
         return res.status(400).json({ message: "Invalid project ID" });
       }
 
-      const project = await verifyProjectAccess(id, user.id, user.role, res);
+      let project = await verifyProjectAccess(id, user.id, user.role, res);
       if (!project) return; // Response already sent by helper
 
       // Get current version and its layers if available
@@ -97,6 +114,30 @@ export function registerDesignLabRoutes(app: Express): void {
         currentVersion = await storage.getDesignVersion(project.currentVersionId);
         if (currentVersion) {
           layers = await storage.getDesignLayers(currentVersion.id);
+        }
+      }
+
+      // Auto-bootstrap version if none exists (for legacy projects)
+      if (!currentVersion) {
+        const existingVersions = await storage.getDesignVersions(id);
+        if (existingVersions.length > 0) {
+          // Use the latest existing version
+          currentVersion = existingVersions[existingVersions.length - 1];
+          layers = await storage.getDesignLayers(currentVersion.id);
+          // Update project reference
+          const updated = await storage.updateDesignProject(id, { currentVersionId: currentVersion.id });
+          if (updated) project = updated;
+        } else {
+          // Create initial version
+          currentVersion = await storage.createDesignVersion({
+            projectId: id,
+            versionNumber: 1,
+            name: 'Initial Version',
+            createdBy: user.id,
+          });
+          const updated = await storage.updateDesignProject(id, { currentVersionId: currentVersion.id });
+          if (updated) project = updated;
+          layers = [];
         }
       }
 

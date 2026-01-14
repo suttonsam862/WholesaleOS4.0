@@ -147,3 +147,37 @@ Preferred communication style: Simple, everyday language.
   - Frontend now displays composite URLs when available
   - Raw AI output stored separately for layer editing
   - Garment structure preserved in final output
+
+### AI Design Lab - Template-Locked Layer Editing (January 2026)
+- **Version Auto-Bootstrap**: Projects automatically create version v1
+  - Backend creates initial version on project creation
+  - Legacy projects get version on first fetch if missing
+  - Enables immediate layer creation without generating designs first
+
+- **Canvas Layer Rendering**: Visual representation of all layers
+  - Displays layer images, text content, and placeholders
+  - Proper zIndex ordering for layer stacking
+  - Selection handles for the active layer
+  - Position-based rendering using stored pixel coordinates
+
+- **Context-Aware Right Panel**: Mode-based UI
+  - "Add Design" mode when no layer selected (quick presets, layer type buttons)
+  - "Edit Layer" mode when layer selected (type-specific editors)
+  - Smooth transitions between modes
+
+- **Quick Area Presets**: One-click region selection
+  - Center Chest (0.25, 0.15, 0.5, 0.25)
+  - Left Chest (0.55, 0.12, 0.2, 0.15)
+  - Full Front (0.1, 0.1, 0.8, 0.6)
+  - Upper Back (0.2, 0.1, 0.6, 0.25) - auto-switches to back view
+  - Selected preset applied when creating new layers
+
+- **Layer-Specific Editors**:
+  - Typography: Text input field for content
+  - Logo: Image upload interface
+  - Graphic/Generated: AI prompt input with idea chips
+
+- **Normalized Bbox Storage**: Template-independent placement
+  - Layers store both pixel position and normalized (0-1) bbox
+  - Allows consistent placement across different template sizes
+  - Position calculated from bbox using reference canvas dimensions
