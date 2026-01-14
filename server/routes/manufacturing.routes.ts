@@ -850,7 +850,8 @@ export function registerManufacturingRoutes(app: Express): void {
       const update = await storage.createManufacturingUpdate(validatedData);
       
       // Create or update manufacturing update line items from order line items
-      if (validatedData.orderId) {
+      // Use update.orderId (auto-populated by storage) instead of validatedData.orderId
+      if (update.orderId) {
         const orderLineItemsWithDetails = await db
           .select({
             order_line_items: orderLineItems,
@@ -860,7 +861,7 @@ export function registerManufacturingRoutes(app: Express): void {
           .from(orderLineItems)
           .leftJoin(productVariants, eq(orderLineItems.variantId, productVariants.id))
           .leftJoin(products, eq(productVariants.productId, products.id))
-          .where(eq(orderLineItems.orderId, validatedData.orderId));
+          .where(eq(orderLineItems.orderId, update.orderId));
 
         if (orderLineItemsWithDetails.length > 0) {
           // Check if line items already exist

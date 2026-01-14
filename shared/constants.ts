@@ -23,17 +23,17 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   cancelled: 'Cancelled',
 };
 
-// Valid order status transitions (per ORDER_STATUS_SPEC.md)
+// Valid order status transitions - flexible rules allowing any non-terminal status to transition to any other
 export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  new: ['waiting_sizes', 'design_created', 'cancelled'],
-  waiting_sizes: ['design_created', 'sizes_validated', 'cancelled'],
-  design_created: ['sizes_validated', 'waiting_sizes', 'cancelled'],
-  sizes_validated: ['invoiced', 'cancelled'],
-  invoiced: ['production', 'cancelled'],
-  production: ['shipped', 'cancelled'],
-  shipped: ['completed', 'cancelled'],
-  completed: [], // Terminal state
-  cancelled: [], // Terminal state
+  new: ['waiting_sizes', 'design_created', 'sizes_validated', 'invoiced', 'production', 'shipped', 'completed', 'cancelled'],
+  waiting_sizes: ['new', 'design_created', 'sizes_validated', 'invoiced', 'production', 'shipped', 'completed', 'cancelled'],
+  design_created: ['new', 'waiting_sizes', 'sizes_validated', 'invoiced', 'production', 'shipped', 'completed', 'cancelled'],
+  sizes_validated: ['new', 'waiting_sizes', 'design_created', 'invoiced', 'production', 'shipped', 'completed', 'cancelled'],
+  invoiced: ['new', 'waiting_sizes', 'design_created', 'sizes_validated', 'production', 'shipped', 'completed', 'cancelled'],
+  production: ['new', 'waiting_sizes', 'design_created', 'sizes_validated', 'invoiced', 'shipped', 'completed', 'cancelled'],
+  shipped: ['new', 'waiting_sizes', 'design_created', 'sizes_validated', 'invoiced', 'production', 'completed', 'cancelled'],
+  completed: ['new', 'waiting_sizes', 'design_created', 'sizes_validated', 'invoiced', 'production', 'shipped', 'cancelled'],
+  cancelled: ['new', 'waiting_sizes', 'design_created', 'sizes_validated', 'invoiced', 'production', 'shipped', 'completed'],
 };
 
 // ==================== ORDER PRIORITY ====================
@@ -119,15 +119,15 @@ export const MANUFACTURING_STATUS_LABELS: Record<ManufacturingStatus, string> = 
   complete: 'Complete',
 };
 
-// Valid manufacturing status transitions
+// Valid manufacturing status transitions - flexible rules allowing any status to transition to any other
 export const MANUFACTURING_STATUS_TRANSITIONS: Record<ManufacturingStatus, ManufacturingStatus[]> = {
-  awaiting_admin_confirmation: ['confirmed_awaiting_manufacturing'],
-  confirmed_awaiting_manufacturing: ['cutting_sewing', 'printing'],
-  cutting_sewing: ['printing', 'final_packing_press'],
-  printing: ['final_packing_press'],
-  final_packing_press: ['shipped'],
-  shipped: ['complete'],
-  complete: [], // Terminal state
+  awaiting_admin_confirmation: ['confirmed_awaiting_manufacturing', 'cutting_sewing', 'printing', 'final_packing_press', 'shipped', 'complete'],
+  confirmed_awaiting_manufacturing: ['awaiting_admin_confirmation', 'cutting_sewing', 'printing', 'final_packing_press', 'shipped', 'complete'],
+  cutting_sewing: ['awaiting_admin_confirmation', 'confirmed_awaiting_manufacturing', 'printing', 'final_packing_press', 'shipped', 'complete'],
+  printing: ['awaiting_admin_confirmation', 'confirmed_awaiting_manufacturing', 'cutting_sewing', 'final_packing_press', 'shipped', 'complete'],
+  final_packing_press: ['awaiting_admin_confirmation', 'confirmed_awaiting_manufacturing', 'cutting_sewing', 'printing', 'shipped', 'complete'],
+  shipped: ['awaiting_admin_confirmation', 'confirmed_awaiting_manufacturing', 'cutting_sewing', 'printing', 'final_packing_press', 'complete'],
+  complete: ['awaiting_admin_confirmation', 'confirmed_awaiting_manufacturing', 'cutting_sewing', 'printing', 'final_packing_press', 'shipped'],
 };
 
 // ==================== MANUFACTURING PRIORITY ====================

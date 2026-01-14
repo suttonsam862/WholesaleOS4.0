@@ -715,9 +715,9 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
         } : null,
         lineItems: manufacturingLineItems.map((item: any) => ({
           id: item.id,
-          orderLineItemId: item.orderLineItemId,
-          itemName: item.itemName,
-          variantName: item.variantName,
+          orderLineItemId: item.lineItemId,
+          itemName: item.productName,
+          variantName: item.variantCode,
           sku: item.sku,
           descriptors: item.descriptors,
           yxs: item.yxs,
@@ -1869,7 +1869,7 @@ function PantoneModule({
         onDelete={onDelete}
         onAddClick={() => {
           if (manufacturingLineItems.length > 0) {
-            onAddClick(manufacturingLineItems[0].orderLineItemId || manufacturingLineItems[0].id);
+            onAddClick(manufacturingLineItems[0].lineItemId || manufacturingLineItems[0].id);
           }
         }}
         variant="full"
@@ -1888,7 +1888,7 @@ function PantoneModule({
               return (
                 <button
                   key={item.id}
-                  onClick={() => onAddClick(item.orderLineItemId || item.id)}
+                  onClick={() => onAddClick(item.lineItemId || item.id)}
                   className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:border-neon-purple/30 hover:bg-neon-purple/5 transition-colors text-left min-w-0 overflow-hidden"
                 >
                   {item.imageUrl && (
