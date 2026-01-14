@@ -549,6 +549,29 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
     },
   });
 
+  // Create initial manufacturing update mutation (for records that don't have one)
+  const createInitialUpdateMutation = useMutation({
+    mutationFn: async () => {
+      if (!manufacturing?.id) throw new Error("No manufacturing record found");
+      return apiRequest(`/api/manufacturing-updates`, {
+        method: 'POST',
+        body: {
+          manufacturingId: manufacturing.id,
+          status: manufacturing.status || 'awaiting_admin_confirmation',
+          notes: 'Manufacturing update initialized',
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturing-updates', manufacturingId] });
+      queryClient.invalidateQueries({ queryKey: ['/api/manufacturing-update-line-items'] });
+      toast({ title: "Success", description: "Manufacturing update created and line items loaded" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to initialize manufacturing update", variant: "destructive" });
+    },
+  });
+
   // Refresh line items mutation
   const refreshLineItemsMutation = useMutation({
     mutationFn: async () => {
@@ -990,6 +1013,7 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
                           latestUpdate={latestUpdate}
                           canEdit={canEdit}
                           refreshLineItemsMutation={refreshLineItemsMutation}
+                          createInitialUpdateMutation={createInitialUpdateMutation}
                           onPantoneClick={(lineItemId) => setShowPantonePicker(lineItemId)}
                           editingDescriptors={editingDescriptors}
                           setEditingDescriptors={setEditingDescriptors}
@@ -1448,6 +1472,7 @@ function LineItemsModule({
   latestUpdate,
   canEdit,
   refreshLineItemsMutation,
+  createInitialUpdateMutation,
   onPantoneClick,
   editingDescriptors,
   setEditingDescriptors,
@@ -1470,6 +1495,7 @@ function LineItemsModule({
   latestUpdate: any;
   canEdit: boolean;
   refreshLineItemsMutation: any;
+  createInitialUpdateMutation: any;
   onPantoneClick: (lineItemId: number) => void;
   editingDescriptors: number | null;
   setEditingDescriptors: (id: number | null) => void;
@@ -1519,7 +1545,27 @@ function LineItemsModule({
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Package className="w-12 h-12 text-white/20 mb-4" />
           <p className="text-white/60">No line items found</p>
-          <p className="text-sm text-white/40">Line items will appear here once the manufacturing update is initialized</p>
+          <p className="text-sm text-white/40 mb-4">Line items will appear here once loaded from the order</p>
+          {canEdit && latestUpdate && (
+            <Button
+              onClick={() => refreshLineItemsMutation.mutate()}
+              disabled={refreshLineItemsMutation.isPending}
+              className="flex items-center gap-2 bg-neon-blue/20 text-neon-blue border border-neon-blue/30 hover:bg-neon-blue/30"
+            >
+              <RefreshCcw className={cn("w-4 h-4", refreshLineItemsMutation.isPending && "animate-spin")} />
+              {refreshLineItemsMutation.isPending ? 'Loading...' : 'Load Line Items from Order'}
+            </Button>
+          )}
+          {canEdit && !latestUpdate && (
+            <Button
+              onClick={() => createInitialUpdateMutation.mutate()}
+              disabled={createInitialUpdateMutation.isPending}
+              className="flex items-center gap-2 bg-neon-purple/20 text-neon-purple border border-neon-purple/30 hover:bg-neon-purple/30"
+            >
+              <Package className={cn("w-4 h-4", createInitialUpdateMutation.isPending && "animate-pulse")} />
+              {createInitialUpdateMutation.isPending ? 'Initializing...' : 'Initialize Manufacturing Update'}
+            </Button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
