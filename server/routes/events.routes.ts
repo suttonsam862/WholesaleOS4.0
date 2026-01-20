@@ -1382,4 +1382,94 @@ export function registerEventRoutes(app: Express) {
       res.status(500).json({ message: "Failed to delete event checklist" });
     }
   });
+
+  // PUBLIC: Get event portal data for customer event view
+  app.get('/api/public/events/:eventId/portal-data', async (req, res) => {
+    // No authentication required - this is a public endpoint
+    try {
+      const eventId = parseInt(req.params.eventId);
+      if (isNaN(eventId)) {
+        return res.status(400).json({ message: "Invalid event ID" });
+      }
+
+      // Fetch event
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+
+      // Fetch organization info if linked
+      const organization = event.organizationId ? await storage.getOrganization(event.organizationId) : null;
+
+      // Fetch event-related data
+      const schedules = await storage.getEventSchedules(eventId);
+      const venues = await storage.getEventVenues(eventId);
+      const sponsors = await storage.getEventSponsors(eventId);
+      const ticketTiers = await storage.getEventTicketTiers(eventId);
+      const graphics = await storage.getEventGraphics(eventId);
+      
+      res.json({
+        event: {
+          id: event.id,
+          eventCode: event.eventCode,
+          name: event.name,
+          eventType: event.eventType,
+          status: event.status,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          timezone: event.timezone,
+          location: event.location,
+          thumbnailUrl: event.thumbnailUrl,
+          logoUrl: event.logoUrl,
+          brandingConfig: event.brandingConfig,
+        },
+        organization: organization ? {
+          id: organization.id,
+          name: organization.name,
+          logoUrl: organization.logoUrl || null,
+        } : null,
+        schedules: schedules.map((s: any) => ({
+          id: s.id,
+          title: s.title,
+          description: s.description,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          location: s.location,
+          activityType: s.activityType,
+          speakerName: s.speakerName,
+        })),
+        venues: venues.map((v: any) => ({
+          id: v.id,
+          venueName: v.venueName,
+          address: v.address,
+          city: v.city,
+          state: v.state,
+          capacity: v.capacity,
+        })),
+        sponsors: sponsors.map((sp: any) => ({
+          id: sp.id,
+          name: sp.name,
+          tier: sp.tier,
+          logoUrl: sp.logoUrl,
+        })),
+        ticketTiers: ticketTiers.map((t: any) => ({
+          id: t.id,
+          name: t.name,
+          price: t.price,
+          description: t.description,
+          quantityAvailable: t.quantityAvailable,
+          quantitySold: t.quantitySold,
+        })),
+        graphics: graphics.map((g: any) => ({
+          id: g.id,
+          fileName: g.fileName,
+          fileUrl: g.fileUrl,
+          fileType: g.fileType,
+        })),
+      });
+    } catch (error) {
+      console.error("Error fetching event portal data:", error);
+      res.status(500).json({ message: "Failed to fetch event portal data" });
+    }
+  });
 }
