@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, Upload, Pencil, Trash2 } from "lucide-react";
+import { Plus, Upload, Pencil, Trash2, Link2, Copy, Check, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { TableSkeleton } from "@/components/ui/loading-skeletons";
 import { hasPermission } from "@/lib/permissions";
@@ -154,6 +154,19 @@ export default function EventDetail() {
   const [showAddTravelDialog, setShowAddTravelDialog] = useState(false);
   const [showAddDocumentDialog, setShowAddDocumentDialog] = useState(false);
   const [showAddTicketTierDialog, setShowAddTicketTierDialog] = useState(false);
+  const [customerLinkCopied, setCustomerLinkCopied] = useState(false);
+
+  const copyCustomerLink = () => {
+    const portalLink = `${window.location.origin}/customer-event-portal/${eventId}`;
+    navigator.clipboard.writeText(portalLink);
+    setCustomerLinkCopied(true);
+    toast({ title: "Link Copied!", description: "Customer event portal link copied to clipboard." });
+    setTimeout(() => setCustomerLinkCopied(false), 2000);
+  };
+
+  const openCustomerPortal = () => {
+    window.open(`/customer-event-portal/${eventId}`, '_blank');
+  };
 
   const [newSponsor, setNewSponsor] = useState({
     name: "",
@@ -1521,6 +1534,14 @@ export default function EventDetail() {
           <Button variant="outline" onClick={() => setLocation("/events")} data-testid="button-back">
             <i className="fas fa-arrow-left mr-2"></i>
             Back
+          </Button>
+          <Button variant="outline" onClick={copyCustomerLink} data-testid="button-copy-customer-link">
+            {customerLinkCopied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+            {customerLinkCopied ? "Copied!" : "Copy Link"}
+          </Button>
+          <Button variant="outline" onClick={openCustomerPortal} data-testid="button-view-customer-portal">
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Customer Portal
           </Button>
           {canEdit && event.status === "draft" && (
             <Button onClick={() => setLocation(`/events/${eventId}/wizard`)} data-testid="button-continue-wizard">
