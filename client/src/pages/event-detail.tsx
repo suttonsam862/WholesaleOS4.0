@@ -13,10 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus } from "lucide-react";
+import { Plus, Upload } from "lucide-react";
 import { format } from "date-fns";
 import { TableSkeleton } from "@/components/ui/loading-skeletons";
 import { hasPermission } from "@/lib/permissions";
+import { FileDropZone } from "@/components/ui/file-drop-zone";
 import type { 
   Event, EventStaff, EventContractor, EventBudget, EventCampaign, EventRegistration,
   EventSponsor, EventVolunteer, EventGraphic, EventVenue, EventSchedule, EventEquipment,
@@ -140,6 +141,8 @@ export default function EventDetail() {
 
   const [showAddSponsorDialog, setShowAddSponsorDialog] = useState(false);
   const [showAddVolunteerDialog, setShowAddVolunteerDialog] = useState(false);
+  const [showAddStaffDialog, setShowAddStaffDialog] = useState(false);
+  const [showAddContractorDialog, setShowAddContractorDialog] = useState(false);
   const [showAddGraphicDialog, setShowAddGraphicDialog] = useState(false);
   const [showAddExpenseDialog, setShowAddExpenseDialog] = useState(false);
   const [showAddNoteDialog, setShowAddNoteDialog] = useState(false);
@@ -161,6 +164,22 @@ export default function EventDetail() {
     benefits: "",
   });
 
+  const [newStaff, setNewStaff] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    role: "",
+  });
+
+  const [newContractor, setNewContractor] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    role: "",
+    contractType: "flat_fee" as "flat_fee" | "per_day" | "commission",
+    paymentAmount: "",
+  });
+
   const [newVolunteer, setNewVolunteer] = useState({
     name: "",
     email: "",
@@ -176,6 +195,11 @@ export default function EventDetail() {
     fileType: "image",
     description: "",
   });
+  const [selectedGraphicFile, setSelectedGraphicFile] = useState<File | null>(null);
+  const [graphicUploading, setGraphicUploading] = useState(false);
+
+  const [selectedDocumentFile, setSelectedDocumentFile] = useState<File | null>(null);
+  const [documentUploading, setDocumentUploading] = useState(false);
 
   const [newExpense, setNewExpense] = useState({
     description: "",
@@ -288,6 +312,54 @@ export default function EventDetail() {
     },
   });
 
+  const addStaffMutation = useMutation({
+    mutationFn: async (data: typeof newStaff) => {
+      return apiRequest(`/api/events/${eventId}/staff`, {
+        method: "POST",
+        body: {
+          name: data.name,
+          role: data.role,
+          email: data.email || null,
+          phone: data.phone || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "staff"] });
+      setShowAddStaffDialog(false);
+      setNewStaff({ name: "", email: "", phone: "", role: "" });
+      toast({ title: "Staff member added successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to add staff member", variant: "destructive" });
+    },
+  });
+
+  const addContractorMutation = useMutation({
+    mutationFn: async (data: typeof newContractor) => {
+      return apiRequest(`/api/events/${eventId}/contractors`, {
+        method: "POST",
+        body: {
+          name: data.name,
+          role: data.role,
+          email: data.email || null,
+          phone: data.phone || null,
+          contractType: data.contractType,
+          paymentAmount: data.paymentAmount || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "contractors"] });
+      setShowAddContractorDialog(false);
+      setNewContractor({ name: "", email: "", phone: "", role: "", contractType: "flat_fee", paymentAmount: "" });
+      toast({ title: "Contractor added successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to add contractor", variant: "destructive" });
+    },
+  });
+
   const addVolunteerMutation = useMutation({
     mutationFn: async (data: typeof newVolunteer) => {
       return apiRequest(`/api/events/${eventId}/volunteers`, {
@@ -329,12 +401,83 @@ export default function EventDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "graphics"] });
       setShowAddGraphicDialog(false);
       setNewGraphic({ fileName: "", fileUrl: "", fileType: "image", description: "" });
+      setSelectedGraphicFile(null);
       toast({ title: "Graphic added successfully" });
     },
     onError: () => {
       toast({ title: "Failed to add graphic", variant: "destructive" });
     },
   });
+
+  const handleGraphicFileSelect = async (file: File) => {
+    setSelectedGraphicFile(file);
+    setNewGraphic(prev => ({ ...prev, fileName: file.name }));
+    
+    setGraphicUploading(true);
+    try {
+      const response = await apiRequest('/api/upload/image', {
+        method: 'POST',
+        body: {
+          filename: file.name,
+          size: file.size,
+          mimeType: file.type,
+        },
+      }) as { uploadURL: string; uploadId: string; sanitizedFilename: string };
+      
+      await fetch(response.uploadURL, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+      
+      const fileUrl = `/public-objects/${response.uploadId}`;
+      setNewGraphic(prev => ({ ...prev, fileUrl, fileName: response.sanitizedFilename }));
+    } catch (error) {
+      console.error('Error uploading graphic:', error);
+      toast({ title: "Failed to upload file", variant: "destructive" });
+      setSelectedGraphicFile(null);
+      setNewGraphic(prev => ({ ...prev, fileName: "", fileUrl: "" }));
+    } finally {
+      setGraphicUploading(false);
+    }
+  };
+
+  const handleDocumentFileSelect = async (file: File) => {
+    setSelectedDocumentFile(file);
+    setNewDocument(prev => ({ ...prev, fileName: file.name }));
+    
+    setDocumentUploading(true);
+    try {
+      const response = await apiRequest('/api/upload/file', {
+        method: 'POST',
+        body: {
+          filename: file.name,
+          size: file.size,
+          mimeType: file.type,
+        },
+      }) as { uploadURL: string; uploadId: string; sanitizedFilename: string };
+      
+      await fetch(response.uploadURL, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+      });
+      
+      const fileUrl = `/public-objects/${response.uploadId}`;
+      setNewDocument(prev => ({ ...prev, fileUrl, fileName: response.sanitizedFilename }));
+    } catch (error) {
+      console.error('Error uploading document:', error);
+      toast({ title: "Failed to upload file", variant: "destructive" });
+      setSelectedDocumentFile(null);
+      setNewDocument(prev => ({ ...prev, fileName: "", fileUrl: "" }));
+    } finally {
+      setDocumentUploading(false);
+    }
+  };
 
   const addExpenseMutation = useMutation({
     mutationFn: async (data: typeof newExpense) => {
@@ -959,6 +1102,76 @@ export default function EventDetail() {
         <TabsContent value="staff" className="mt-6">
           <Card>
             <CardContent className="pt-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Event Staff</h3>
+                {canEdit && (
+                  <Dialog open={showAddStaffDialog} onOpenChange={setShowAddStaffDialog}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" data-testid="button-add-staff">
+                        <Plus className="h-4 w-4 mr-1" /> Add Staff
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Staff Member</DialogTitle>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="staff-name">Name *</Label>
+                          <Input 
+                            id="staff-name" 
+                            value={newStaff.name}
+                            onChange={(e) => setNewStaff({...newStaff, name: e.target.value})}
+                            placeholder="Enter staff member name"
+                            data-testid="input-staff-name"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="staff-email">Email</Label>
+                          <Input 
+                            id="staff-email" 
+                            type="email"
+                            value={newStaff.email}
+                            onChange={(e) => setNewStaff({...newStaff, email: e.target.value})}
+                            placeholder="email@example.com"
+                            data-testid="input-staff-email"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="staff-phone">Phone</Label>
+                          <Input 
+                            id="staff-phone" 
+                            value={newStaff.phone}
+                            onChange={(e) => setNewStaff({...newStaff, phone: e.target.value})}
+                            placeholder="(555) 123-4567"
+                            data-testid="input-staff-phone"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="staff-role">Role *</Label>
+                          <Input 
+                            id="staff-role" 
+                            value={newStaff.role}
+                            onChange={(e) => setNewStaff({...newStaff, role: e.target.value})}
+                            placeholder="e.g., Event Director, Logistics Lead"
+                            data-testid="input-staff-role"
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowAddStaffDialog(false)}>Cancel</Button>
+                        <Button 
+                          onClick={() => addStaffMutation.mutate(newStaff)}
+                          disabled={!newStaff.name || !newStaff.role || addStaffMutation.isPending}
+                          data-testid="button-save-staff"
+                        >
+                          {addStaffMutation.isPending ? "Saving..." : "Save Staff"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
               {staff.length === 0 ? (
                 <p className="text-center py-8 text-muted-foreground">No staff assigned yet</p>
               ) : (
@@ -966,8 +1179,10 @@ export default function EventDetail() {
                   {staff.map((member) => (
                     <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg" data-testid={`staff-${member.id}`}>
                       <div>
-                        <p className="font-medium" data-testid={`text-staff-role-${member.id}`}>{member.role}</p>
-                        <p className="text-sm text-muted-foreground">Assigned {format(new Date(member.assignedAt!), "MMM d, yyyy")}</p>
+                        <p className="font-medium" data-testid={`text-staff-name-${member.id}`}>{member.name}</p>
+                        <p className="text-sm text-muted-foreground" data-testid={`text-staff-role-${member.id}`}>{member.role}</p>
+                        {member.email && <p className="text-sm text-muted-foreground">{member.email}</p>}
+                        {member.phone && <p className="text-sm text-muted-foreground">{member.phone}</p>}
                       </div>
                     </div>
                   ))}
@@ -980,6 +1195,102 @@ export default function EventDetail() {
         <TabsContent value="contractors" className="mt-6">
           <Card>
             <CardContent className="pt-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Event Contractors</h3>
+                {canEdit && (
+                  <Dialog open={showAddContractorDialog} onOpenChange={setShowAddContractorDialog}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" data-testid="button-add-contractor">
+                        <Plus className="h-4 w-4 mr-1" /> Add Contractor
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add Contractor</DialogTitle>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="contractor-name">Name *</Label>
+                          <Input 
+                            id="contractor-name" 
+                            value={newContractor.name}
+                            onChange={(e) => setNewContractor({...newContractor, name: e.target.value})}
+                            placeholder="Enter contractor name"
+                            data-testid="input-contractor-name"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="contractor-email">Email</Label>
+                          <Input 
+                            id="contractor-email" 
+                            type="email"
+                            value={newContractor.email}
+                            onChange={(e) => setNewContractor({...newContractor, email: e.target.value})}
+                            placeholder="email@example.com"
+                            data-testid="input-contractor-email"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="contractor-phone">Phone</Label>
+                          <Input 
+                            id="contractor-phone" 
+                            value={newContractor.phone}
+                            onChange={(e) => setNewContractor({...newContractor, phone: e.target.value})}
+                            placeholder="(555) 123-4567"
+                            data-testid="input-contractor-phone"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="contractor-role">Role *</Label>
+                          <Input 
+                            id="contractor-role" 
+                            value={newContractor.role}
+                            onChange={(e) => setNewContractor({...newContractor, role: e.target.value})}
+                            placeholder="e.g., Clinician, Photographer, MC"
+                            data-testid="input-contractor-role"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="contractor-payment-type">Payment Type</Label>
+                            <Select value={newContractor.contractType} onValueChange={(value: "flat_fee" | "per_day" | "commission") => setNewContractor({...newContractor, contractType: value})}>
+                              <SelectTrigger data-testid="select-contractor-payment-type">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="flat_fee">Flat Fee</SelectItem>
+                                <SelectItem value="per_day">Per Day</SelectItem>
+                                <SelectItem value="commission">Commission</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="contractor-amount">Amount ($)</Label>
+                            <Input 
+                              id="contractor-amount" 
+                              type="number"
+                              value={newContractor.paymentAmount}
+                              onChange={(e) => setNewContractor({...newContractor, paymentAmount: e.target.value})}
+                              placeholder="0.00"
+                              data-testid="input-contractor-amount"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowAddContractorDialog(false)}>Cancel</Button>
+                        <Button 
+                          onClick={() => addContractorMutation.mutate(newContractor)}
+                          disabled={!newContractor.name || !newContractor.role || addContractorMutation.isPending}
+                          data-testid="button-save-contractor"
+                        >
+                          {addContractorMutation.isPending ? "Saving..." : "Save Contractor"}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+              </div>
               {contractors.length === 0 ? (
                 <p className="text-center py-8 text-muted-foreground">No contractors assigned yet</p>
               ) : (
@@ -990,6 +1301,8 @@ export default function EventDetail() {
                         <div>
                           <p className="font-medium" data-testid={`text-contractor-name-${contractor.id}`}>{contractor.name}</p>
                           <p className="text-sm text-muted-foreground" data-testid={`text-contractor-role-${contractor.id}`}>{contractor.role}</p>
+                          {contractor.email && <p className="text-sm text-muted-foreground">{contractor.email}</p>}
+                          {contractor.phone && <p className="text-sm text-muted-foreground">{contractor.phone}</p>}
                         </div>
                         <StatusBadge status={contractor.paymentStatus as any}>
                           {contractor.paymentStatus === 'unpaid' ? 'Unpaid' : 
@@ -1019,27 +1332,24 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Graphic
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="max-w-lg">
                       <DialogHeader>
                         <DialogTitle>Add Graphic</DialogTitle>
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                          <Label htmlFor="graphic-name">File Name *</Label>
-                          <Input 
-                            id="graphic-name" 
-                            value={newGraphic.fileName}
-                            onChange={(e) => setNewGraphic({...newGraphic, fileName: e.target.value})}
-                            data-testid="input-graphic-name"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="graphic-url">File URL *</Label>
-                          <Input 
-                            id="graphic-url" 
-                            value={newGraphic.fileUrl}
-                            onChange={(e) => setNewGraphic({...newGraphic, fileUrl: e.target.value})}
-                            data-testid="input-graphic-url"
+                          <Label>Upload File *</Label>
+                          <FileDropZone
+                            onFileSelect={handleGraphicFileSelect}
+                            accept="image/*,video/*"
+                            maxSizeMB={25}
+                            fileType="image"
+                            selectedFile={selectedGraphicFile}
+                            onClear={() => {
+                              setSelectedGraphicFile(null);
+                              setNewGraphic(prev => ({ ...prev, fileName: "", fileUrl: "" }));
+                            }}
+                            uploading={graphicUploading}
                           />
                         </div>
                         <div className="grid gap-2">
@@ -1063,18 +1373,23 @@ export default function EventDetail() {
                             id="graphic-description" 
                             value={newGraphic.description}
                             onChange={(e) => setNewGraphic({...newGraphic, description: e.target.value})}
+                            placeholder="Optional description for this graphic"
                             data-testid="input-graphic-description"
                           />
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowAddGraphicDialog(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => {
+                          setShowAddGraphicDialog(false);
+                          setSelectedGraphicFile(null);
+                          setNewGraphic({ fileName: "", fileUrl: "", fileType: "image", description: "" });
+                        }}>Cancel</Button>
                         <Button 
                           onClick={() => addGraphicMutation.mutate(newGraphic)}
-                          disabled={!newGraphic.fileName || !newGraphic.fileUrl || addGraphicMutation.isPending}
+                          disabled={!newGraphic.fileName || !newGraphic.fileUrl || graphicUploading || addGraphicMutation.isPending}
                           data-testid="button-save-graphic"
                         >
-                          {addGraphicMutation.isPending ? "Saving..." : "Save Graphic"}
+                          {graphicUploading ? "Uploading..." : addGraphicMutation.isPending ? "Saving..." : "Save Graphic"}
                         </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -1657,12 +1972,19 @@ export default function EventDetail() {
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                          <Label htmlFor="document-name">File Name *</Label>
-                          <Input id="document-name" value={newDocument.fileName} onChange={(e) => setNewDocument({...newDocument, fileName: e.target.value})} data-testid="input-document-name" />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="document-url">File URL *</Label>
-                          <Input id="document-url" value={newDocument.fileUrl} onChange={(e) => setNewDocument({...newDocument, fileUrl: e.target.value})} data-testid="input-document-url" />
+                          <Label>Upload File *</Label>
+                          <FileDropZone
+                            onFileSelect={handleDocumentFileSelect}
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"
+                            maxSizeMB={25}
+                            fileType="document"
+                            selectedFile={selectedDocumentFile}
+                            onClear={() => {
+                              setSelectedDocumentFile(null);
+                              setNewDocument(prev => ({ ...prev, fileName: "", fileUrl: "" }));
+                            }}
+                            uploading={documentUploading}
+                          />
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="document-type">Document Type</Label>
@@ -1683,13 +2005,27 @@ export default function EventDetail() {
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="document-notes">Notes</Label>
-                          <Textarea id="document-notes" value={newDocument.notes} onChange={(e) => setNewDocument({...newDocument, notes: e.target.value})} data-testid="input-document-notes" />
+                          <Textarea 
+                            id="document-notes" 
+                            value={newDocument.notes} 
+                            onChange={(e) => setNewDocument({...newDocument, notes: e.target.value})} 
+                            placeholder="Optional notes about this document"
+                            data-testid="input-document-notes" 
+                          />
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowAddDocumentDialog(false)}>Cancel</Button>
-                        <Button onClick={() => addDocumentMutation.mutate(newDocument)} disabled={!newDocument.fileName || !newDocument.fileUrl || addDocumentMutation.isPending} data-testid="button-save-document">
-                          {addDocumentMutation.isPending ? "Saving..." : "Save Document"}
+                        <Button variant="outline" onClick={() => {
+                          setShowAddDocumentDialog(false);
+                          setSelectedDocumentFile(null);
+                          setNewDocument({ fileName: "", fileUrl: "", documentType: "other", notes: "" });
+                        }}>Cancel</Button>
+                        <Button 
+                          onClick={() => addDocumentMutation.mutate(newDocument)} 
+                          disabled={!newDocument.fileName || !newDocument.fileUrl || documentUploading || addDocumentMutation.isPending} 
+                          data-testid="button-save-document"
+                        >
+                          {documentUploading ? "Uploading..." : addDocumentMutation.isPending ? "Saving..." : "Save Document"}
                         </Button>
                       </DialogFooter>
                     </DialogContent>

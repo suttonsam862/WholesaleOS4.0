@@ -46,10 +46,12 @@ const stage1Schema = z.object({
 
 type Stage1Data = z.infer<typeof stage1Schema>;
 
-// Staff form schema
+// Staff form schema (free-text fields, not linked to system users)
 const staffFormSchema = z.object({
-  userId: z.string().min(1, "Please select a staff member"),
-  role: z.string().min(1, "Please select a role"),
+  name: z.string().min(1, "Staff name is required"),
+  role: z.string().min(1, "Role is required"),
+  email: z.string().email().optional().or(z.literal("")),
+  phone: z.string().optional(),
 });
 
 // Contractor form schema
@@ -117,7 +119,7 @@ export default function EventWizard() {
   // Dialog states
   const [showAddStaffDialog, setShowAddStaffDialog] = useState(false);
   const [showAddContractorDialog, setShowAddContractorDialog] = useState(false);
-  const [staffFormData, setStaffFormData] = useState({ userId: "", role: "" });
+  const [staffFormData, setStaffFormData] = useState({ name: "", email: "", phone: "", role: "" });
   const [contractorFormData, setContractorFormData] = useState({
     name: "",
     role: "",
@@ -129,17 +131,22 @@ export default function EventWizard() {
 
   // Staff mutations
   const addStaffMutation = useMutation({
-    mutationFn: async (data: { userId: string; role: string }) => {
+    mutationFn: async (data: typeof staffFormData) => {
       const validated = staffFormSchema.parse(data);
       return apiRequest(`/api/events/${eventId}/staff`, {
         method: "POST",
-        body: validated,
+        body: {
+          name: validated.name,
+          role: validated.role,
+          email: validated.email || null,
+          phone: validated.phone || null,
+        },
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "staff"] });
       setShowAddStaffDialog(false);
-      setStaffFormData({ userId: "", role: "" });
+      setStaffFormData({ name: "", email: "", phone: "", role: "" });
       toast({ title: "Staff member added", description: "The staff member has been assigned to this event." });
     },
     onError: (error) => {
@@ -514,8 +521,9 @@ export default function EventWizard() {
                             <div className="flex items-center gap-3">
                               <Users className="h-5 w-5 text-muted-foreground" />
                               <div>
-                                <p className="font-medium">{users.find(u => u.id === staff.userId)?.firstName || staff.userId}</p>
+                                <p className="font-medium">{staff.name}</p>
                                 <p className="text-sm text-muted-foreground">{staff.role}</p>
+                                {staff.email && <p className="text-xs text-muted-foreground">{staff.email}</p>}
                               </div>
                             </div>
                             <Button 
@@ -772,49 +780,48 @@ export default function EventWizard() {
 
       {/* Add Staff Dialog */}
       <Dialog open={showAddStaffDialog} onOpenChange={setShowAddStaffDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Add Staff Member</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Staff Member</label>
-              <Select
-                value={staffFormData.userId}
-                onValueChange={(value) => setStaffFormData(prev => ({ ...prev, userId: value }))}
-              >
-                <SelectTrigger data-testid="select-staff-user">
-                  <SelectValue placeholder="Select a team member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {users.map((user: any) => (
-                    <SelectItem key={user.id} value={user.id}>
-                      {user.firstName} {user.lastName} - {user.role}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="text-sm font-medium">Name *</label>
+              <Input
+                placeholder="Staff member name"
+                value={staffFormData.name}
+                onChange={(e) => setStaffFormData(prev => ({ ...prev, name: e.target.value }))}
+                data-testid="input-staff-name"
+              />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Role at Event</label>
-              <Select
+              <label className="text-sm font-medium">Email</label>
+              <Input
+                type="email"
+                placeholder="email@example.com"
+                value={staffFormData.email}
+                onChange={(e) => setStaffFormData(prev => ({ ...prev, email: e.target.value }))}
+                data-testid="input-staff-email"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Phone</label>
+              <Input
+                type="tel"
+                placeholder="(555) 123-4567"
+                value={staffFormData.phone}
+                onChange={(e) => setStaffFormData(prev => ({ ...prev, phone: e.target.value }))}
+                data-testid="input-staff-phone"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Role at Event *</label>
+              <Input
+                placeholder="e.g., Event Director, Logistics Lead, Sales"
                 value={staffFormData.role}
-                onValueChange={(value) => setStaffFormData(prev => ({ ...prev, role: value }))}
-              >
-                <SelectTrigger data-testid="select-staff-role">
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Event Director">Event Director</SelectItem>
-                  <SelectItem value="Logistics Lead">Logistics Lead</SelectItem>
-                  <SelectItem value="Sales Lead">Sales Lead</SelectItem>
-                  <SelectItem value="Setup Crew">Setup Crew</SelectItem>
-                  <SelectItem value="Registration">Registration</SelectItem>
-                  <SelectItem value="Merchandise">Merchandise</SelectItem>
-                  <SelectItem value="Photography">Photography</SelectItem>
-                  <SelectItem value="Support Staff">Support Staff</SelectItem>
-                </SelectContent>
-              </Select>
+                onChange={(e) => setStaffFormData(prev => ({ ...prev, role: e.target.value }))}
+                data-testid="input-staff-role"
+              />
             </div>
           </div>
           <DialogFooter>
@@ -823,7 +830,7 @@ export default function EventWizard() {
             </Button>
             <Button 
               onClick={() => addStaffMutation.mutate(staffFormData)}
-              disabled={!staffFormData.userId || !staffFormData.role || addStaffMutation.isPending}
+              disabled={!staffFormData.name || !staffFormData.role || addStaffMutation.isPending}
               data-testid="button-confirm-add-staff"
             >
               {addStaffMutation.isPending ? "Adding..." : "Add Staff"}

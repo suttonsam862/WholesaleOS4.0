@@ -1400,11 +1400,13 @@ export const eventStages = pgTable("event_stages", {
   index("idx_event_stages_event_id").on(table.eventId),
 ]);
 
-// Event Staff (internal team assignments)
+// Event Staff (free-form staff entries for events - not linked to system users)
 export const eventStaff = pgTable("event_staff", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   eventId: integer("event_id").references(() => events.id, { onDelete: 'cascade' }).notNull(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  name: varchar("name").notNull(), // Staff member's name (free text)
+  email: varchar("email"), // Contact email (free text)
+  phone: varchar("phone"), // Contact phone (free text)
   role: varchar("role").notNull(), // "Event Director", "Logistics Lead", "Sales Lead", etc.
   responsibilities: text("responsibilities").array(),
   notificationPreferences: jsonb("notification_preferences"),
@@ -1414,7 +1416,6 @@ export const eventStaff = pgTable("event_staff", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
   index("idx_event_staff_event_id").on(table.eventId),
-  index("idx_event_staff_user_id").on(table.userId),
 ]);
 
 // Event Contractors (external hires - clinicians, trainers, photographers, etc.)
@@ -3140,8 +3141,10 @@ export const insertEventStageSchema = createInsertSchema(eventStages, {
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventStaffSchema = createInsertSchema(eventStaff, {
-  userId: z.string().min(1, "User ID is required"),
+  name: z.string().min(1, "Staff name is required"),
   role: z.string().min(1, "Role is required"),
+  email: z.string().email().optional().or(z.literal("")).nullable(),
+  phone: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventContractorSchema = createInsertSchema(eventContractors, {
