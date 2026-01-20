@@ -732,6 +732,12 @@ export default function EventDetail() {
   const [editingVolunteer, setEditingVolunteer] = useState<EventVolunteer | null>(null);
   const [editingSponsor, setEditingSponsor] = useState<EventSponsor | null>(null);
 
+  // Editing state for Graphics, Documents, Venues, and Schedules
+  const [editingGraphic, setEditingGraphic] = useState<EventGraphic | null>(null);
+  const [editingDocument, setEditingDocument] = useState<EventDocument | null>(null);
+  const [editingVenue, setEditingVenue] = useState<EventVenue | null>(null);
+  const [editingSchedule, setEditingSchedule] = useState<EventSchedule | null>(null);
+
   // Edit mutations
   const editStaffMutation = useMutation({
     mutationFn: async (data: EventStaff) => {
@@ -827,6 +833,104 @@ export default function EventDetail() {
     },
   });
 
+  // Edit mutations for Graphics, Documents, Venues, and Schedules
+  const editGraphicMutation = useMutation({
+    mutationFn: async (data: EventGraphic) => {
+      return apiRequest(`/api/events/graphics/${data.id}`, {
+        method: "PUT",
+        body: {
+          fileName: data.fileName,
+          fileUrl: data.fileUrl,
+          fileType: data.fileType || 'other',
+          description: data.description || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "graphics"] });
+      setEditingGraphic(null);
+      toast({ title: "Graphic updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update graphic", variant: "destructive" });
+    },
+  });
+
+  const editDocumentMutation = useMutation({
+    mutationFn: async (data: EventDocument) => {
+      return apiRequest(`/api/events/documents/${data.id}`, {
+        method: "PUT",
+        body: {
+          fileName: data.fileName,
+          fileUrl: data.fileUrl,
+          documentType: data.documentType || 'other',
+          notes: data.notes || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "documents"] });
+      setEditingDocument(null);
+      toast({ title: "Document updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update document", variant: "destructive" });
+    },
+  });
+
+  const editVenueMutation = useMutation({
+    mutationFn: async (data: EventVenue) => {
+      return apiRequest(`/api/events/venues/${data.id}`, {
+        method: "PUT",
+        body: {
+          venueName: data.venueName,
+          address: data.address || null,
+          city: data.city || null,
+          state: data.state || null,
+          zipCode: data.zipCode || null,
+          capacity: data.capacity || null,
+          rentalCost: data.rentalCost || null,
+          contactName: data.contactName || null,
+          contactEmail: data.contactEmail || null,
+          notes: data.notes || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "venues"] });
+      setEditingVenue(null);
+      toast({ title: "Venue updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update venue", variant: "destructive" });
+    },
+  });
+
+  const editScheduleMutation = useMutation({
+    mutationFn: async (data: EventSchedule) => {
+      return apiRequest(`/api/events/schedules/${data.id}`, {
+        method: "PUT",
+        body: {
+          title: data.title,
+          description: data.description || null,
+          startTime: data.startTime || null,
+          endTime: data.endTime || null,
+          location: data.location || null,
+          activityType: data.activityType || null,
+          speakerName: data.speakerName || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "schedules"] });
+      setEditingSchedule(null);
+      toast({ title: "Schedule item updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update schedule item", variant: "destructive" });
+    },
+  });
+
   // Delete mutations
   const deleteStaffMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -880,6 +984,59 @@ export default function EventDetail() {
     },
   });
 
+  // Delete mutations for Graphics, Documents, Venues, and Schedules
+  const deleteGraphicMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/graphics/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "graphics"] });
+      toast({ title: "Graphic deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete graphic", variant: "destructive" });
+    },
+  });
+
+  const deleteDocumentMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/documents/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "documents"] });
+      toast({ title: "Document deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete document", variant: "destructive" });
+    },
+  });
+
+  const deleteVenueMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/venues/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "venues"] });
+      toast({ title: "Venue deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete venue", variant: "destructive" });
+    },
+  });
+
+  const deleteScheduleMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/schedules/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "schedules"] });
+      toast({ title: "Schedule item deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete schedule item", variant: "destructive" });
+    },
+  });
+
   // Delete handlers with confirmation
   const handleDeleteStaff = (id: number, name: string) => {
     if (window.confirm(`Are you sure you want to delete staff member "${name}"?`)) {
@@ -902,6 +1059,31 @@ export default function EventDetail() {
   const handleDeleteSponsor = (id: number, name: string) => {
     if (window.confirm(`Are you sure you want to delete sponsor "${name}"?`)) {
       deleteSponsorMutation.mutate(id);
+    }
+  };
+
+  // Delete handlers for Graphics, Documents, Venues, and Schedules
+  const handleDeleteGraphic = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete graphic "${name}"?`)) {
+      deleteGraphicMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteDocument = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete document "${name}"?`)) {
+      deleteDocumentMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteVenue = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete venue "${name}"?`)) {
+      deleteVenueMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteSchedule = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete schedule item "${name}"?`)) {
+      deleteScheduleMutation.mutate(id);
     }
   };
 
@@ -1988,12 +2170,91 @@ export default function EventDetail() {
                       )}
                       <div className="p-2">
                         <p className="text-sm font-medium truncate">{graphic.fileName}</p>
-                        <p className="text-xs text-muted-foreground capitalize">{graphic.fileType}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground capitalize">{graphic.fileType}</p>
+                          {canEdit && (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => setEditingGraphic(graphic)}
+                                data-testid={`button-edit-graphic-${graphic.id}`}
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6"
+                                onClick={() => handleDeleteGraphic(graphic.id, graphic.fileName)}
+                                data-testid={`button-delete-graphic-${graphic.id}`}
+                              >
+                                <Trash2 className="h-3 w-3 text-destructive" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+              {/* Edit Graphic Dialog */}
+              <Dialog open={!!editingGraphic} onOpenChange={(open) => !open && setEditingGraphic(null)}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Edit Graphic</DialogTitle>
+                  </DialogHeader>
+                  {editingGraphic && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-graphic-filename">File Name</Label>
+                        <Input
+                          id="edit-graphic-filename"
+                          value={editingGraphic.fileName}
+                          onChange={(e) => setEditingGraphic({...editingGraphic, fileName: e.target.value})}
+                          data-testid="input-edit-graphic-filename"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-graphic-type">File Type</Label>
+                        <Select value={editingGraphic.fileType || "image"} onValueChange={(value) => setEditingGraphic({...editingGraphic, fileType: value})}>
+                          <SelectTrigger data-testid="select-edit-graphic-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="image">Image</SelectItem>
+                            <SelectItem value="video">Video</SelectItem>
+                            <SelectItem value="logo">Logo</SelectItem>
+                            <SelectItem value="flyer">Flyer</SelectItem>
+                            <SelectItem value="banner">Banner</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-graphic-description">Description</Label>
+                        <Textarea
+                          id="edit-graphic-description"
+                          value={editingGraphic.description || ""}
+                          onChange={(e) => setEditingGraphic({...editingGraphic, description: e.target.value})}
+                          data-testid="input-edit-graphic-description"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingGraphic(null)}>Cancel</Button>
+                    <Button
+                      onClick={() => editingGraphic && editGraphicMutation.mutate(editingGraphic)}
+                      disabled={!editingGraphic?.fileName || editGraphicMutation.isPending}
+                      data-testid="button-update-graphic"
+                    >
+                      {editGraphicMutation.isPending ? "Saving..." : "Update Graphic"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -2067,18 +2328,148 @@ export default function EventDetail() {
               ) : (
                 <div className="space-y-4">
                   {venues.map((venue) => (
-                    <div key={venue.id} className="p-4 border rounded-lg" data-testid={`venue-${venue.id}`}>
+                    <div key={venue.id} className="flex items-start justify-between p-4 border rounded-lg" data-testid={`venue-${venue.id}`}>
                       <div>
                         <p className="font-medium" data-testid={`text-venue-name-${venue.id}`}>{venue.venueName}</p>
                         {venue.address && <p className="text-sm text-muted-foreground">{venue.address}</p>}
                         {venue.city && venue.state && <p className="text-sm text-muted-foreground">{venue.city}, {venue.state}</p>}
                         {venue.capacity && <p className="text-sm text-muted-foreground">Capacity: {venue.capacity}</p>}
+                        {venue.notes && <p className="mt-2 text-sm">{venue.notes}</p>}
                       </div>
-                      {venue.notes && <p className="mt-2 text-sm">{venue.notes}</p>}
+                      {canEdit && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditingVenue(venue)}
+                            data-testid={`button-edit-venue-${venue.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteVenue(venue.id, venue.venueName)}
+                            data-testid={`button-delete-venue-${venue.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
+              {/* Edit Venue Dialog */}
+              <Dialog open={!!editingVenue} onOpenChange={(open) => !open && setEditingVenue(null)}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Edit Venue</DialogTitle>
+                  </DialogHeader>
+                  {editingVenue && (
+                    <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-venue-name">Venue Name *</Label>
+                        <Input
+                          id="edit-venue-name"
+                          value={editingVenue.venueName}
+                          onChange={(e) => setEditingVenue({...editingVenue, venueName: e.target.value})}
+                          data-testid="input-edit-venue-name"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-venue-address">Address</Label>
+                        <Input
+                          id="edit-venue-address"
+                          value={editingVenue.address || ""}
+                          onChange={(e) => setEditingVenue({...editingVenue, address: e.target.value})}
+                          data-testid="input-edit-venue-address"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-venue-city">City</Label>
+                          <Input
+                            id="edit-venue-city"
+                            value={editingVenue.city || ""}
+                            onChange={(e) => setEditingVenue({...editingVenue, city: e.target.value})}
+                            data-testid="input-edit-venue-city"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-venue-state">State</Label>
+                          <Input
+                            id="edit-venue-state"
+                            value={editingVenue.state || ""}
+                            onChange={(e) => setEditingVenue({...editingVenue, state: e.target.value})}
+                            data-testid="input-edit-venue-state"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-venue-capacity">Capacity</Label>
+                          <Input
+                            id="edit-venue-capacity"
+                            type="number"
+                            value={editingVenue.capacity || ""}
+                            onChange={(e) => setEditingVenue({...editingVenue, capacity: e.target.value ? parseInt(e.target.value) : null})}
+                            data-testid="input-edit-venue-capacity"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-venue-cost">Rental Cost ($)</Label>
+                          <Input
+                            id="edit-venue-cost"
+                            type="number"
+                            value={editingVenue.rentalCost || ""}
+                            onChange={(e) => setEditingVenue({...editingVenue, rentalCost: e.target.value})}
+                            data-testid="input-edit-venue-cost"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-venue-contact">Contact Name</Label>
+                        <Input
+                          id="edit-venue-contact"
+                          value={editingVenue.contactName || ""}
+                          onChange={(e) => setEditingVenue({...editingVenue, contactName: e.target.value})}
+                          data-testid="input-edit-venue-contact"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-venue-email">Contact Email</Label>
+                        <Input
+                          id="edit-venue-email"
+                          type="email"
+                          value={editingVenue.contactEmail || ""}
+                          onChange={(e) => setEditingVenue({...editingVenue, contactEmail: e.target.value})}
+                          data-testid="input-edit-venue-email"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-venue-notes">Notes</Label>
+                        <Textarea
+                          id="edit-venue-notes"
+                          value={editingVenue.notes || ""}
+                          onChange={(e) => setEditingVenue({...editingVenue, notes: e.target.value})}
+                          data-testid="input-edit-venue-notes"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingVenue(null)}>Cancel</Button>
+                    <Button
+                      onClick={() => editingVenue && editVenueMutation.mutate(editingVenue)}
+                      disabled={!editingVenue?.venueName || editVenueMutation.isPending}
+                      data-testid="button-update-venue"
+                    >
+                      {editVenueMutation.isPending ? "Saving..." : "Update Venue"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -2170,12 +2561,128 @@ export default function EventDetail() {
                           )}
                           {schedule.location && <p className="text-sm text-muted-foreground">Location: {schedule.location}</p>}
                         </div>
+                        {canEdit && (
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingSchedule(schedule)}
+                              data-testid={`button-edit-schedule-${schedule.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteSchedule(schedule.id, schedule.title)}
+                              data-testid={`button-delete-schedule-${schedule.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       {schedule.description && <p className="mt-2 text-sm">{schedule.description}</p>}
                     </div>
                   ))}
                 </div>
               )}
+              {/* Edit Schedule Dialog */}
+              <Dialog open={!!editingSchedule} onOpenChange={(open) => !open && setEditingSchedule(null)}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Edit Schedule Item</DialogTitle>
+                  </DialogHeader>
+                  {editingSchedule && (
+                    <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-schedule-title">Title *</Label>
+                        <Input
+                          id="edit-schedule-title"
+                          value={editingSchedule.title}
+                          onChange={(e) => setEditingSchedule({...editingSchedule, title: e.target.value})}
+                          data-testid="input-edit-schedule-title"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-schedule-description">Description</Label>
+                        <Textarea
+                          id="edit-schedule-description"
+                          value={editingSchedule.description || ""}
+                          onChange={(e) => setEditingSchedule({...editingSchedule, description: e.target.value})}
+                          data-testid="input-edit-schedule-description"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-schedule-start">Start Time</Label>
+                          <Input
+                            id="edit-schedule-start"
+                            type="datetime-local"
+                            value={editingSchedule.startTime ? new Date(editingSchedule.startTime).toISOString().slice(0, 16) : ""}
+                            onChange={(e) => setEditingSchedule({...editingSchedule, startTime: e.target.value ? new Date(e.target.value).toISOString() : null})}
+                            data-testid="input-edit-schedule-start"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-schedule-end">End Time</Label>
+                          <Input
+                            id="edit-schedule-end"
+                            type="datetime-local"
+                            value={editingSchedule.endTime ? new Date(editingSchedule.endTime).toISOString().slice(0, 16) : ""}
+                            onChange={(e) => setEditingSchedule({...editingSchedule, endTime: e.target.value ? new Date(e.target.value).toISOString() : null})}
+                            data-testid="input-edit-schedule-end"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-schedule-location">Location</Label>
+                        <Input
+                          id="edit-schedule-location"
+                          value={editingSchedule.location || ""}
+                          onChange={(e) => setEditingSchedule({...editingSchedule, location: e.target.value})}
+                          data-testid="input-edit-schedule-location"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-schedule-type">Activity Type</Label>
+                        <Select value={editingSchedule.activityType || "session"} onValueChange={(value) => setEditingSchedule({...editingSchedule, activityType: value})}>
+                          <SelectTrigger data-testid="select-edit-schedule-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="session">Session</SelectItem>
+                            <SelectItem value="break">Break</SelectItem>
+                            <SelectItem value="keynote">Keynote</SelectItem>
+                            <SelectItem value="workshop">Workshop</SelectItem>
+                            <SelectItem value="networking">Networking</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-schedule-speaker">Speaker Name</Label>
+                        <Input
+                          id="edit-schedule-speaker"
+                          value={editingSchedule.speakerName || ""}
+                          onChange={(e) => setEditingSchedule({...editingSchedule, speakerName: e.target.value})}
+                          data-testid="input-edit-schedule-speaker"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingSchedule(null)}>Cancel</Button>
+                    <Button
+                      onClick={() => editingSchedule && editScheduleMutation.mutate(editingSchedule)}
+                      disabled={!editingSchedule?.title || editScheduleMutation.isPending}
+                      data-testid="button-update-schedule"
+                    >
+                      {editScheduleMutation.isPending ? "Saving..." : "Update Schedule Item"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -2631,11 +3138,87 @@ export default function EventDetail() {
                             </a>
                           </Button>
                         )}
+                        {canEdit && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingDocument(doc)}
+                              data-testid={`button-edit-document-${doc.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteDocument(doc.id, doc.fileName)}
+                              data-testid={`button-delete-document-${doc.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+              {/* Edit Document Dialog */}
+              <Dialog open={!!editingDocument} onOpenChange={(open) => !open && setEditingDocument(null)}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Edit Document</DialogTitle>
+                  </DialogHeader>
+                  {editingDocument && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-document-filename">File Name</Label>
+                        <Input
+                          id="edit-document-filename"
+                          value={editingDocument.fileName}
+                          onChange={(e) => setEditingDocument({...editingDocument, fileName: e.target.value})}
+                          data-testid="input-edit-document-filename"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-document-type">Document Type</Label>
+                        <Select value={editingDocument.documentType || "other"} onValueChange={(value) => setEditingDocument({...editingDocument, documentType: value})}>
+                          <SelectTrigger data-testid="select-edit-document-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="contract">Contract</SelectItem>
+                            <SelectItem value="permit">Permit</SelectItem>
+                            <SelectItem value="invoice">Invoice</SelectItem>
+                            <SelectItem value="agenda">Agenda</SelectItem>
+                            <SelectItem value="presentation">Presentation</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-document-notes">Notes</Label>
+                        <Textarea
+                          id="edit-document-notes"
+                          value={editingDocument.notes || ""}
+                          onChange={(e) => setEditingDocument({...editingDocument, notes: e.target.value})}
+                          data-testid="input-edit-document-notes"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingDocument(null)}>Cancel</Button>
+                    <Button
+                      onClick={() => editingDocument && editDocumentMutation.mutate(editingDocument)}
+                      disabled={!editingDocument?.fileName || editDocumentMutation.isPending}
+                      data-testid="button-update-document"
+                    >
+                      {editDocumentMutation.isPending ? "Saving..." : "Update Document"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
