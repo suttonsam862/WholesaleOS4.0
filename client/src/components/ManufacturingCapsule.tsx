@@ -416,19 +416,29 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
     enabled: isOpen && !!latestUpdate?.id,
   });
 
-  // Initialize form data
+  // Initialize form data - also load carrier from existing tracking
   useEffect(() => {
     if (manufacturing && isOpen) {
+      // Try to find a matching tracking record for this manufacturing record's tracking number
+      // If no match, fall back to the first tracking record or empty string
+      let existingCarrier = '';
+      if (orderTrackingNumbers.length > 0) {
+        const matchingTracking = manufacturing.trackingNumber 
+          ? orderTrackingNumbers.find((t: any) => t.trackingNumber === manufacturing.trackingNumber)
+          : null;
+        existingCarrier = matchingTracking?.carrierCompany || orderTrackingNumbers[0].carrierCompany || '';
+      }
+      
       setFormData({
         status: manufacturing.status || 'awaiting_admin_confirmation',
         productionNotes: manufacturing.productionNotes || '',
         qualityNotes: manufacturing.qualityNotes || '',
         trackingNumber: manufacturing.trackingNumber || '',
-        carrierCompany: '',
+        carrierCompany: existingCarrier,
         actualCompletion: manufacturing.actualCompletion || '',
       });
     }
-  }, [manufacturing, isOpen]);
+  }, [manufacturing, isOpen, orderTrackingNumbers]);
 
   // Reset module when modal closes
   useEffect(() => {
@@ -446,6 +456,11 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/manufacturing', manufacturingId] });
       queryClient.invalidateQueries({ queryKey: ["/api/manufacturing"] });
+      // Also invalidate order tracking since manufacturing update can sync tracking
+      if (manufacturing?.orderId) {
+        queryClient.invalidateQueries({ queryKey: ['/api/orders', manufacturing.orderId, 'tracking'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/orders', manufacturing.orderId] });
+      }
       toast({ title: "Success", description: "Manufacturing record updated successfully" });
       setIsEditing(false);
     },

@@ -445,6 +445,9 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
   const [salespersonPopoverOpen, setSalespersonPopoverOpen] = useState(false);
   const [addNoteOpenFor, setAddNoteOpenFor] = useState<number | null>(null);
   const [newManufacturingNote, setNewManufacturingNote] = useState({ categoryId: "", note: "" });
+  const [newTrackingNumber, setNewTrackingNumber] = useState("");
+  const [newCarrierCompany, setNewCarrierCompany] = useState("");
+  const [isAddingTracking, setIsAddingTracking] = useState(false);
 
   // Fetch order data
   const { data: order, isLoading: orderLoading } = useQuery<any>({
@@ -746,6 +749,75 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
       toast({ title: "Error", description: "Failed to remove manufacturing note", variant: "destructive" });
     },
   });
+
+  // Add tracking number mutation
+  const addTrackingMutation = useMutation({
+    mutationFn: (data: { trackingNumber: string; carrierCompany: string }) =>
+      apiRequest(`/api/orders/${orderId}/tracking`, {
+        method: "POST",
+        body: data
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId, 'tracking'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] });
+      toast({
+        title: "Success",
+        description: "Tracking number added successfully",
+      });
+      setNewTrackingNumber("");
+      setNewCarrierCompany("");
+      setIsAddingTracking(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to add tracking number",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete tracking number mutation
+  const deleteTrackingMutation = useMutation({
+    mutationFn: (trackingId: number) =>
+      apiRequest(`/api/tracking/${trackingId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId, 'tracking'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/orders', orderId] });
+      toast({
+        title: "Success",
+        description: "Tracking number deleted successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete tracking number",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleAddTracking = () => {
+    if (!newTrackingNumber.trim() || !newCarrierCompany.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter both tracking number and carrier company",
+        variant: "destructive",
+      });
+      return;
+    }
+    addTrackingMutation.mutate({
+      trackingNumber: newTrackingNumber.trim(),
+      carrierCompany: newCarrierCompany.trim()
+    });
+  };
+
+  const handleDeleteTracking = (trackingId: number) => {
+    if (confirm("Delete this tracking number?")) {
+      deleteTrackingMutation.mutate(trackingId);
+    }
+  };
 
   // Calculate velocity
   const velocity = useMemo(() => {
@@ -1097,6 +1169,16 @@ export function OrderCapsule({ isOpen, onClose, orderId, stage }: OrderCapsulePr
                     updateOrderMutation={updateOrderMutation}
                     salespersonPopoverOpen={salespersonPopoverOpen}
                     setSalespersonPopoverOpen={setSalespersonPopoverOpen}
+                    isAddingTracking={isAddingTracking}
+                    setIsAddingTracking={setIsAddingTracking}
+                    newTrackingNumber={newTrackingNumber}
+                    setNewTrackingNumber={setNewTrackingNumber}
+                    newCarrierCompany={newCarrierCompany}
+                    setNewCarrierCompany={setNewCarrierCompany}
+                    handleAddTracking={handleAddTracking}
+                    handleDeleteTracking={handleDeleteTracking}
+                    addTrackingMutation={addTrackingMutation}
+                    deleteTrackingMutation={deleteTrackingMutation}
                   />
                 )}
                 {activeModule === 'line-items' && (
@@ -1238,7 +1320,17 @@ function OverviewModule({
   users,
   updateOrderMutation,
   salespersonPopoverOpen,
-  setSalespersonPopoverOpen
+  setSalespersonPopoverOpen,
+  isAddingTracking,
+  setIsAddingTracking,
+  newTrackingNumber,
+  setNewTrackingNumber,
+  newCarrierCompany,
+  setNewCarrierCompany,
+  handleAddTracking,
+  handleDeleteTracking,
+  addTrackingMutation,
+  deleteTrackingMutation
 }: {
   order: any;
   organization: any;
@@ -1255,6 +1347,16 @@ function OverviewModule({
   updateOrderMutation: any;
   salespersonPopoverOpen: boolean;
   setSalespersonPopoverOpen: (open: boolean) => void;
+  isAddingTracking: boolean;
+  setIsAddingTracking: (adding: boolean) => void;
+  newTrackingNumber: string;
+  setNewTrackingNumber: (value: string) => void;
+  newCarrierCompany: string;
+  setNewCarrierCompany: (value: string) => void;
+  handleAddTracking: () => void;
+  handleDeleteTracking: (trackingId: number) => void;
+  addTrackingMutation: any;
+  deleteTrackingMutation: any;
 }) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const lineItemsWithImages = lineItems.filter((item: any) => item.imageUrl);
@@ -1557,25 +1659,113 @@ function OverviewModule({
         {/* Tracking - visible for ops/admin by default */}
         {(userRole === 'admin' || userRole === 'ops' || showAdvanced) && (
           <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-            <h3 className="text-sm font-semibold text-white/80 mb-4 flex items-center gap-2">
-              <Truck className="w-4 h-4 text-neon-cyan" />
-              Tracking
-              {trackingNumbers.length > 0 && (
-                <Badge variant="outline" className="ml-2 text-green-400 border-green-400/30">
-                  {trackingNumbers.length} tracking number{trackingNumbers.length > 1 ? 's' : ''}
-                </Badge>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+                <Truck className="w-4 h-4 text-neon-cyan" />
+                Tracking
+                {trackingNumbers.length > 0 && (
+                  <Badge variant="outline" className="ml-2 text-green-400 border-green-400/30">
+                    {trackingNumbers.length} tracking number{trackingNumbers.length > 1 ? 's' : ''}
+                  </Badge>
+                )}
+              </h3>
+              {!isAddingTracking && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setIsAddingTracking(true)}
+                  className="h-7 text-xs text-neon-cyan hover:text-neon-blue"
+                  data-testid="button-add-tracking"
+                >
+                  <Plus className="w-3 h-3 mr-1" />
+                  Add Tracking
+                </Button>
               )}
-            </h3>
+            </div>
+
+            {/* Add tracking form */}
+            {isAddingTracking && (
+              <div className="p-3 bg-white/5 rounded-lg border border-white/10 mb-3 space-y-3">
+                <div>
+                  <Label htmlFor="tracking-number" className="text-xs text-white/50">Tracking Number</Label>
+                  <Input
+                    id="tracking-number"
+                    value={newTrackingNumber}
+                    onChange={(e) => setNewTrackingNumber(e.target.value)}
+                    placeholder="Enter tracking number"
+                    className="h-8 mt-1 bg-white/5 border-white/10"
+                    data-testid="input-new-tracking-number"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="carrier-company" className="text-xs text-white/50">Carrier Company</Label>
+                  <Select value={newCarrierCompany} onValueChange={setNewCarrierCompany}>
+                    <SelectTrigger className="h-8 mt-1 bg-white/5 border-white/10" data-testid="select-carrier-company">
+                      <SelectValue placeholder="Select carrier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="UPS">UPS</SelectItem>
+                      <SelectItem value="FedEx">FedEx</SelectItem>
+                      <SelectItem value="USPS">USPS</SelectItem>
+                      <SelectItem value="DHL">DHL</SelectItem>
+                      <SelectItem value="Manufacturing Team">Manufacturing Team (Local)</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    onClick={handleAddTracking}
+                    disabled={addTrackingMutation.isPending}
+                    data-testid="button-save-tracking"
+                    className="flex-1"
+                  >
+                    {addTrackingMutation.isPending ? (
+                      <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white mr-1" />
+                    ) : (
+                      <Save className="h-3 w-3 mr-1" />
+                    )}
+                    Save
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setIsAddingTracking(false);
+                      setNewTrackingNumber("");
+                      setNewCarrierCompany("");
+                    }}
+                    data-testid="button-cancel-tracking"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {trackingNumbers.length > 0 ? (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {trackingNumbers.map((t: any) => (
-                  <div key={t.id} className="text-sm text-white flex items-center gap-2">
-                    <span className="text-neon-blue">{t.carrierCompany}:</span>
-                    <span>{t.trackingNumber}</span>
+                  <div key={t.id} className="flex items-center justify-between p-2 rounded-lg bg-white/5" data-testid={`tracking-item-${t.id}`}>
+                    <div className="text-sm text-white flex items-center gap-2">
+                      <span className="text-neon-blue">{t.carrierCompany}:</span>
+                      <span className="font-mono">{t.trackingNumber}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDeleteTracking(t.id)}
+                      disabled={deleteTrackingMutation.isPending}
+                      className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                      data-testid={`button-delete-tracking-${t.id}`}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
                 ))}
               </div>
-            ) : (
+            ) : !isAddingTracking && (
               <p className="text-sm text-white/50">No tracking added</p>
             )}
           </div>
