@@ -738,6 +738,11 @@ export default function EventDetail() {
   const [editingVenue, setEditingVenue] = useState<EventVenue | null>(null);
   const [editingSchedule, setEditingSchedule] = useState<EventSchedule | null>(null);
 
+  // Editing state for Equipment, Travel, and Budget
+  const [editingEquipment, setEditingEquipment] = useState<EventEquipment | null>(null);
+  const [editingTravel, setEditingTravel] = useState<EventTravel | null>(null);
+  const [editingBudget, setEditingBudget] = useState<EventBudget | null>(null);
+
   // Edit mutations
   const editStaffMutation = useMutation({
     mutationFn: async (data: EventStaff) => {
@@ -931,6 +936,80 @@ export default function EventDetail() {
     },
   });
 
+  // Edit mutations for Equipment, Travel, and Budget
+  const editEquipmentMutation = useMutation({
+    mutationFn: async (data: EventEquipment) => {
+      return apiRequest(`/api/events/equipment/${data.id}`, {
+        method: "PUT",
+        body: {
+          itemName: data.itemName,
+          quantity: data.quantity || 1,
+          category: data.category || null,
+          rentalCost: data.rentalCost || null,
+          status: data.status || 'reserved',
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "equipment"] });
+      setEditingEquipment(null);
+      toast({ title: "Equipment updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update equipment", variant: "destructive" });
+    },
+  });
+
+  const editTravelMutation = useMutation({
+    mutationFn: async (data: EventTravel) => {
+      return apiRequest(`/api/events/travel/${data.id}`, {
+        method: "PUT",
+        body: {
+          travelerName: data.travelerName,
+          travelerType: data.travelerType || 'custom',
+          flightArrival: data.flightArrival || null,
+          flightDeparture: data.flightDeparture || null,
+          hotelName: data.hotelName || null,
+          hotelCheckIn: data.hotelCheckIn || null,
+          hotelCheckOut: data.hotelCheckOut || null,
+          totalCost: data.totalCost || null,
+          notes: data.notes || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "travel"] });
+      setEditingTravel(null);
+      toast({ title: "Travel arrangement updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update travel arrangement", variant: "destructive" });
+    },
+  });
+
+  const editBudgetMutation = useMutation({
+    mutationFn: async (data: EventBudget) => {
+      return apiRequest(`/api/events/budgets/${data.id}`, {
+        method: "PUT",
+        body: {
+          categoryName: data.categoryName,
+          budgetedAmount: data.budgetedAmount,
+          actualAmount: data.actualAmount || null,
+          notes: data.notes || null,
+          approvalStatus: data.approvalStatus || 'pending',
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "budgets"] });
+      setEditingBudget(null);
+      toast({ title: "Budget item updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update budget item", variant: "destructive" });
+    },
+  });
+
   // Delete mutations
   const deleteStaffMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -1037,6 +1116,46 @@ export default function EventDetail() {
     },
   });
 
+  // Delete mutations for Equipment, Travel, and Budget
+  const deleteEquipmentMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/equipment/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "equipment"] });
+      toast({ title: "Equipment deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete equipment", variant: "destructive" });
+    },
+  });
+
+  const deleteTravelMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/travel/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "travel"] });
+      toast({ title: "Travel arrangement deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete travel arrangement", variant: "destructive" });
+    },
+  });
+
+  const deleteBudgetMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/budgets/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "budgets"] });
+      toast({ title: "Budget item deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete budget item", variant: "destructive" });
+    },
+  });
+
   // Delete handlers with confirmation
   const handleDeleteStaff = (id: number, name: string) => {
     if (window.confirm(`Are you sure you want to delete staff member "${name}"?`)) {
@@ -1084,6 +1203,25 @@ export default function EventDetail() {
   const handleDeleteSchedule = (id: number, name: string) => {
     if (window.confirm(`Are you sure you want to delete schedule item "${name}"?`)) {
       deleteScheduleMutation.mutate(id);
+    }
+  };
+
+  // Delete handlers for Equipment, Travel, and Budget
+  const handleDeleteEquipment = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete equipment "${name}"?`)) {
+      deleteEquipmentMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteTravel = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete travel arrangement for "${name}"?`)) {
+      deleteTravelMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteBudget = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete budget item "${name}"?`)) {
+      deleteBudgetMutation.mutate(id);
     }
   };
 
@@ -2782,16 +2920,112 @@ export default function EventDetail() {
                         <p className="text-sm text-muted-foreground">Qty: {item.quantity || 1}</p>
                         {item.category && <p className="text-sm text-muted-foreground">Category: {item.category}</p>}
                       </div>
-                      <div className="text-right">
-                        {item.rentalCost && <p className="font-medium">${item.rentalCost}</p>}
-                        <StatusBadge status={item.status as any}>
-                          {item.status === 'reserved' ? 'Reserved' : item.status === 'picked_up' ? 'Picked Up' : item.status === 'returned' ? 'Returned' : item.status === 'damaged' ? 'Damaged' : 'Pending'}
-                        </StatusBadge>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          {item.rentalCost && <p className="font-medium">${item.rentalCost}</p>}
+                          <StatusBadge status={item.status as any}>
+                            {item.status === 'reserved' ? 'Reserved' : item.status === 'picked_up' ? 'Picked Up' : item.status === 'returned' ? 'Returned' : item.status === 'damaged' ? 'Damaged' : 'Pending'}
+                          </StatusBadge>
+                        </div>
+                        {canEdit && (
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingEquipment(item)}
+                              data-testid={`button-edit-equipment-${item.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteEquipment(item.id, item.itemName)}
+                              data-testid={`button-delete-equipment-${item.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+              {/* Edit Equipment Dialog */}
+              <Dialog open={!!editingEquipment} onOpenChange={(open) => !open && setEditingEquipment(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Equipment</DialogTitle>
+                  </DialogHeader>
+                  {editingEquipment && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-equipment-name">Item Name *</Label>
+                        <Input 
+                          id="edit-equipment-name" 
+                          value={editingEquipment.itemName}
+                          onChange={(e) => setEditingEquipment({...editingEquipment, itemName: e.target.value})}
+                          data-testid="input-edit-equipment-name"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-equipment-quantity">Quantity</Label>
+                        <Input 
+                          id="edit-equipment-quantity" 
+                          type="number"
+                          value={editingEquipment.quantity || 1}
+                          onChange={(e) => setEditingEquipment({...editingEquipment, quantity: parseInt(e.target.value) || 1})}
+                          data-testid="input-edit-equipment-quantity"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-equipment-category">Category</Label>
+                        <Input 
+                          id="edit-equipment-category" 
+                          value={editingEquipment.category || ""}
+                          onChange={(e) => setEditingEquipment({...editingEquipment, category: e.target.value})}
+                          data-testid="input-edit-equipment-category"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-equipment-cost">Rental Cost ($)</Label>
+                        <Input 
+                          id="edit-equipment-cost" 
+                          type="number"
+                          value={editingEquipment.rentalCost || ""}
+                          onChange={(e) => setEditingEquipment({...editingEquipment, rentalCost: e.target.value})}
+                          data-testid="input-edit-equipment-cost"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-equipment-status">Status</Label>
+                        <Select value={editingEquipment.status || "pending"} onValueChange={(value) => setEditingEquipment({...editingEquipment, status: value})}>
+                          <SelectTrigger data-testid="select-edit-equipment-status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="reserved">Reserved</SelectItem>
+                            <SelectItem value="picked_up">Picked Up</SelectItem>
+                            <SelectItem value="returned">Returned</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingEquipment(null)}>Cancel</Button>
+                    <Button 
+                      onClick={() => editingEquipment && editEquipmentMutation.mutate(editingEquipment)}
+                      disabled={!editingEquipment?.itemName || editEquipmentMutation.isPending}
+                      data-testid="button-update-equipment"
+                    >
+                      {editEquipmentMutation.isPending ? "Saving..." : "Update Equipment"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -2897,17 +3131,108 @@ export default function EventDetail() {
                           )}
                           {item.hotelName && <p className="text-sm text-muted-foreground">Hotel: {item.hotelName}</p>}
                         </div>
-                        <div className="text-right">
-                          {item.totalCost && <p className="font-medium">${item.totalCost}</p>}
-                          <StatusBadge status={item.reimbursementStatus as any}>
-                            {item.reimbursementStatus === 'pending' ? 'Pending' : item.reimbursementStatus === 'approved' ? 'Approved' : 'Reimbursed'}
-                          </StatusBadge>
+                        <div className="flex items-start gap-4">
+                          <div className="text-right">
+                            {item.totalCost && <p className="font-medium">${item.totalCost}</p>}
+                            <StatusBadge status={item.reimbursementStatus as any}>
+                              {item.reimbursementStatus === 'pending' ? 'Pending' : item.reimbursementStatus === 'approved' ? 'Approved' : 'Reimbursed'}
+                            </StatusBadge>
+                          </div>
+                          {canEdit && (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditingTravel(item)}
+                                data-testid={`button-edit-travel-${item.id}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteTravel(item.id, item.travelerName)}
+                                data-testid={`button-delete-travel-${item.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+              {/* Edit Travel Dialog */}
+              <Dialog open={!!editingTravel} onOpenChange={(open) => !open && setEditingTravel(null)}>
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <DialogTitle>Edit Travel Arrangement</DialogTitle>
+                  </DialogHeader>
+                  {editingTravel && (
+                    <div className="grid gap-4 py-4 max-h-96 overflow-y-auto">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-travel-name">Traveler Name *</Label>
+                        <Input id="edit-travel-name" value={editingTravel.travelerName} onChange={(e) => setEditingTravel({...editingTravel, travelerName: e.target.value})} data-testid="input-edit-travel-name" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-travel-type">Traveler Type</Label>
+                        <Select value={editingTravel.travelerType || "custom"} onValueChange={(value) => setEditingTravel({...editingTravel, travelerType: value})}>
+                          <SelectTrigger data-testid="select-edit-travel-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="staff">Staff</SelectItem>
+                            <SelectItem value="speaker">Speaker</SelectItem>
+                            <SelectItem value="vendor">Vendor</SelectItem>
+                            <SelectItem value="vip">VIP</SelectItem>
+                            <SelectItem value="custom">Custom</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-travel-arrival">Flight Arrival</Label>
+                          <Input id="edit-travel-arrival" type="datetime-local" value={editingTravel.flightArrival ? editingTravel.flightArrival.slice(0, 16) : ""} onChange={(e) => setEditingTravel({...editingTravel, flightArrival: e.target.value ? new Date(e.target.value).toISOString() : null})} data-testid="input-edit-travel-arrival" />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-travel-departure">Flight Departure</Label>
+                          <Input id="edit-travel-departure" type="datetime-local" value={editingTravel.flightDeparture ? editingTravel.flightDeparture.slice(0, 16) : ""} onChange={(e) => setEditingTravel({...editingTravel, flightDeparture: e.target.value ? new Date(e.target.value).toISOString() : null})} data-testid="input-edit-travel-departure" />
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-travel-hotel">Hotel Name</Label>
+                        <Input id="edit-travel-hotel" value={editingTravel.hotelName || ""} onChange={(e) => setEditingTravel({...editingTravel, hotelName: e.target.value})} data-testid="input-edit-travel-hotel" />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-travel-checkin">Check-In</Label>
+                          <Input id="edit-travel-checkin" type="date" value={editingTravel.hotelCheckIn ? editingTravel.hotelCheckIn.slice(0, 10) : ""} onChange={(e) => setEditingTravel({...editingTravel, hotelCheckIn: e.target.value ? new Date(e.target.value).toISOString() : null})} data-testid="input-edit-travel-checkin" />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-travel-checkout">Check-Out</Label>
+                          <Input id="edit-travel-checkout" type="date" value={editingTravel.hotelCheckOut ? editingTravel.hotelCheckOut.slice(0, 10) : ""} onChange={(e) => setEditingTravel({...editingTravel, hotelCheckOut: e.target.value ? new Date(e.target.value).toISOString() : null})} data-testid="input-edit-travel-checkout" />
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-travel-cost">Total Cost ($)</Label>
+                        <Input id="edit-travel-cost" type="number" value={editingTravel.totalCost || ""} onChange={(e) => setEditingTravel({...editingTravel, totalCost: e.target.value})} data-testid="input-edit-travel-cost" />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-travel-notes">Notes</Label>
+                        <Textarea id="edit-travel-notes" value={editingTravel.notes || ""} onChange={(e) => setEditingTravel({...editingTravel, notes: e.target.value})} data-testid="input-edit-travel-notes" />
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingTravel(null)}>Cancel</Button>
+                    <Button onClick={() => editingTravel && editTravelMutation.mutate(editingTravel)} disabled={!editingTravel?.travelerName || editTravelMutation.isPending} data-testid="button-update-travel">
+                      {editTravelMutation.isPending ? "Saving..." : "Update Travel"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -3238,14 +3563,111 @@ export default function EventDetail() {
                           Budgeted: ${budget.budgetedAmount} | Actual: ${budget.actualAmount || "0.00"}
                         </p>
                       </div>
-                      <StatusBadge status={budget.approvalStatus as any}>
-                        {budget.approvalStatus === 'pending' ? 'Pending' : 
-                         budget.approvalStatus === 'approved' ? 'Approved' : 'Rejected'}
-                      </StatusBadge>
+                      <div className="flex items-center gap-4">
+                        <StatusBadge status={budget.approvalStatus as any}>
+                          {budget.approvalStatus === 'pending' ? 'Pending' : 
+                           budget.approvalStatus === 'approved' ? 'Approved' : 'Rejected'}
+                        </StatusBadge>
+                        {canEdit && (
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingBudget(budget)}
+                              data-testid={`button-edit-budget-${budget.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteBudget(budget.id, budget.categoryName)}
+                              data-testid={`button-delete-budget-${budget.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
+              {/* Edit Budget Dialog */}
+              <Dialog open={!!editingBudget} onOpenChange={(open) => !open && setEditingBudget(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Budget Item</DialogTitle>
+                  </DialogHeader>
+                  {editingBudget && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-budget-category">Category Name *</Label>
+                        <Input 
+                          id="edit-budget-category" 
+                          value={editingBudget.categoryName}
+                          onChange={(e) => setEditingBudget({...editingBudget, categoryName: e.target.value})}
+                          data-testid="input-edit-budget-category"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-budget-budgeted">Budgeted Amount ($) *</Label>
+                        <Input 
+                          id="edit-budget-budgeted" 
+                          type="number"
+                          step="0.01"
+                          value={editingBudget.budgetedAmount || ""}
+                          onChange={(e) => setEditingBudget({...editingBudget, budgetedAmount: e.target.value})}
+                          data-testid="input-edit-budget-budgeted"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-budget-actual">Actual Amount ($)</Label>
+                        <Input 
+                          id="edit-budget-actual" 
+                          type="number"
+                          step="0.01"
+                          value={editingBudget.actualAmount || ""}
+                          onChange={(e) => setEditingBudget({...editingBudget, actualAmount: e.target.value})}
+                          data-testid="input-edit-budget-actual"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-budget-notes">Notes</Label>
+                        <Textarea 
+                          id="edit-budget-notes" 
+                          value={editingBudget.notes || ""}
+                          onChange={(e) => setEditingBudget({...editingBudget, notes: e.target.value})}
+                          data-testid="input-edit-budget-notes"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-budget-status">Approval Status</Label>
+                        <Select value={editingBudget.approvalStatus || "pending"} onValueChange={(value) => setEditingBudget({...editingBudget, approvalStatus: value})}>
+                          <SelectTrigger data-testid="select-edit-budget-status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="rejected">Rejected</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingBudget(null)}>Cancel</Button>
+                    <Button 
+                      onClick={() => editingBudget && editBudgetMutation.mutate(editingBudget)}
+                      disabled={!editingBudget?.categoryName || !editingBudget?.budgetedAmount || editBudgetMutation.isPending}
+                      data-testid="button-update-budget"
+                    >
+                      {editBudgetMutation.isPending ? "Saving..." : "Update Budget"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
