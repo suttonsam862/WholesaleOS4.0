@@ -743,6 +743,13 @@ export default function EventDetail() {
   const [editingTravel, setEditingTravel] = useState<EventTravel | null>(null);
   const [editingBudget, setEditingBudget] = useState<EventBudget | null>(null);
 
+  const [editingCampaign, setEditingCampaign] = useState<EventCampaign | null>(null);
+  const [editingRegistration, setEditingRegistration] = useState<EventRegistration | null>(null);
+  const [editingNote, setEditingNote] = useState<EventNote | null>(null);
+  const [editingChecklist, setEditingChecklist] = useState<EventChecklist | null>(null);
+  const [editingTicketTier, setEditingTicketTier] = useState<EventTicketTier | null>(null);
+  const [editingExpense, setEditingExpense] = useState<EventExpense | null>(null);
+
   // Edit mutations
   const editStaffMutation = useMutation({
     mutationFn: async (data: EventStaff) => {
@@ -1010,6 +1017,143 @@ export default function EventDetail() {
     },
   });
 
+  const editCampaignMutation = useMutation({
+    mutationFn: async (data: EventCampaign) => {
+      return apiRequest(`/api/events/campaigns/${data.id}`, {
+        method: "PUT",
+        body: {
+          campaignName: data.campaignName,
+          campaignType: data.campaignType || 'email',
+          targetAudience: data.targetAudience || null,
+          content: data.content || null,
+          scheduledAt: data.scheduledAt || null,
+          status: data.status || 'draft',
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "campaigns"] });
+      setEditingCampaign(null);
+      toast({ title: "Campaign updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update campaign", variant: "destructive" });
+    },
+  });
+
+  const editRegistrationMutation = useMutation({
+    mutationFn: async (data: EventRegistration) => {
+      return apiRequest(`/api/events/registrations/${data.id}`, {
+        method: "PUT",
+        body: {
+          attendeeName: data.attendeeName,
+          attendeeEmail: data.attendeeEmail,
+          attendeePhone: data.attendeePhone || null,
+          ticketType: data.ticketType || null,
+          paymentStatus: data.paymentStatus || 'pending',
+          amountPaid: data.amountPaid || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "registrations"] });
+      setEditingRegistration(null);
+      toast({ title: "Registration updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update registration", variant: "destructive" });
+    },
+  });
+
+  const editNoteMutation = useMutation({
+    mutationFn: async (data: EventNote) => {
+      return apiRequest(`/api/events/notes/${data.id}`, {
+        method: "PUT",
+        body: {
+          title: data.title || null,
+          content: data.content,
+          noteType: data.noteType || 'general',
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "notes"] });
+      setEditingNote(null);
+      toast({ title: "Note updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update note", variant: "destructive" });
+    },
+  });
+
+  const editChecklistMutation = useMutation({
+    mutationFn: async (data: EventChecklist) => {
+      return apiRequest(`/api/events/checklists/${data.id}`, {
+        method: "PUT",
+        body: {
+          itemText: data.itemText,
+          checklistType: data.checklistType || 'pre_event',
+          notes: data.notes || null,
+          isCompleted: data.isCompleted || false,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "checklists"] });
+      setEditingChecklist(null);
+      toast({ title: "Checklist item updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update checklist item", variant: "destructive" });
+    },
+  });
+
+  const editTicketTierMutation = useMutation({
+    mutationFn: async (data: EventTicketTier) => {
+      return apiRequest(`/api/events/ticket-tiers/${data.id}`, {
+        method: "PUT",
+        body: {
+          tierName: data.tierName,
+          price: data.price,
+          capacity: data.capacity || null,
+          description: data.description || null,
+          isActive: data.isActive ?? true,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "ticket-tiers"] });
+      setEditingTicketTier(null);
+      toast({ title: "Ticket tier updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update ticket tier", variant: "destructive" });
+    },
+  });
+
+  const editExpenseMutation = useMutation({
+    mutationFn: async (data: EventExpense) => {
+      return apiRequest(`/api/events/expenses/${data.id}`, {
+        method: "PUT",
+        body: {
+          description: data.description,
+          amount: data.amount,
+          expenseCategory: data.expenseCategory || 'other',
+          vendor: data.vendor || null,
+          status: data.status || 'pending',
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "expenses"] });
+      setEditingExpense(null);
+      toast({ title: "Expense updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update expense", variant: "destructive" });
+    },
+  });
+
   // Delete mutations
   const deleteStaffMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -1156,6 +1300,84 @@ export default function EventDetail() {
     },
   });
 
+  const deleteCampaignMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/campaigns/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "campaigns"] });
+      toast({ title: "Campaign deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete campaign", variant: "destructive" });
+    },
+  });
+
+  const deleteRegistrationMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/registrations/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "registrations"] });
+      toast({ title: "Registration deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete registration", variant: "destructive" });
+    },
+  });
+
+  const deleteNoteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/notes/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "notes"] });
+      toast({ title: "Note deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete note", variant: "destructive" });
+    },
+  });
+
+  const deleteChecklistMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/checklists/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "checklists"] });
+      toast({ title: "Checklist item deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete checklist item", variant: "destructive" });
+    },
+  });
+
+  const deleteTicketTierMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/ticket-tiers/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "ticket-tiers"] });
+      toast({ title: "Ticket tier deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete ticket tier", variant: "destructive" });
+    },
+  });
+
+  const deleteExpenseMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/expenses/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "expenses"] });
+      toast({ title: "Expense deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete expense", variant: "destructive" });
+    },
+  });
+
   // Delete handlers with confirmation
   const handleDeleteStaff = (id: number, name: string) => {
     if (window.confirm(`Are you sure you want to delete staff member "${name}"?`)) {
@@ -1222,6 +1444,42 @@ export default function EventDetail() {
   const handleDeleteBudget = (id: number, name: string) => {
     if (window.confirm(`Are you sure you want to delete budget item "${name}"?`)) {
       deleteBudgetMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteCampaign = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete campaign "${name}"?`)) {
+      deleteCampaignMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteRegistration = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete registration for "${name}"?`)) {
+      deleteRegistrationMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteNote = (id: number, title: string) => {
+    if (window.confirm(`Are you sure you want to delete note "${title || 'Untitled'}"?`)) {
+      deleteNoteMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteChecklist = (id: number, text: string) => {
+    if (window.confirm(`Are you sure you want to delete checklist item "${text}"?`)) {
+      deleteChecklistMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteTicketTier = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete ticket tier "${name}"?`)) {
+      deleteTicketTierMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteExpense = (id: number, description: string) => {
+    if (window.confirm(`Are you sure you want to delete expense "${description}"?`)) {
+      deleteExpenseMutation.mutate(id);
     }
   };
 
@@ -3731,16 +3989,100 @@ export default function EventDetail() {
                         </p>
                         {tier.description && <p className="text-sm text-muted-foreground mt-1">{tier.description}</p>}
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium text-lg">${tier.price || '0.00'}</p>
-                        <StatusBadge status={tier.isActive ? 'success' : 'outline'}>
-                          {tier.isActive ? 'Active' : 'Inactive'}
-                        </StatusBadge>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="font-medium text-lg">${tier.price || '0.00'}</p>
+                          <StatusBadge status={tier.isActive ? 'success' : 'outline'}>
+                            {tier.isActive ? 'Active' : 'Inactive'}
+                          </StatusBadge>
+                        </div>
+                        {canEdit && (
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingTicketTier(tier)}
+                              data-testid={`button-edit-ticket-tier-${tier.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteTicketTier(tier.id, tier.tierName)}
+                              data-testid={`button-delete-ticket-tier-${tier.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+              <Dialog open={!!editingTicketTier} onOpenChange={(open) => !open && setEditingTicketTier(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Ticket Tier</DialogTitle>
+                  </DialogHeader>
+                  {editingTicketTier && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-tier-name">Tier Name *</Label>
+                        <Input 
+                          id="edit-tier-name" 
+                          value={editingTicketTier.tierName}
+                          onChange={(e) => setEditingTicketTier({...editingTicketTier, tierName: e.target.value})}
+                          data-testid="input-edit-ticket-tier-name"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-tier-price">Price ($) *</Label>
+                          <Input 
+                            id="edit-tier-price" 
+                            type="number"
+                            value={editingTicketTier.price || ""}
+                            onChange={(e) => setEditingTicketTier({...editingTicketTier, price: e.target.value})}
+                            data-testid="input-edit-ticket-tier-price"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-tier-capacity">Capacity</Label>
+                          <Input 
+                            id="edit-tier-capacity" 
+                            type="number"
+                            value={editingTicketTier.capacity || ""}
+                            onChange={(e) => setEditingTicketTier({...editingTicketTier, capacity: parseInt(e.target.value) || null})}
+                            placeholder="Unlimited"
+                            data-testid="input-edit-ticket-tier-capacity"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-tier-description">Description</Label>
+                        <Textarea 
+                          id="edit-tier-description" 
+                          value={editingTicketTier.description || ""}
+                          onChange={(e) => setEditingTicketTier({...editingTicketTier, description: e.target.value})}
+                          data-testid="input-edit-ticket-tier-description"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingTicketTier(null)}>Cancel</Button>
+                    <Button
+                      onClick={() => editingTicketTier && editTicketTierMutation.mutate(editingTicketTier)}
+                      disabled={!editingTicketTier?.tierName || !editingTicketTier?.price || editTicketTierMutation.isPending}
+                      data-testid="button-update-ticket-tier"
+                    >
+                      {editTicketTierMutation.isPending ? "Saving..." : "Update Ticket Tier"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -3847,16 +4189,118 @@ export default function EventDetail() {
                         {expense.expenseCategory && <p className="text-sm text-muted-foreground capitalize">{expense.expenseCategory}</p>}
                         {expense.vendor && <p className="text-sm text-muted-foreground">Vendor: {expense.vendor}</p>}
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">${expense.amount || '0.00'}</p>
-                        <StatusBadge status={expense.status as any}>
-                          {expense.status === 'pending' ? 'Pending' : expense.status === 'approved' ? 'Approved' : expense.status === 'paid' ? 'Paid' : 'Reimbursed'}
-                        </StatusBadge>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="font-medium">${expense.amount || '0.00'}</p>
+                          <StatusBadge status={expense.status as any}>
+                            {expense.status === 'pending' ? 'Pending' : expense.status === 'approved' ? 'Approved' : expense.status === 'paid' ? 'Paid' : 'Reimbursed'}
+                          </StatusBadge>
+                        </div>
+                        {canEdit && (
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingExpense(expense)}
+                              data-testid={`button-edit-expense-${expense.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteExpense(expense.id, expense.description)}
+                              data-testid={`button-delete-expense-${expense.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+              <Dialog open={!!editingExpense} onOpenChange={(open) => !open && setEditingExpense(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Expense</DialogTitle>
+                  </DialogHeader>
+                  {editingExpense && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-expense-description">Description *</Label>
+                        <Input 
+                          id="edit-expense-description" 
+                          value={editingExpense.description}
+                          onChange={(e) => setEditingExpense({...editingExpense, description: e.target.value})}
+                          data-testid="input-edit-expense-description"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-expense-amount">Amount ($)</Label>
+                        <Input 
+                          id="edit-expense-amount" 
+                          type="number"
+                          value={editingExpense.amount || ""}
+                          onChange={(e) => setEditingExpense({...editingExpense, amount: e.target.value})}
+                          data-testid="input-edit-expense-amount"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-expense-category">Category</Label>
+                        <Select value={editingExpense.expenseCategory || "other"} onValueChange={(value) => setEditingExpense({...editingExpense, expenseCategory: value})}>
+                          <SelectTrigger data-testid="select-edit-expense-category">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="venue">Venue</SelectItem>
+                            <SelectItem value="catering">Catering</SelectItem>
+                            <SelectItem value="equipment">Equipment</SelectItem>
+                            <SelectItem value="marketing">Marketing</SelectItem>
+                            <SelectItem value="travel">Travel</SelectItem>
+                            <SelectItem value="supplies">Supplies</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-expense-vendor">Vendor</Label>
+                        <Input 
+                          id="edit-expense-vendor" 
+                          value={editingExpense.vendor || ""}
+                          onChange={(e) => setEditingExpense({...editingExpense, vendor: e.target.value})}
+                          data-testid="input-edit-expense-vendor"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-expense-status">Status</Label>
+                        <Select value={editingExpense.status || "pending"} onValueChange={(value) => setEditingExpense({...editingExpense, status: value})}>
+                          <SelectTrigger data-testid="select-edit-expense-status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="approved">Approved</SelectItem>
+                            <SelectItem value="paid">Paid</SelectItem>
+                            <SelectItem value="reimbursed">Reimbursed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingExpense(null)}>Cancel</Button>
+                    <Button
+                      onClick={() => editingExpense && editExpenseMutation.mutate(editingExpense)}
+                      disabled={!editingExpense?.description || !editingExpense?.amount || editExpenseMutation.isPending}
+                      data-testid="button-update-expense"
+                    >
+                      {editExpenseMutation.isPending ? "Saving..." : "Update Expense"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -3870,15 +4314,101 @@ export default function EventDetail() {
                 <div className="space-y-4">
                   {campaigns.map((campaign) => (
                     <div key={campaign.id} className="p-4 border rounded-lg" data-testid={`campaign-${campaign.id}`}>
-                      <p className="font-medium" data-testid={`text-campaign-name-${campaign.id}`}>{campaign.campaignName}</p>
-                      <p className="text-sm text-muted-foreground capitalize">{campaign.campaignType}</p>
-                      {campaign.scheduledAt && (
-                        <p className="text-sm mt-1">Scheduled: {format(new Date(campaign.scheduledAt), "MMM d, yyyy h:mm a")}</p>
-                      )}
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-medium" data-testid={`text-campaign-name-${campaign.id}`}>{campaign.campaignName}</p>
+                          <p className="text-sm text-muted-foreground capitalize">{campaign.campaignType}</p>
+                          {campaign.scheduledAt && (
+                            <p className="text-sm mt-1">Scheduled: {format(new Date(campaign.scheduledAt), "MMM d, yyyy h:mm a")}</p>
+                          )}
+                        </div>
+                        {canEdit && (
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingCampaign(campaign)}
+                              data-testid={`button-edit-campaign-${campaign.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteCampaign(campaign.id, campaign.campaignName)}
+                              data-testid={`button-delete-campaign-${campaign.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
+              <Dialog open={!!editingCampaign} onOpenChange={(open) => !open && setEditingCampaign(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Campaign</DialogTitle>
+                  </DialogHeader>
+                  {editingCampaign && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-campaign-name">Campaign Name *</Label>
+                        <Input 
+                          id="edit-campaign-name" 
+                          value={editingCampaign.campaignName}
+                          onChange={(e) => setEditingCampaign({...editingCampaign, campaignName: e.target.value})}
+                          data-testid="input-edit-campaign-name"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-campaign-type">Type</Label>
+                        <Select value={editingCampaign.campaignType || "email"} onValueChange={(value) => setEditingCampaign({...editingCampaign, campaignType: value})}>
+                          <SelectTrigger data-testid="select-edit-campaign-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="email">Email</SelectItem>
+                            <SelectItem value="social">Social</SelectItem>
+                            <SelectItem value="ads">Ads</SelectItem>
+                            <SelectItem value="content">Content</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-campaign-audience">Target Audience</Label>
+                        <Input 
+                          id="edit-campaign-audience" 
+                          value={editingCampaign.targetAudience || ""}
+                          onChange={(e) => setEditingCampaign({...editingCampaign, targetAudience: e.target.value})}
+                          data-testid="input-edit-campaign-audience"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-campaign-content">Content</Label>
+                        <Textarea 
+                          id="edit-campaign-content" 
+                          value={editingCampaign.content || ""}
+                          onChange={(e) => setEditingCampaign({...editingCampaign, content: e.target.value})}
+                          data-testid="input-edit-campaign-content"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingCampaign(null)}>Cancel</Button>
+                    <Button
+                      onClick={() => editingCampaign && editCampaignMutation.mutate(editingCampaign)}
+                      disabled={!editingCampaign?.campaignName || editCampaignMutation.isPending}
+                      data-testid="button-update-campaign"
+                    >
+                      {editCampaignMutation.isPending ? "Saving..." : "Update Campaign"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -3899,14 +4429,107 @@ export default function EventDetail() {
                           <p className="text-sm mt-1">Ticket: {registration.ticketType}</p>
                         )}
                       </div>
-                      <StatusBadge status={registration.paymentStatus as any}>
-                        {registration.paymentStatus === 'pending' ? 'Pending' : 
-                         registration.paymentStatus === 'paid' ? 'Paid' : 'Refunded'}
-                      </StatusBadge>
+                      <div className="flex items-center gap-4">
+                        <StatusBadge status={registration.paymentStatus as any}>
+                          {registration.paymentStatus === 'pending' ? 'Pending' : 
+                           registration.paymentStatus === 'paid' ? 'Paid' : 'Refunded'}
+                        </StatusBadge>
+                        {canEdit && (
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingRegistration(registration)}
+                              data-testid={`button-edit-registration-${registration.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteRegistration(registration.id, registration.attendeeName)}
+                              data-testid={`button-delete-registration-${registration.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
+              <Dialog open={!!editingRegistration} onOpenChange={(open) => !open && setEditingRegistration(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Registration</DialogTitle>
+                  </DialogHeader>
+                  {editingRegistration && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-registration-name">Attendee Name *</Label>
+                        <Input 
+                          id="edit-registration-name" 
+                          value={editingRegistration.attendeeName}
+                          onChange={(e) => setEditingRegistration({...editingRegistration, attendeeName: e.target.value})}
+                          data-testid="input-edit-registration-name"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-registration-email">Email *</Label>
+                        <Input 
+                          id="edit-registration-email" 
+                          type="email"
+                          value={editingRegistration.attendeeEmail}
+                          onChange={(e) => setEditingRegistration({...editingRegistration, attendeeEmail: e.target.value})}
+                          data-testid="input-edit-registration-email"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-registration-phone">Phone</Label>
+                        <Input 
+                          id="edit-registration-phone" 
+                          value={editingRegistration.attendeePhone || ""}
+                          onChange={(e) => setEditingRegistration({...editingRegistration, attendeePhone: e.target.value})}
+                          data-testid="input-edit-registration-phone"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-registration-ticket">Ticket Type</Label>
+                        <Input 
+                          id="edit-registration-ticket" 
+                          value={editingRegistration.ticketType || ""}
+                          onChange={(e) => setEditingRegistration({...editingRegistration, ticketType: e.target.value})}
+                          data-testid="input-edit-registration-ticket"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-registration-status">Payment Status</Label>
+                        <Select value={editingRegistration.paymentStatus || "pending"} onValueChange={(value) => setEditingRegistration({...editingRegistration, paymentStatus: value})}>
+                          <SelectTrigger data-testid="select-edit-registration-status">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="paid">Paid</SelectItem>
+                            <SelectItem value="refunded">Refunded</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingRegistration(null)}>Cancel</Button>
+                    <Button
+                      onClick={() => editingRegistration && editRegistrationMutation.mutate(editingRegistration)}
+                      disabled={!editingRegistration?.attendeeName || !editingRegistration?.attendeeEmail || editRegistrationMutation.isPending}
+                      data-testid="button-update-registration"
+                    >
+                      {editRegistrationMutation.isPending ? "Saving..." : "Update Registration"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -3987,9 +4610,31 @@ export default function EventDetail() {
                           {note.title && <p className="font-medium" data-testid={`text-note-title-${note.id}`}>{note.title}</p>}
                           <p className="text-sm mt-1">{note.content}</p>
                         </div>
-                        {note.createdAt && (
-                          <p className="text-xs text-muted-foreground">{format(new Date(note.createdAt), "MMM d, yyyy")}</p>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {note.createdAt && (
+                            <p className="text-xs text-muted-foreground">{format(new Date(note.createdAt), "MMM d, yyyy")}</p>
+                          )}
+                          {canEdit && (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditingNote(note)}
+                                data-testid={`button-edit-note-${note.id}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteNote(note.id, note.title || '')}
+                                data-testid={`button-delete-note-${note.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       {note.noteType && (
                         <p className="text-xs text-muted-foreground mt-2 capitalize">Type: {note.noteType}</p>
@@ -3998,6 +4643,60 @@ export default function EventDetail() {
                   ))}
                 </div>
               )}
+              <Dialog open={!!editingNote} onOpenChange={(open) => !open && setEditingNote(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Note</DialogTitle>
+                  </DialogHeader>
+                  {editingNote && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-note-title">Title</Label>
+                        <Input 
+                          id="edit-note-title" 
+                          value={editingNote.title || ""}
+                          onChange={(e) => setEditingNote({...editingNote, title: e.target.value})}
+                          data-testid="input-edit-note-title"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-note-content">Content *</Label>
+                        <Textarea 
+                          id="edit-note-content" 
+                          value={editingNote.content}
+                          onChange={(e) => setEditingNote({...editingNote, content: e.target.value})}
+                          data-testid="input-edit-note-content"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-note-type">Type</Label>
+                        <Select value={editingNote.noteType || "general"} onValueChange={(value) => setEditingNote({...editingNote, noteType: value})}>
+                          <SelectTrigger data-testid="select-edit-note-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="general">General</SelectItem>
+                            <SelectItem value="planning">Planning</SelectItem>
+                            <SelectItem value="logistics">Logistics</SelectItem>
+                            <SelectItem value="feedback">Feedback</SelectItem>
+                            <SelectItem value="follow_up">Follow Up</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingNote(null)}>Cancel</Button>
+                    <Button
+                      onClick={() => editingNote && editNoteMutation.mutate(editingNote)}
+                      disabled={!editingNote?.content || editNoteMutation.isPending}
+                      data-testid="button-update-note"
+                    >
+                      {editNoteMutation.isPending ? "Saving..." : "Update Note"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -4085,12 +4784,86 @@ export default function EventDetail() {
                             {checklist.checklistType && <p className="text-sm text-muted-foreground capitalize">{checklist.checklistType.replace('_', ' ')}</p>}
                           </div>
                         </div>
+                        {canEdit && (
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingChecklist(checklist)}
+                              data-testid={`button-edit-checklist-${checklist.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteChecklist(checklist.id, checklist.itemText)}
+                              data-testid={`button-delete-checklist-${checklist.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                       {checklist.notes && <p className="text-sm text-muted-foreground mt-2 ml-8">{checklist.notes}</p>}
                     </div>
                   ))}
                 </div>
               )}
+              <Dialog open={!!editingChecklist} onOpenChange={(open) => !open && setEditingChecklist(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Checklist Item</DialogTitle>
+                  </DialogHeader>
+                  {editingChecklist && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-checklist-text">Item Text *</Label>
+                        <Input 
+                          id="edit-checklist-text" 
+                          value={editingChecklist.itemText}
+                          onChange={(e) => setEditingChecklist({...editingChecklist, itemText: e.target.value})}
+                          data-testid="input-edit-checklist-text"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-checklist-type">Type</Label>
+                        <Select value={editingChecklist.checklistType || "pre_event"} onValueChange={(value) => setEditingChecklist({...editingChecklist, checklistType: value})}>
+                          <SelectTrigger data-testid="select-edit-checklist-type">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pre_event">Pre-Event</SelectItem>
+                            <SelectItem value="during_event">During Event</SelectItem>
+                            <SelectItem value="post_event">Post-Event</SelectItem>
+                            <SelectItem value="setup">Setup</SelectItem>
+                            <SelectItem value="teardown">Teardown</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-checklist-notes">Notes</Label>
+                        <Textarea 
+                          id="edit-checklist-notes" 
+                          value={editingChecklist.notes || ""}
+                          onChange={(e) => setEditingChecklist({...editingChecklist, notes: e.target.value})}
+                          data-testid="input-edit-checklist-notes"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingChecklist(null)}>Cancel</Button>
+                    <Button
+                      onClick={() => editingChecklist && editChecklistMutation.mutate(editingChecklist)}
+                      disabled={!editingChecklist?.itemText || editChecklistMutation.isPending}
+                      data-testid="button-update-checklist"
+                    >
+                      {editChecklistMutation.isPending ? "Saving..." : "Update Checklist Item"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
