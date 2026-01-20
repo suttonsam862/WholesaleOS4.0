@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,6 +12,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { insertCommissionPaymentSchema } from "@shared/schema";
 import { z } from "zod";
 import { useEffect } from "react";
+import { Calculator, ArrowRight } from "lucide-react";
 
 interface CreateCommissionPaymentModalProps {
   isOpen: boolean;
@@ -105,6 +107,12 @@ export function CreateCommissionPaymentModal({ isOpen, onClose, salespersonId }:
     .reduce((sum, cp) => sum + parseFloat(cp.totalAmount || 0), 0);
   
   const pendingCommission = totalCommission - paidCommissions;
+
+  const handleUseAmount = () => {
+    if (pendingCommission > 0) {
+      form.setValue("totalAmount", pendingCommission.toFixed(2));
+    }
+  };
   
   const onSubmit = (values: CreateCommissionPaymentFormValues) => {
     createCommissionPaymentMutation.mutate(values);
@@ -112,8 +120,8 @@ export function CreateCommissionPaymentModal({ isOpen, onClose, salespersonId }:
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl flex flex-col max-h-[85vh]">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Record Commission Payment</DialogTitle>
           <DialogDescription>
             Record a commission payment to a salesperson
@@ -121,61 +129,81 @@ export function CreateCommissionPaymentModal({ isOpen, onClose, salespersonId }:
         </DialogHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="salespersonId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Salesperson</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger data-testid="select-salesperson">
-                        <SelectValue placeholder="Select a salesperson" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {salespeople.map((person: any) => (
-                        <SelectItem key={person.id} value={person.id}>
-                          {person.firstName} {person.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+              <FormField
+                control={form.control}
+                name="salespersonId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Salesperson</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-salesperson">
+                          <SelectValue placeholder="Select a salesperson" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {salespeople.map((person: any) => (
+                          <SelectItem key={person.id} value={person.id}>
+                            {person.firstName} {person.lastName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-            {selectedSalesperson && (
-              <div className="bg-muted p-4 rounded-lg">
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Commission Rate:</span>
-                    <span className="ml-2 font-medium">{(commissionRate * 100).toFixed(1)}%</span>
+              {selectedSalesperson && (
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Calculator className="h-4 w-4 text-emerald-400" />
+                    <span className="text-sm font-medium text-emerald-400">Commission Calculator</span>
+                    <span className="text-xs text-muted-foreground">Auto-calculated based on orders</span>
                   </div>
-                  <div>
-                    <span className="text-muted-foreground">Total Sales:</span>
-                    <span className="ml-2 font-medium">${totalSales.toFixed(2)}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Total Commission:</span>
-                    <span className="ml-2 font-medium">${totalCommission.toFixed(2)}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Already Paid:</span>
-                    <span className="ml-2 font-medium text-green-600">${paidCommissions.toFixed(2)}</span>
-                  </div>
-                  <div className="col-span-2">
-                    <span className="text-muted-foreground">Pending Commission:</span>
-                    <span className="ml-2 font-bold text-yellow-600">${pendingCommission.toFixed(2)}</span>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="bg-background/50 rounded p-2">
+                      <div className="text-xs text-muted-foreground mb-1">Total Sales</div>
+                      <div className="font-semibold text-emerald-400">${totalSales.toFixed(2)}</div>
+                    </div>
+                    <div className="bg-background/50 rounded p-2">
+                      <div className="text-xs text-muted-foreground mb-1">Commission Rate</div>
+                      <div className="font-semibold text-emerald-400">{(commissionRate * 100).toFixed(1)}%</div>
+                    </div>
+                    <div className="bg-background/50 rounded p-2">
+                      <div className="text-xs text-muted-foreground mb-1">Gross Commission</div>
+                      <div className="font-semibold text-foreground">${totalCommission.toFixed(2)}</div>
+                    </div>
+                    <div className="bg-background/50 rounded p-2">
+                      <div className="text-xs text-muted-foreground mb-1">Already Paid</div>
+                      <div className="font-semibold text-foreground">${paidCommissions.toFixed(2)}</div>
+                    </div>
+                    <div className="col-span-2 bg-background/50 rounded p-2 flex items-center justify-between">
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Suggested Payment</div>
+                        <div className="font-bold text-lg text-emerald-400">${pendingCommission.toFixed(2)}</div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleUseAmount}
+                        disabled={pendingCommission <= 0}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                        data-testid="button-use-amount"
+                      >
+                        <ArrowRight className="h-4 w-4 mr-1" />
+                        Use Amount
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
             <FormField
               control={form.control}
@@ -267,24 +295,28 @@ export function CreateCommissionPaymentModal({ isOpen, onClose, salespersonId }:
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes (Optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      {...field}
-                      data-testid="input-notes"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        {...field}
+                        placeholder="Any additional notes..."
+                        className="resize-none"
+                        rows={2}
+                        data-testid="input-notes"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             
-            <DialogFooter>
+            <DialogFooter className="flex-shrink-0 pt-4 border-t">
               <Button
                 type="button"
                 variant="outline"
