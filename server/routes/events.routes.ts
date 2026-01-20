@@ -194,6 +194,21 @@ export function registerEventRoutes(app: Express) {
     }
   });
 
+  app.put('/api/events/staff/:id', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertEventStaffSchema.partial().parse(req.body);
+      const staff = await storage.updateEventStaff(id, validatedData);
+      return res.json(staff);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      console.error("Error updating event staff:", error);
+      return res.status(500).json({ message: "Failed to update event staff" });
+    }
+  });
+
   app.delete('/api/events/staff/:id', isAuthenticated, loadUserData, requirePermission('events', 'delete'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);

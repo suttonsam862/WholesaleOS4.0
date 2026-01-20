@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiRequest } from "@/lib/queryClient";
-import { Plus, Upload } from "lucide-react";
+import { Plus, Upload, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { TableSkeleton } from "@/components/ui/loading-skeletons";
 import { hasPermission } from "@/lib/permissions";
@@ -726,6 +726,185 @@ export default function EventDetail() {
     },
   });
 
+  // Editing state for Staff, Contractors, Volunteers, and Sponsors
+  const [editingStaff, setEditingStaff] = useState<EventStaff | null>(null);
+  const [editingContractor, setEditingContractor] = useState<EventContractor | null>(null);
+  const [editingVolunteer, setEditingVolunteer] = useState<EventVolunteer | null>(null);
+  const [editingSponsor, setEditingSponsor] = useState<EventSponsor | null>(null);
+
+  // Edit mutations
+  const editStaffMutation = useMutation({
+    mutationFn: async (data: EventStaff) => {
+      return apiRequest(`/api/events/staff/${data.id}`, {
+        method: "PUT",
+        body: {
+          name: data.name,
+          role: data.role,
+          email: data.email || null,
+          phone: data.phone || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "staff"] });
+      setEditingStaff(null);
+      toast({ title: "Staff member updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update staff member", variant: "destructive" });
+    },
+  });
+
+  const editContractorMutation = useMutation({
+    mutationFn: async (data: EventContractor) => {
+      return apiRequest(`/api/events/contractors/${data.id}`, {
+        method: "PUT",
+        body: {
+          name: data.name,
+          role: data.role,
+          email: data.email || null,
+          phone: data.phone || null,
+          contractType: data.contractType,
+          paymentAmount: data.paymentAmount || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "contractors"] });
+      setEditingContractor(null);
+      toast({ title: "Contractor updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update contractor", variant: "destructive" });
+    },
+  });
+
+  const editVolunteerMutation = useMutation({
+    mutationFn: async (data: EventVolunteer) => {
+      return apiRequest(`/api/events/volunteers/${data.id}`, {
+        method: "PUT",
+        body: {
+          name: data.name,
+          role: data.role,
+          email: data.email || null,
+          phone: data.phone || null,
+          shirtSize: data.shirtSize || null,
+          assignedArea: data.assignedArea || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "volunteers"] });
+      setEditingVolunteer(null);
+      toast({ title: "Volunteer updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update volunteer", variant: "destructive" });
+    },
+  });
+
+  const editSponsorMutation = useMutation({
+    mutationFn: async (data: EventSponsor) => {
+      return apiRequest(`/api/events/sponsors/${data.id}`, {
+        method: "PUT",
+        body: {
+          name: data.name,
+          tier: data.tier || null,
+          amount: data.amount || null,
+          contactName: data.contactName || null,
+          contactEmail: data.contactEmail || null,
+          benefits: data.benefits || null,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "sponsors"] });
+      setEditingSponsor(null);
+      toast({ title: "Sponsor updated successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update sponsor", variant: "destructive" });
+    },
+  });
+
+  // Delete mutations
+  const deleteStaffMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/staff/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "staff"] });
+      toast({ title: "Staff member deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete staff member", variant: "destructive" });
+    },
+  });
+
+  const deleteContractorMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/contractors/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "contractors"] });
+      toast({ title: "Contractor deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete contractor", variant: "destructive" });
+    },
+  });
+
+  const deleteVolunteerMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/volunteers/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "volunteers"] });
+      toast({ title: "Volunteer deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete volunteer", variant: "destructive" });
+    },
+  });
+
+  const deleteSponsorMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return apiRequest(`/api/events/sponsors/${id}`, { method: "DELETE" });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/events", eventId, "sponsors"] });
+      toast({ title: "Sponsor deleted successfully" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete sponsor", variant: "destructive" });
+    },
+  });
+
+  // Delete handlers with confirmation
+  const handleDeleteStaff = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete staff member "${name}"?`)) {
+      deleteStaffMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteContractor = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete contractor "${name}"?`)) {
+      deleteContractorMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteVolunteer = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete volunteer "${name}"?`)) {
+      deleteVolunteerMutation.mutate(id);
+    }
+  };
+
+  const handleDeleteSponsor = (id: number, name: string) => {
+    if (window.confirm(`Are you sure you want to delete sponsor "${name}"?`)) {
+      deleteSponsorMutation.mutate(id);
+    }
+  };
+
   if (eventLoading) {
     return (
       <div className="p-6">
@@ -965,16 +1144,122 @@ export default function EventDetail() {
                           <p className="text-sm text-muted-foreground">{sponsor.tier} Tier</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-medium">${sponsor.amount || '0.00'}</p>
-                        <StatusBadge status={sponsor.status as any}>
-                          {sponsor.status === 'pending' ? 'Pending' : sponsor.status === 'confirmed' ? 'Confirmed' : 'Paid'}
-                        </StatusBadge>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="font-medium">${sponsor.amount || '0.00'}</p>
+                          <StatusBadge status={sponsor.status as any}>
+                            {sponsor.status === 'pending' ? 'Pending' : sponsor.status === 'confirmed' ? 'Confirmed' : 'Paid'}
+                          </StatusBadge>
+                        </div>
+                        {canEdit && (
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingSponsor(sponsor)}
+                              data-testid={`button-edit-sponsor-${sponsor.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteSponsor(sponsor.id, sponsor.name)}
+                              data-testid={`button-delete-sponsor-${sponsor.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+              {/* Edit Sponsor Dialog */}
+              <Dialog open={!!editingSponsor} onOpenChange={(open) => !open && setEditingSponsor(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Sponsor</DialogTitle>
+                  </DialogHeader>
+                  {editingSponsor && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-sponsor-name">Sponsor Name *</Label>
+                        <Input 
+                          id="edit-sponsor-name" 
+                          value={editingSponsor.name}
+                          onChange={(e) => setEditingSponsor({...editingSponsor, name: e.target.value})}
+                          data-testid="input-edit-sponsor-name"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-sponsor-tier">Tier</Label>
+                        <Select value={editingSponsor.tier || "bronze"} onValueChange={(value) => setEditingSponsor({...editingSponsor, tier: value})}>
+                          <SelectTrigger data-testid="select-edit-sponsor-tier">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="platinum">Platinum</SelectItem>
+                            <SelectItem value="gold">Gold</SelectItem>
+                            <SelectItem value="silver">Silver</SelectItem>
+                            <SelectItem value="bronze">Bronze</SelectItem>
+                            <SelectItem value="custom">Custom</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-sponsor-amount">Amount ($)</Label>
+                        <Input 
+                          id="edit-sponsor-amount" 
+                          type="number"
+                          value={editingSponsor.amount || ""}
+                          onChange={(e) => setEditingSponsor({...editingSponsor, amount: e.target.value})}
+                          data-testid="input-edit-sponsor-amount"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-sponsor-contact">Contact Name</Label>
+                        <Input 
+                          id="edit-sponsor-contact" 
+                          value={editingSponsor.contactName || ""}
+                          onChange={(e) => setEditingSponsor({...editingSponsor, contactName: e.target.value})}
+                          data-testid="input-edit-sponsor-contact"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-sponsor-email">Contact Email</Label>
+                        <Input 
+                          id="edit-sponsor-email" 
+                          type="email"
+                          value={editingSponsor.contactEmail || ""}
+                          onChange={(e) => setEditingSponsor({...editingSponsor, contactEmail: e.target.value})}
+                          data-testid="input-edit-sponsor-email"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-sponsor-benefits">Benefits</Label>
+                        <Textarea 
+                          id="edit-sponsor-benefits" 
+                          value={editingSponsor.benefits || ""}
+                          onChange={(e) => setEditingSponsor({...editingSponsor, benefits: e.target.value})}
+                          data-testid="input-edit-sponsor-benefits"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingSponsor(null)}>Cancel</Button>
+                    <Button 
+                      onClick={() => editingSponsor && editSponsorMutation.mutate(editingSponsor)}
+                      disabled={!editingSponsor?.name || editSponsorMutation.isPending}
+                      data-testid="button-update-sponsor"
+                    >
+                      {editSponsorMutation.isPending ? "Saving..." : "Update Sponsor"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1085,16 +1370,123 @@ export default function EventDetail() {
                         <p className="text-sm text-muted-foreground">{volunteer.role} - {volunteer.assignedArea || 'Unassigned'}</p>
                         {volunteer.email && <p className="text-sm text-muted-foreground">{volunteer.email}</p>}
                       </div>
-                      <div className="text-right">
-                        {volunteer.shirtSize && <p className="text-sm">Size: {volunteer.shirtSize}</p>}
-                        <StatusBadge status={volunteer.checkedIn ? 'success' : 'outline'}>
-                          {volunteer.checkedIn ? 'Checked In' : 'Not Checked In'}
-                        </StatusBadge>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          {volunteer.shirtSize && <p className="text-sm">Size: {volunteer.shirtSize}</p>}
+                          <StatusBadge status={volunteer.checkedIn ? 'success' : 'outline'}>
+                            {volunteer.checkedIn ? 'Checked In' : 'Not Checked In'}
+                          </StatusBadge>
+                        </div>
+                        {canEdit && (
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingVolunteer(volunteer)}
+                              data-testid={`button-edit-volunteer-${volunteer.id}`}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteVolunteer(volunteer.id, volunteer.name)}
+                              data-testid={`button-delete-volunteer-${volunteer.id}`}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+              {/* Edit Volunteer Dialog */}
+              <Dialog open={!!editingVolunteer} onOpenChange={(open) => !open && setEditingVolunteer(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Volunteer</DialogTitle>
+                  </DialogHeader>
+                  {editingVolunteer && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-volunteer-name">Name *</Label>
+                        <Input 
+                          id="edit-volunteer-name" 
+                          value={editingVolunteer.name}
+                          onChange={(e) => setEditingVolunteer({...editingVolunteer, name: e.target.value})}
+                          data-testid="input-edit-volunteer-name"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-volunteer-email">Email</Label>
+                        <Input 
+                          id="edit-volunteer-email" 
+                          type="email"
+                          value={editingVolunteer.email || ""}
+                          onChange={(e) => setEditingVolunteer({...editingVolunteer, email: e.target.value})}
+                          data-testid="input-edit-volunteer-email"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-volunteer-phone">Phone</Label>
+                        <Input 
+                          id="edit-volunteer-phone" 
+                          value={editingVolunteer.phone || ""}
+                          onChange={(e) => setEditingVolunteer({...editingVolunteer, phone: e.target.value})}
+                          data-testid="input-edit-volunteer-phone"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-volunteer-role">Role</Label>
+                        <Input 
+                          id="edit-volunteer-role" 
+                          value={editingVolunteer.role || ""}
+                          onChange={(e) => setEditingVolunteer({...editingVolunteer, role: e.target.value})}
+                          data-testid="input-edit-volunteer-role"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-volunteer-area">Assigned Area</Label>
+                        <Input 
+                          id="edit-volunteer-area" 
+                          value={editingVolunteer.assignedArea || ""}
+                          onChange={(e) => setEditingVolunteer({...editingVolunteer, assignedArea: e.target.value})}
+                          data-testid="input-edit-volunteer-area"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-volunteer-shirt">Shirt Size</Label>
+                        <Select value={editingVolunteer.shirtSize || ""} onValueChange={(value) => setEditingVolunteer({...editingVolunteer, shirtSize: value})}>
+                          <SelectTrigger data-testid="select-edit-volunteer-shirt">
+                            <SelectValue placeholder="Select size" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="XS">XS</SelectItem>
+                            <SelectItem value="S">S</SelectItem>
+                            <SelectItem value="M">M</SelectItem>
+                            <SelectItem value="L">L</SelectItem>
+                            <SelectItem value="XL">XL</SelectItem>
+                            <SelectItem value="2XL">2XL</SelectItem>
+                            <SelectItem value="3XL">3XL</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingVolunteer(null)}>Cancel</Button>
+                    <Button 
+                      onClick={() => editingVolunteer && editVolunteerMutation.mutate(editingVolunteer)}
+                      disabled={!editingVolunteer?.name || editVolunteerMutation.isPending}
+                      data-testid="button-update-volunteer"
+                    >
+                      {editVolunteerMutation.isPending ? "Saving..." : "Update Volunteer"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1184,10 +1576,89 @@ export default function EventDetail() {
                         {member.email && <p className="text-sm text-muted-foreground">{member.email}</p>}
                         {member.phone && <p className="text-sm text-muted-foreground">{member.phone}</p>}
                       </div>
+                      {canEdit && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditingStaff(member)}
+                            data-testid={`button-edit-staff-${member.id}`}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteStaff(member.id, member.name)}
+                            data-testid={`button-delete-staff-${member.id}`}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
               )}
+              {/* Edit Staff Dialog */}
+              <Dialog open={!!editingStaff} onOpenChange={(open) => !open && setEditingStaff(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Staff Member</DialogTitle>
+                  </DialogHeader>
+                  {editingStaff && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-staff-name">Name *</Label>
+                        <Input 
+                          id="edit-staff-name" 
+                          value={editingStaff.name}
+                          onChange={(e) => setEditingStaff({...editingStaff, name: e.target.value})}
+                          data-testid="input-edit-staff-name"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-staff-email">Email</Label>
+                        <Input 
+                          id="edit-staff-email" 
+                          type="email"
+                          value={editingStaff.email || ""}
+                          onChange={(e) => setEditingStaff({...editingStaff, email: e.target.value})}
+                          data-testid="input-edit-staff-email"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-staff-phone">Phone</Label>
+                        <Input 
+                          id="edit-staff-phone" 
+                          value={editingStaff.phone || ""}
+                          onChange={(e) => setEditingStaff({...editingStaff, phone: e.target.value})}
+                          data-testid="input-edit-staff-phone"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-staff-role">Role *</Label>
+                        <Input 
+                          id="edit-staff-role" 
+                          value={editingStaff.role || ""}
+                          onChange={(e) => setEditingStaff({...editingStaff, role: e.target.value})}
+                          data-testid="input-edit-staff-role"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingStaff(null)}>Cancel</Button>
+                    <Button 
+                      onClick={() => editingStaff && editStaffMutation.mutate(editingStaff)}
+                      disabled={!editingStaff?.name || !editingStaff?.role || editStaffMutation.isPending}
+                      data-testid="button-update-staff"
+                    >
+                      {editStaffMutation.isPending ? "Saving..." : "Update Staff"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1304,10 +1775,32 @@ export default function EventDetail() {
                           {contractor.email && <p className="text-sm text-muted-foreground">{contractor.email}</p>}
                           {contractor.phone && <p className="text-sm text-muted-foreground">{contractor.phone}</p>}
                         </div>
-                        <StatusBadge status={contractor.paymentStatus as any}>
-                          {contractor.paymentStatus === 'unpaid' ? 'Unpaid' : 
-                           contractor.paymentStatus === 'half_paid' ? 'Half Paid' : 'Paid'}
-                        </StatusBadge>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge status={contractor.paymentStatus as any}>
+                            {contractor.paymentStatus === 'unpaid' ? 'Unpaid' : 
+                             contractor.paymentStatus === 'half_paid' ? 'Half Paid' : 'Paid'}
+                          </StatusBadge>
+                          {canEdit && (
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setEditingContractor(contractor)}
+                                data-testid={`button-edit-contractor-${contractor.id}`}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDeleteContractor(contractor.id, contractor.name)}
+                                data-testid={`button-delete-contractor-${contractor.id}`}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                       {contractor.bioText && (
                         <p className="mt-2 text-sm">{contractor.bioText}</p>
@@ -1316,6 +1809,90 @@ export default function EventDetail() {
                   ))}
                 </div>
               )}
+              {/* Edit Contractor Dialog */}
+              <Dialog open={!!editingContractor} onOpenChange={(open) => !open && setEditingContractor(null)}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Contractor</DialogTitle>
+                  </DialogHeader>
+                  {editingContractor && (
+                    <div className="grid gap-4 py-4">
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-contractor-name">Name *</Label>
+                        <Input 
+                          id="edit-contractor-name" 
+                          value={editingContractor.name}
+                          onChange={(e) => setEditingContractor({...editingContractor, name: e.target.value})}
+                          data-testid="input-edit-contractor-name"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-contractor-email">Email</Label>
+                        <Input 
+                          id="edit-contractor-email" 
+                          type="email"
+                          value={editingContractor.email || ""}
+                          onChange={(e) => setEditingContractor({...editingContractor, email: e.target.value})}
+                          data-testid="input-edit-contractor-email"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-contractor-phone">Phone</Label>
+                        <Input 
+                          id="edit-contractor-phone" 
+                          value={editingContractor.phone || ""}
+                          onChange={(e) => setEditingContractor({...editingContractor, phone: e.target.value})}
+                          data-testid="input-edit-contractor-phone"
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="edit-contractor-role">Role *</Label>
+                        <Input 
+                          id="edit-contractor-role" 
+                          value={editingContractor.role || ""}
+                          onChange={(e) => setEditingContractor({...editingContractor, role: e.target.value})}
+                          data-testid="input-edit-contractor-role"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-contractor-payment-type">Payment Type</Label>
+                          <Select value={editingContractor.contractType || "flat_fee"} onValueChange={(value: "flat_fee" | "per_day" | "commission") => setEditingContractor({...editingContractor, contractType: value})}>
+                            <SelectTrigger data-testid="select-edit-contractor-payment-type">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="flat_fee">Flat Fee</SelectItem>
+                              <SelectItem value="per_day">Per Day</SelectItem>
+                              <SelectItem value="commission">Commission</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="edit-contractor-amount">Amount ($)</Label>
+                          <Input 
+                            id="edit-contractor-amount" 
+                            type="number"
+                            value={editingContractor.paymentAmount || ""}
+                            onChange={(e) => setEditingContractor({...editingContractor, paymentAmount: e.target.value})}
+                            data-testid="input-edit-contractor-amount"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setEditingContractor(null)}>Cancel</Button>
+                    <Button 
+                      onClick={() => editingContractor && editContractorMutation.mutate(editingContractor)}
+                      disabled={!editingContractor?.name || !editingContractor?.role || editContractorMutation.isPending}
+                      data-testid="button-update-contractor"
+                    >
+                      {editContractorMutation.isPending ? "Saving..." : "Update Contractor"}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardContent>
           </Card>
         </TabsContent>
