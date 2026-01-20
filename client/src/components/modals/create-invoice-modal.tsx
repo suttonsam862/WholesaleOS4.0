@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -105,61 +104,60 @@ export function CreateInvoiceModal({ isOpen, onClose, orderId }: CreateInvoiceMo
     createInvoiceMutation.mutate(invoiceData);
   };
 
+  // Prepare order options for searchable select
+  const orderOptions = [
+    { value: "none", label: "None" },
+    ...orders.map((order: any) => ({
+      value: order.id.toString(),
+      label: `${order.orderCode} - ${order.orderName}`,
+    })),
+  ];
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl flex flex-col max-h-[85vh]">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Create Invoice</DialogTitle>
           <DialogDescription>
-            Generate a new invoice for an order
+            Create a new invoice for an order or organization.
           </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <ScrollArea className="max-h-[60vh] pr-4">
-              <div className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+              <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="orderId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Order (Optional)</FormLabel>
-                      <Select
-                        value={field.value?.toString() || "none"}
-                        onValueChange={(value) => {
-                          if (value === "none") {
-                            field.onChange(null);
-                            form.setValue("orgId", null);
-                          } else {
-                            const id = parseInt(value);
-                            field.onChange(id);
-                            const order = orders.find((o: any) => o.id === id);
-                            if (order) {
-                              form.setValue("orgId", order.orgId);
-                              form.setValue("subtotal", order.totalAmount || "0");
-                              form.setValue("totalAmount", order.totalAmount || "0");
+                      <FormControl>
+                        <SearchableSelect
+                          options={orderOptions}
+                          value={field.value?.toString() || "none"}
+                          onValueChange={(value) => {
+                            if (value === "none") {
+                              field.onChange(null);
+                              form.setValue("orgId", null);
+                            } else {
+                              const id = parseInt(value);
+                              field.onChange(id);
+                              const order = orders.find((o: any) => o.id === id);
+                              if (order) {
+                                form.setValue("orgId", order.orgId);
+                                form.setValue("subtotal", order.totalAmount || "0");
+                                form.setValue("totalAmount", order.totalAmount || "0");
+                              }
                             }
-                          }
-                        }}
-                      >
-                        <FormControl>
-                          <SelectTrigger data-testid="select-order">
-                            <SelectValue placeholder="Select an order (optional)" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="none">None</SelectItem>
-                          {orders.map((order: any) => (
-                            <SelectItem key={order.id} value={order.id.toString()}>
-                              {order.orderCode} - {order.orderName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Optionally link this invoice to an existing order
-                      </FormDescription>
+                          }}
+                          placeholder="Search orders..."
+                          searchPlaceholder="Search by order code or name..."
+                          emptyMessage="No orders found"
+                          testId="select-order"
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -204,8 +202,9 @@ export function CreateInvoiceModal({ isOpen, onClose, orderId }: CreateInvoiceMo
                     );
                   }}
                 />
+              </div>
 
-                <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-4">
                   <FormField
                     control={form.control}
                     name="subtotal"
@@ -403,10 +402,9 @@ export function CreateInvoiceModal({ isOpen, onClose, orderId }: CreateInvoiceMo
                     </FormItem>
                   )}
                 />
-              </div>
-            </ScrollArea>
+            </div>
             
-            <DialogFooter>
+            <DialogFooter className="flex-shrink-0 pt-4 border-t">
               <Button
                 type="button"
                 variant="outline"
