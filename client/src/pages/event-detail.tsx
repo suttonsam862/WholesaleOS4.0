@@ -165,7 +165,7 @@ export default function EventDetail() {
   };
 
   const openCustomerPortal = () => {
-    window.open(`/customer-event-portal/${eventId}`, '_blank');
+    window.open(`/customer-event-portal/${eventId}`, '_blank', 'noopener,noreferrer');
   };
 
   const [newSponsor, setNewSponsor] = useState({
