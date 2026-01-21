@@ -181,3 +181,21 @@ Preferred communication style: Simple, everyday language.
   - Layers store both pixel position and normalized (0-1) bbox
   - Allows consistent placement across different template sizes
   - Position calculated from bbox using reference canvas dimensions
+
+### Codebase Cleanup (January 2026)
+- **Schema Fixes**: Corrected 9 LSP errors in `shared/schema.ts`
+  - Fixed invalid field refinements in event schemas (removed non-existent fields)
+  - Fixed `id: true` omit issues for tables using `generatedAlwaysAsIdentity()`
+  
+- **File Organization**: Cleaned up root directory clutter
+  - Moved 42 test/debug PNG screenshots to `archive/screenshots/`
+  - Moved 5 planning docs + 2 log files to `archive/planning-docs/`
+  - Removed empty `.md` and duplicate `replit.md` from `docs/`
+  - Consolidated `critical_mobile_evidence/` into archive
+  
+- **Archive Structure**: Organized archive folder
+  - `archive/screenshots/` - Test screenshots
+  - `archive/planning-docs/` - Planning and audit documents
+  - `archive/old-tests/` - Legacy test files
+  - `archive/test-results/` - Historical test results
+  - `archive/scripts/` - Archived utility scripts
