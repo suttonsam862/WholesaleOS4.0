@@ -400,7 +400,7 @@ export function FirstPieceApprovalPanel({
       </Card>
 
       <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Approve First Piece Sample</DialogTitle>
           </DialogHeader>
@@ -427,7 +427,7 @@ export function FirstPieceApprovalPanel({
       </Dialog>
 
       <Dialog open={showRejectionDialog} onOpenChange={setShowRejectionDialog}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Reject First Piece Sample</DialogTitle>
           </DialogHeader>

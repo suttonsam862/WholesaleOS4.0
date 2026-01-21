@@ -641,12 +641,15 @@ export default function EventDetail() {
 
   const addScheduleMutation = useMutation({
     mutationFn: async (data: typeof newSchedule) => {
+      if (!data.startTime) {
+        throw new Error("Start time is required");
+      }
       return apiRequest(`/api/events/${eventId}/schedules`, {
         method: "POST",
         body: {
           title: data.title,
           description: data.description || null,
-          startTime: data.startTime ? new Date(data.startTime).toISOString() : null,
+          startTime: new Date(data.startTime).toISOString(),
           endTime: data.endTime ? new Date(data.endTime).toISOString() : null,
           location: data.location || null,
           activityType: data.activityType || null,
@@ -660,8 +663,8 @@ export default function EventDetail() {
       setNewSchedule({ title: "", description: "", startTime: "", endTime: "", location: "", activityType: "session", speakerName: "" });
       toast({ title: "Schedule item added successfully" });
     },
-    onError: () => {
-      toast({ title: "Failed to add schedule item", variant: "destructive" });
+    onError: (error) => {
+      toast({ title: error.message || "Failed to add schedule item", variant: "destructive" });
     },
   });
 
@@ -933,13 +936,23 @@ export default function EventDetail() {
 
   const editScheduleMutation = useMutation({
     mutationFn: async (data: EventSchedule) => {
+      const formatDateTime = (val: string | Date | null | undefined): string | null => {
+        if (!val) return null;
+        if (val instanceof Date) return val.toISOString();
+        if (typeof val === 'string') return new Date(val).toISOString();
+        return null;
+      };
+      const startTimeFormatted = formatDateTime(data.startTime);
+      if (!startTimeFormatted) {
+        throw new Error("Start time is required");
+      }
       return apiRequest(`/api/events/schedules/${data.id}`, {
         method: "PUT",
         body: {
           title: data.title,
           description: data.description || null,
-          startTime: data.startTime || null,
-          endTime: data.endTime || null,
+          startTime: startTimeFormatted,
+          endTime: formatDateTime(data.endTime),
           location: data.location || null,
           activityType: data.activityType || null,
           speakerName: data.speakerName || null,
@@ -951,8 +964,8 @@ export default function EventDetail() {
       setEditingSchedule(null);
       toast({ title: "Schedule item updated successfully" });
     },
-    onError: () => {
-      toast({ title: "Failed to update schedule item", variant: "destructive" });
+    onError: (error) => {
+      toast({ title: error.message || "Failed to update schedule item", variant: "destructive" });
     },
   });
 
@@ -982,16 +995,22 @@ export default function EventDetail() {
 
   const editTravelMutation = useMutation({
     mutationFn: async (data: EventTravel) => {
+      const formatDateTime = (val: string | Date | null | undefined): string | null => {
+        if (!val) return null;
+        if (val instanceof Date) return val.toISOString();
+        if (typeof val === 'string') return new Date(val).toISOString();
+        return null;
+      };
       return apiRequest(`/api/events/travel/${data.id}`, {
         method: "PUT",
         body: {
           travelerName: data.travelerName,
           travelerType: data.travelerType || 'custom',
-          flightArrival: data.flightArrival || null,
-          flightDeparture: data.flightDeparture || null,
+          flightArrival: formatDateTime(data.flightArrival),
+          flightDeparture: formatDateTime(data.flightDeparture),
           hotelName: data.hotelName || null,
-          hotelCheckIn: data.hotelCheckIn || null,
-          hotelCheckOut: data.hotelCheckOut || null,
+          hotelCheckIn: formatDateTime(data.hotelCheckIn),
+          hotelCheckOut: formatDateTime(data.hotelCheckOut),
           totalCost: data.totalCost || null,
           notes: data.notes || null,
         },
@@ -1002,8 +1021,8 @@ export default function EventDetail() {
       setEditingTravel(null);
       toast({ title: "Travel arrangement updated successfully" });
     },
-    onError: () => {
-      toast({ title: "Failed to update travel arrangement", variant: "destructive" });
+    onError: (error) => {
+      toast({ title: error.message || "Failed to update travel arrangement", variant: "destructive" });
     },
   });
 
@@ -1648,7 +1667,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Sponsor
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Sponsor</DialogTitle>
                       </DialogHeader>
@@ -1777,7 +1796,7 @@ export default function EventDetail() {
               )}
               {/* Edit Sponsor Dialog */}
               <Dialog open={!!editingSponsor} onOpenChange={(open) => !open && setEditingSponsor(null)}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Sponsor</DialogTitle>
                   </DialogHeader>
@@ -1875,7 +1894,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Volunteer
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Volunteer</DialogTitle>
                       </DialogHeader>
@@ -2003,7 +2022,7 @@ export default function EventDetail() {
               )}
               {/* Edit Volunteer Dialog */}
               <Dialog open={!!editingVolunteer} onOpenChange={(open) => !open && setEditingVolunteer(null)}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Volunteer</DialogTitle>
                   </DialogHeader>
@@ -2102,7 +2121,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Staff
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Staff Member</DialogTitle>
                       </DialogHeader>
@@ -2201,7 +2220,7 @@ export default function EventDetail() {
               )}
               {/* Edit Staff Dialog */}
               <Dialog open={!!editingStaff} onOpenChange={(open) => !open && setEditingStaff(null)}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Staff Member</DialogTitle>
                   </DialogHeader>
@@ -2274,7 +2293,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Contractor
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Contractor</DialogTitle>
                       </DialogHeader>
@@ -2410,7 +2429,7 @@ export default function EventDetail() {
               )}
               {/* Edit Contractor Dialog */}
               <Dialog open={!!editingContractor} onOpenChange={(open) => !open && setEditingContractor(null)}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Contractor</DialogTitle>
                   </DialogHeader>
@@ -2508,7 +2527,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Graphic
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="max-w-lg" aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Graphic</DialogTitle>
                       </DialogHeader>
@@ -2619,7 +2638,7 @@ export default function EventDetail() {
               )}
               {/* Edit Graphic Dialog */}
               <Dialog open={!!editingGraphic} onOpenChange={(open) => !open && setEditingGraphic(null)}>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-w-lg" aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Graphic</DialogTitle>
                   </DialogHeader>
@@ -2688,7 +2707,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Venue
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="max-w-lg" aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Venue</DialogTitle>
                       </DialogHeader>
@@ -2779,7 +2798,7 @@ export default function EventDetail() {
               )}
               {/* Edit Venue Dialog */}
               <Dialog open={!!editingVenue} onOpenChange={(open) => !open && setEditingVenue(null)}>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-w-lg" aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Venue</DialogTitle>
                   </DialogHeader>
@@ -2903,7 +2922,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Schedule Item
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="max-w-lg" aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Schedule Item</DialogTitle>
                       </DialogHeader>
@@ -3006,7 +3025,7 @@ export default function EventDetail() {
               )}
               {/* Edit Schedule Dialog */}
               <Dialog open={!!editingSchedule} onOpenChange={(open) => !open && setEditingSchedule(null)}>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-w-lg" aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Schedule Item</DialogTitle>
                   </DialogHeader>
@@ -3116,7 +3135,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Equipment
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Equipment</DialogTitle>
                       </DialogHeader>
@@ -3233,7 +3252,7 @@ export default function EventDetail() {
               )}
               {/* Edit Equipment Dialog */}
               <Dialog open={!!editingEquipment} onOpenChange={(open) => !open && setEditingEquipment(null)}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Equipment</DialogTitle>
                   </DialogHeader>
@@ -3321,7 +3340,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Travel
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="max-w-lg" aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Travel Arrangement</DialogTitle>
                       </DialogHeader>
@@ -3445,7 +3464,7 @@ export default function EventDetail() {
               )}
               {/* Edit Travel Dialog */}
               <Dialog open={!!editingTravel} onOpenChange={(open) => !open && setEditingTravel(null)}>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-w-lg" aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Travel Arrangement</DialogTitle>
                   </DialogHeader>
@@ -3528,7 +3547,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Task
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Task</DialogTitle>
                       </DialogHeader>
@@ -3654,7 +3673,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Document
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="max-w-lg" aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Document</DialogTitle>
                       </DialogHeader>
@@ -3769,7 +3788,7 @@ export default function EventDetail() {
               )}
               {/* Edit Document Dialog */}
               <Dialog open={!!editingDocument} onOpenChange={(open) => !open && setEditingDocument(null)}>
-                <DialogContent className="max-w-lg">
+                <DialogContent className="max-w-lg" aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Document</DialogTitle>
                   </DialogHeader>
@@ -3874,7 +3893,7 @@ export default function EventDetail() {
               )}
               {/* Edit Budget Dialog */}
               <Dialog open={!!editingBudget} onOpenChange={(open) => !open && setEditingBudget(null)}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Budget Item</DialogTitle>
                   </DialogHeader>
@@ -3963,7 +3982,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Ticket Tier
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-lg">
+                    <DialogContent className="max-w-lg" aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Ticket Tier</DialogTitle>
                       </DialogHeader>
@@ -4043,7 +4062,7 @@ export default function EventDetail() {
                 </div>
               )}
               <Dialog open={!!editingTicketTier} onOpenChange={(open) => !open && setEditingTicketTier(null)}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Ticket Tier</DialogTitle>
                   </DialogHeader>
@@ -4120,7 +4139,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Expense
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Expense</DialogTitle>
                       </DialogHeader>
@@ -4243,7 +4262,7 @@ export default function EventDetail() {
                 </div>
               )}
               <Dialog open={!!editingExpense} onOpenChange={(open) => !open && setEditingExpense(null)}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Expense</DialogTitle>
                   </DialogHeader>
@@ -4369,7 +4388,7 @@ export default function EventDetail() {
                 </div>
               )}
               <Dialog open={!!editingCampaign} onOpenChange={(open) => !open && setEditingCampaign(null)}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Campaign</DialogTitle>
                   </DialogHeader>
@@ -4481,7 +4500,7 @@ export default function EventDetail() {
                 </div>
               )}
               <Dialog open={!!editingRegistration} onOpenChange={(open) => !open && setEditingRegistration(null)}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Registration</DialogTitle>
                   </DialogHeader>
@@ -4567,7 +4586,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Note
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Note</DialogTitle>
                       </DialogHeader>
@@ -4665,7 +4684,7 @@ export default function EventDetail() {
                 </div>
               )}
               <Dialog open={!!editingNote} onOpenChange={(open) => !open && setEditingNote(null)}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Note</DialogTitle>
                   </DialogHeader>
@@ -4734,7 +4753,7 @@ export default function EventDetail() {
                         <Plus className="h-4 w-4 mr-1" /> Add Checklist Item
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent aria-describedby={undefined}>
                       <DialogHeader>
                         <DialogTitle>Add Checklist Item</DialogTitle>
                       </DialogHeader>
@@ -4832,7 +4851,7 @@ export default function EventDetail() {
                 </div>
               )}
               <Dialog open={!!editingChecklist} onOpenChange={(open) => !open && setEditingChecklist(null)}>
-                <DialogContent>
+                <DialogContent aria-describedby={undefined}>
                   <DialogHeader>
                     <DialogTitle>Edit Checklist Item</DialogTitle>
                   </DialogHeader>

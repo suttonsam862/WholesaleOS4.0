@@ -131,11 +131,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/stages', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating event stage with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventStageSchema.parse({ ...req.body, eventId });
       const stage = await storage.createEventStage(validatedData);
       res.status(201).json(stage);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event stage validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event stage:", error);
@@ -182,11 +185,14 @@ export function registerEventRoutes(app: Express) {
     try {
       const eventId = parseInt(req.params.eventId);
       const userData = (req as AuthenticatedRequest).user.userData!;
+      console.log("[DEBUG] Creating event staff with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventStaffSchema.parse({ ...req.body, eventId, assignedBy: userData.id });
       const staff = await storage.createEventStaff(validatedData);
       return res.status(201).json(staff);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event staff validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event staff:", error);
@@ -235,11 +241,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/contractors', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating contractor with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventContractorSchema.parse({ ...req.body, eventId });
       const contractor = await storage.createEventContractor(validatedData);
       res.status(201).json(contractor);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Contractor validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event contractor:", error);
@@ -296,11 +305,14 @@ export function registerEventRoutes(app: Express) {
     try {
       const contractorId = parseInt(req.params.contractorId);
       const userData = (req as AuthenticatedRequest).user.userData!;
+      console.log("[DEBUG] Creating contractor payment with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With contractorId:", contractorId);
       const validatedData = insertContractorPaymentSchema.parse({ ...req.body, contractorId, createdBy: userData.id });
       const payment = await storage.createContractorPayment(validatedData);
       res.status(201).json(payment);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Contractor payment validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating contractor payment:", error);
@@ -324,11 +336,14 @@ export function registerEventRoutes(app: Express) {
     try {
       const contractorId = parseInt(req.params.contractorId);
       const userData = (req as AuthenticatedRequest).user.userData!;
+      console.log("[DEBUG] Creating contractor file with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With contractorId:", contractorId);
       const validatedData = insertContractorFileSchema.parse({ ...req.body, contractorId, uploadedBy: userData.id });
       const file = await storage.createContractorFile(validatedData);
       res.status(201).json(file);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Contractor file validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating contractor file:", error);
@@ -362,11 +377,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/merchandise', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating event merchandise with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventMerchandiseSchema.parse({ ...req.body, eventId });
       const merchandise = await storage.createEventMerchandise(validatedData);
       res.status(201).json(merchandise);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event merchandise validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event merchandise:", error);
@@ -416,11 +434,14 @@ export function registerEventRoutes(app: Express) {
     try {
       const eventId = parseInt(req.params.eventId);
       const userData = (req as AuthenticatedRequest).user.userData!;
+      console.log("[DEBUG] Creating inventory movement with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventInventoryMovementSchema.parse({ ...req.body, eventId, movedBy: userData.id });
       const movement = await storage.createEventInventoryMovement(validatedData);
       res.status(201).json(movement);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Inventory movement validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating inventory movement:", error);
@@ -443,11 +464,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/budgets', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating event budget with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventBudgetSchema.parse({ ...req.body, eventId });
       const budget = await storage.createEventBudget(validatedData);
       res.status(201).json(budget);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event budget validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event budget:", error);
@@ -504,11 +528,14 @@ export function registerEventRoutes(app: Express) {
     try {
       const eventId = parseInt(req.params.eventId);
       const userData = (req as AuthenticatedRequest).user.userData!;
+      console.log("[DEBUG] Creating event campaign with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventCampaignSchema.parse({ ...req.body, eventId, createdBy: userData.id });
       const campaign = await storage.createEventCampaign(validatedData);
       res.status(201).json(campaign);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event campaign validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event campaign:", error);
@@ -634,6 +661,7 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/tour-merch-bundles', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const userData = (req as AuthenticatedRequest).user.userData!;
+      console.log("[DEBUG] Creating tour merch bundle with body:", JSON.stringify(req.body, null, 2));
       const validatedData = insertTourMerchBundleSchema.parse(req.body);
       
       const bundleData = {
@@ -645,6 +673,7 @@ export function registerEventRoutes(app: Express) {
       res.status(201).json(bundle);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Tour merch bundle validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating tour merch bundle:", error);
@@ -693,11 +722,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/sponsors', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating event sponsor with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventSponsorSchema.parse({ ...req.body, eventId });
       const sponsor = await storage.createEventSponsor(validatedData);
       res.status(201).json(sponsor);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event sponsor validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event sponsor:", error);
@@ -746,11 +778,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/volunteers', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating event volunteer with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventVolunteerSchema.parse({ ...req.body, eventId });
       const volunteer = await storage.createEventVolunteer(validatedData);
       res.status(201).json(volunteer);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event volunteer validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event volunteer:", error);
@@ -800,11 +835,14 @@ export function registerEventRoutes(app: Express) {
     try {
       const eventId = parseInt(req.params.eventId);
       const userData = (req as AuthenticatedRequest).user.userData!;
+      console.log("[DEBUG] Creating event graphic with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventGraphicSchema.parse({ ...req.body, eventId, uploadedBy: userData.id });
       const graphic = await storage.createEventGraphic(validatedData);
       res.status(201).json(graphic);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event graphic validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event graphic:", error);
@@ -853,11 +891,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/venues', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating event venue with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventVenueSchema.parse({ ...req.body, eventId });
       const venue = await storage.createEventVenue(validatedData);
       res.status(201).json(venue);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event venue validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event venue:", error);
@@ -906,11 +947,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/schedules', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating event schedule with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventScheduleSchema.parse({ ...req.body, eventId });
       const schedule = await storage.createEventSchedule(validatedData);
       res.status(201).json(schedule);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event schedule validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event schedule:", error);
@@ -959,11 +1003,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/equipment', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating event equipment with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventEquipmentSchema.parse({ ...req.body, eventId });
       const equipmentItem = await storage.createEventEquipment(validatedData);
       res.status(201).json(equipmentItem);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event equipment validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event equipment:", error);
@@ -1012,11 +1059,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/travel', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating event travel with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventTravelSchema.parse({ ...req.body, eventId });
       const travelItem = await storage.createEventTravel(validatedData);
       res.status(201).json(travelItem);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event travel validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event travel:", error);
@@ -1065,11 +1115,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/tasks', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating event task with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventTaskSchema.parse({ ...req.body, eventId });
       const task = await storage.createEventTask(validatedData);
       res.status(201).json(task);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event task validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event task:", error);
@@ -1119,11 +1172,14 @@ export function registerEventRoutes(app: Express) {
     try {
       const eventId = parseInt(req.params.eventId);
       const userData = (req as AuthenticatedRequest).user.userData!;
+      console.log("[DEBUG] Creating event document with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventDocumentSchema.parse({ ...req.body, eventId, uploadedBy: userData.id });
       const document = await storage.createEventDocument(validatedData);
       res.status(201).json(document);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event document validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event document:", error);
@@ -1172,11 +1228,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/ticket-tiers', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating event ticket tier with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventTicketTierSchema.parse({ ...req.body, eventId });
       const ticketTier = await storage.createEventTicketTier(validatedData);
       res.status(201).json(ticketTier);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event ticket tier validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event ticket tier:", error);
@@ -1225,11 +1284,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/expenses', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating event expense with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventExpenseSchema.parse({ ...req.body, eventId });
       const expense = await storage.createEventExpense(validatedData);
       res.status(201).json(expense);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event expense validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event expense:", error);
@@ -1285,11 +1347,14 @@ export function registerEventRoutes(app: Express) {
     try {
       const eventId = parseInt(req.params.eventId);
       const userData = (req as AuthenticatedRequest).user.userData!;
+      console.log("[DEBUG] Creating event note with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventNoteSchema.parse({ ...req.body, eventId, createdBy: userData.id });
       const note = await storage.createEventNote(validatedData);
       res.status(201).json(note);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event note validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event note:", error);
@@ -1338,11 +1403,14 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/checklists', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
+      console.log("[DEBUG] Creating event checklist with body:", JSON.stringify(req.body, null, 2));
+      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventChecklistSchema.parse({ ...req.body, eventId });
       const checklist = await storage.createEventChecklist(validatedData);
       res.status(201).json(checklist);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[DEBUG] Event checklist validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
       console.error("Error creating event checklist:", error);

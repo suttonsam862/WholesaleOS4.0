@@ -710,10 +710,10 @@ export default function ManufacturerPortal() {
       </Dialog>
 
       <Dialog open={!!pendingStatus} onOpenChange={() => { setPendingStatus(null); setStatusChangeNotes(""); }}>
-        <DialogContent>
+        <DialogContent aria-describedby="status-change-description">
           <DialogHeader>
             <DialogTitle>Confirm Status Change</DialogTitle>
-            <DialogDescription>
+            <DialogDescription id="status-change-description">
               Move this job to "{getStatusConfig(pendingStatus || '')?.label}"
             </DialogDescription>
           </DialogHeader>

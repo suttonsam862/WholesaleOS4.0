@@ -3153,9 +3153,10 @@ export const insertEventContractorSchema = createInsertSchema(eventContractors, 
   contractType: z.enum(["flat_fee", "per_day", "commission"]),
   paymentStatus: z.enum(["unpaid", "half_paid", "paid"]).optional(),
   approvalStatus: z.enum(["pending", "approved", "rejected"]).optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  paymentAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
-  commissionPercentage: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid percentage").optional(),
+  email: z.string().email().optional().or(z.literal("")).nullable(),
+  phone: z.string().optional().nullable(),
+  paymentAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional().nullable(),
+  commissionPercentage: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid percentage").optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertContractorPaymentSchema = createInsertSchema(contractorPayments, {
@@ -3187,98 +3188,145 @@ export const insertEventInventoryMovementSchema = createInsertSchema(eventInvent
 export const insertEventBudgetSchema = createInsertSchema(eventBudgets, {
   categoryName: z.string().min(1, "Category name is required"),
   budgetedAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount"),
-  actualAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
-  approvalStatus: z.enum(["pending", "approved", "rejected"]).optional(),
+  actualAmount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional().nullable(),
+  approvalStatus: z.enum(["pending", "approved", "rejected"]).optional().nullable(),
+  notes: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventCampaignSchema = createInsertSchema(eventCampaigns, {
   campaignName: z.string().min(1, "Campaign name is required"),
   campaignType: z.enum(["email", "sms", "social", "flyer", "other"]),
-  scheduledAt: z.string().optional(),
-  sentAt: z.string().optional(),
+  scheduledAt: z.string().optional().nullable(),
+  sentAt: z.string().optional().nullable(),
+  targetAudience: z.string().optional().nullable(),
+  content: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventRegistrationSchema = createInsertSchema(eventRegistrations, {
   attendeeName: z.string().min(1, "Attendee name is required"),
-  attendeeEmail: z.string().email().optional().or(z.literal("")),
-  paymentStatus: z.enum(["pending", "paid", "refunded"]).optional(),
-  ticketPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
+  attendeeEmail: z.string().email().optional().or(z.literal("")).nullable(),
+  attendeePhone: z.string().optional().nullable(),
+  paymentStatus: z.enum(["pending", "paid", "refunded"]).optional().nullable(),
+  ticketPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional().nullable(),
+  specialRequirements: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true, registeredAt: true });
 
 export const insertEventSponsorSchema = createInsertSchema(eventSponsors, {
   eventId: z.number().int().positive("Event ID is required"),
   name: z.string().min(1, "Sponsor name is required"),
-  tier: z.enum(["platinum", "gold", "silver", "bronze", "custom"]).optional(),
-  status: z.enum(["pending", "confirmed", "paid"]).optional(),
-  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
-  contactEmail: z.string().email().optional().or(z.literal("")),
+  tier: z.enum(["platinum", "gold", "silver", "bronze", "custom"]).optional().nullable(),
+  status: z.enum(["pending", "confirmed", "paid"]).optional().nullable(),
+  amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional().nullable(),
+  contactEmail: z.string().email().optional().or(z.literal("")).nullable(),
+  contactName: z.string().optional().nullable(),
+  contactPhone: z.string().optional().nullable(),
+  logoUrl: z.string().optional().nullable(),
+  benefits: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventVolunteerSchema = createInsertSchema(eventVolunteers, {
   eventId: z.number().int().positive("Event ID is required"),
   name: z.string().min(1, "Volunteer name is required"),
   role: z.string().min(1, "Role is required"),
-  email: z.string().email().optional().or(z.literal("")),
+  email: z.string().email().optional().or(z.literal("")).nullable(),
+  phone: z.string().optional().nullable(),
+  shirtSize: z.string().optional().nullable(),
+  assignedArea: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventGraphicSchema = createInsertSchema(eventGraphics, {
   eventId: z.number().int().positive("Event ID is required"),
   fileName: z.string().min(1, "File name is required"),
-  fileUrl: z.string().url("Must be a valid URL"),
-  fileType: z.enum(["flyer", "poster", "video", "banner", "social_media", "logo", "other"]).optional(),
+  fileUrl: z.string().min(1, "File URL is required"),
+  fileType: z.enum(["flyer", "poster", "video", "banner", "social_media", "logo", "other"]).optional().nullable(),
+  description: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventVenueSchema = createInsertSchema(eventVenues, {
   eventId: z.number().int().positive("Event ID is required"),
   venueName: z.string().min(1, "Venue name is required"),
-  rentalCost: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
-  contactEmail: z.string().email().optional().or(z.literal("")),
+  address: z.string().optional().nullable(),
+  city: z.string().optional().nullable(),
+  state: z.string().optional().nullable(),
+  zipCode: z.string().optional().nullable(),
+  country: z.string().optional().nullable(),
+  capacity: z.number().int().optional().nullable(),
+  rentalCost: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional().nullable(),
+  contactName: z.string().optional().nullable(),
+  contactEmail: z.string().email().optional().or(z.literal("")).nullable(),
+  contactPhone: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventScheduleSchema = createInsertSchema(eventSchedules, {
   eventId: z.number().int().positive("Event ID is required"),
   title: z.string().min(1, "Title is required"),
   startTime: z.string().min(1, "Start time is required"),
-  activityType: z.enum(["session", "break", "registration", "ceremony", "other"]).optional(),
+  endTime: z.string().optional().nullable(),
+  location: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
+  speakerName: z.string().optional().nullable(),
+  activityType: z.enum(["session", "break", "registration", "ceremony", "other"]).optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventEquipmentSchema = createInsertSchema(eventEquipment, {
   eventId: z.number().int().positive("Event ID is required"),
   itemName: z.string().min(1, "Item name is required"),
-  category: z.enum(["audio", "visual", "signage", "furniture", "sports", "other"]).optional(),
-  status: z.enum(["reserved", "picked_up", "returned", "damaged"]).optional(),
-  rentalCost: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
+  quantity: z.number().int().optional().nullable(),
+  category: z.enum(["audio", "visual", "signage", "furniture", "sports", "other"]).optional().nullable(),
+  status: z.enum(["reserved", "picked_up", "returned", "damaged"]).optional().nullable(),
+  rentalCost: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional().nullable(),
+  vendor: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventTravelSchema = createInsertSchema(eventTravel, {
   eventId: z.number().int().positive("Event ID is required"),
   travelerName: z.string().min(1, "Traveler name is required"),
-  travelerType: z.enum(["contractor", "staff", "custom"]).optional(),
-  reimbursementStatus: z.enum(["pending", "approved", "reimbursed"]).optional(),
-  totalCost: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
+  travelerType: z.enum(["contractor", "staff", "custom"]).optional().nullable(),
+  travelerId: z.number().int().optional().nullable(),
+  flightArrival: z.string().optional().nullable(),
+  flightDeparture: z.string().optional().nullable(),
+  airlineDetails: z.string().optional().nullable(),
+  hotelName: z.string().optional().nullable(),
+  hotelAddress: z.string().optional().nullable(),
+  hotelCheckIn: z.string().optional().nullable(),
+  hotelCheckOut: z.string().optional().nullable(),
+  groundTransportation: z.string().optional().nullable(),
+  totalCost: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional().nullable(),
+  reimbursementStatus: z.enum(["pending", "approved", "reimbursed"]).optional().nullable(),
+  notes: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventTaskSchema = createInsertSchema(eventTasks, {
   eventId: z.number().int().positive("Event ID is required"),
   title: z.string().min(1, "Task title is required"),
-  category: z.enum(["logistics", "marketing", "setup", "teardown", "other"]).optional(),
-  priority: z.enum(["low", "normal", "high", "urgent"]).optional(),
-  status: z.enum(["pending", "in_progress", "completed", "cancelled"]).optional(),
+  description: z.string().optional().nullable(),
+  assignedTo: z.string().optional().nullable(),
+  dueDate: z.string().optional().nullable(),
+  category: z.enum(["logistics", "marketing", "setup", "teardown", "other"]).optional().nullable(),
+  priority: z.enum(["low", "normal", "high", "urgent"]).optional().nullable(),
+  status: z.enum(["pending", "in_progress", "completed", "cancelled"]).optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventDocumentSchema = createInsertSchema(eventDocuments, {
   eventId: z.number().int().positive("Event ID is required"),
   fileName: z.string().min(1, "File name is required"),
-  fileUrl: z.string().url("Must be a valid URL"),
-  documentType: z.enum(["contract", "permit", "insurance", "invoice", "receipt", "other"]).optional(),
-  status: z.enum(["draft", "pending_approval", "approved", "expired"]).optional(),
+  fileUrl: z.string().min(1, "File URL is required"),
+  documentType: z.enum(["contract", "permit", "insurance", "invoice", "receipt", "other"]).optional().nullable(),
+  status: z.enum(["draft", "pending_approval", "approved", "expired"]).optional().nullable(),
+  description: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventTicketTierSchema = createInsertSchema(eventTicketTiers, {
   eventId: z.number().int().positive("Event ID is required"),
   tierName: z.string().min(1, "Tier name is required"),
   price: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid price"),
-  earlyBirdPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid price").optional(),
+  earlyBirdPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid price").optional().nullable(),
+  quantity: z.number().int().optional().nullable(),
+  description: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventExpenseSchema = createInsertSchema(eventExpenses, {
@@ -3286,20 +3334,25 @@ export const insertEventExpenseSchema = createInsertSchema(eventExpenses, {
   expenseCategory: z.enum(["venue", "catering", "equipment", "marketing", "staffing", "travel", "other"]),
   description: z.string().min(1, "Description is required"),
   amount: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount"),
-  paymentMethod: z.enum(["cash", "check", "credit_card", "wire", "other"]).optional(),
-  status: z.enum(["pending", "approved", "paid", "reimbursed"]).optional(),
+  vendor: z.string().optional().nullable(),
+  paymentMethod: z.enum(["cash", "check", "credit_card", "wire", "other"]).optional().nullable(),
+  status: z.enum(["pending", "approved", "paid", "reimbursed"]).optional().nullable(),
+  receiptUrl: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventNoteSchema = createInsertSchema(eventNotes, {
   eventId: z.number().int().positive("Event ID is required"),
+  title: z.string().optional().nullable(),
   content: z.string().min(1, "Content is required"),
-  noteType: z.enum(["general", "internal", "client_facing", "urgent"]).optional(),
+  noteType: z.enum(["general", "internal", "client_facing", "urgent"]).optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventChecklistSchema = createInsertSchema(eventChecklists, {
   eventId: z.number().int().positive("Event ID is required"),
   itemText: z.string().min(1, "Item text is required"),
-  checklistType: z.enum(["pre_event", "during_event", "post_event", "setup", "teardown"]).optional(),
+  checklistType: z.enum(["pre_event", "during_event", "post_event", "setup", "teardown"]).optional().nullable(),
+  notes: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 // Event Management Types
