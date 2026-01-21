@@ -3198,7 +3198,6 @@ export const insertEventCampaignSchema = createInsertSchema(eventCampaigns, {
   campaignType: z.enum(["email", "sms", "social", "flyer", "other"]),
   scheduledAt: z.string().optional().nullable(),
   sentAt: z.string().optional().nullable(),
-  targetAudience: z.string().optional().nullable(),
   content: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
@@ -3208,7 +3207,6 @@ export const insertEventRegistrationSchema = createInsertSchema(eventRegistratio
   attendeePhone: z.string().optional().nullable(),
   paymentStatus: z.enum(["pending", "paid", "refunded"]).optional().nullable(),
   ticketPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional().nullable(),
-  specialRequirements: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true, registeredAt: true });
 
 export const insertEventSponsorSchema = createInsertSchema(eventSponsors, {
@@ -3278,7 +3276,7 @@ export const insertEventEquipmentSchema = createInsertSchema(eventEquipment, {
   category: z.enum(["audio", "visual", "signage", "furniture", "sports", "other"]).optional().nullable(),
   status: z.enum(["reserved", "picked_up", "returned", "damaged"]).optional().nullable(),
   rentalCost: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional().nullable(),
-  vendor: z.string().optional().nullable(),
+  rentalCompany: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
@@ -3317,7 +3315,7 @@ export const insertEventDocumentSchema = createInsertSchema(eventDocuments, {
   fileUrl: z.string().min(1, "File URL is required"),
   documentType: z.enum(["contract", "permit", "insurance", "invoice", "receipt", "other"]).optional().nullable(),
   status: z.enum(["draft", "pending_approval", "approved", "expired"]).optional().nullable(),
-  description: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
 export const insertEventTicketTierSchema = createInsertSchema(eventTicketTiers, {
@@ -3325,7 +3323,7 @@ export const insertEventTicketTierSchema = createInsertSchema(eventTicketTiers, 
   tierName: z.string().min(1, "Tier name is required"),
   price: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid price"),
   earlyBirdPrice: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid price").optional().nullable(),
-  quantity: z.number().int().optional().nullable(),
+  capacity: z.number().int().optional().nullable(),
   description: z.string().optional().nullable(),
 }).omit({ createdAt: true, updatedAt: true });
 
@@ -3624,7 +3622,6 @@ export type InsertDesignLockedOverlay = z.infer<typeof insertDesignLockedOverlay
 
 // Design Projects Schemas
 export const insertDesignProjectSchema = createInsertSchema(designProjects).omit({
-  id: true,
   projectCode: true,
   createdAt: true,
   updatedAt: true,
@@ -3791,7 +3788,6 @@ export type InsertPrintfulSyncRecord = z.infer<typeof insertPrintfulSyncRecordSc
 
 // Design AI Training Schemas
 export const insertDesignAiTrainingSetSchema = createInsertSchema(designAiTrainingSets).omit({
-  id: true,
   createdAt: true,
   updatedAt: true,
   imageCount: true,
@@ -3806,7 +3802,6 @@ export type DesignAiTrainingSet = typeof designAiTrainingSets.$inferSelect;
 export type InsertDesignAiTrainingSet = z.infer<typeof insertDesignAiTrainingSetSchema>;
 
 export const insertDesignAiTrainingImageSchema = createInsertSchema(designAiTrainingImages).omit({
-  id: true,
   createdAt: true,
 }).extend({
   trainingSetId: z.number().int().positive("Training set ID is required"),
@@ -3823,7 +3818,6 @@ export type InsertDesignAiTrainingImage = z.infer<typeof insertDesignAiTrainingI
 
 // Design Style Presets Schemas
 export const insertDesignStylePresetSchema = createInsertSchema(designStylePresets).omit({
-  id: true,
   createdAt: true,
   updatedAt: true,
 }).extend({
