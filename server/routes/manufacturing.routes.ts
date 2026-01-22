@@ -437,107 +437,195 @@ export function registerManufacturingRoutes(app: Express): void {
   });
 
   app.put('/api/manufacturing/:id', isAuthenticated, loadUserData, requirePermission('manufacturing', 'write'), async (req, res) => {
+    const startTime = Date.now();
+    const id = parseInt(req.params.id);
+    console.log(`[MFG-UPDATE] ========== START: Manufacturing update for ID ${id} ==========`);
+    console.log(`[MFG-UPDATE] Request body keys:`, Object.keys(req.body));
+    console.log(`[MFG-UPDATE] Request body (sanitized):`, JSON.stringify({
+      status: req.body.status,
+      trackingNumber: req.body.trackingNumber ? '[PRESENT]' : '[EMPTY]',
+      carrierCompany: req.body.carrierCompany,
+      productionNotes: req.body.productionNotes ? '[PRESENT]' : '[EMPTY]',
+      qualityNotes: req.body.qualityNotes ? '[PRESENT]' : '[EMPTY]',
+      actualCompletion: req.body.actualCompletion,
+    }));
+    
     try {
-      const id = parseInt(req.params.id);
       const user = (req as AuthenticatedRequest).user.userData!;
-      const validatedData = insertManufacturingSchema.partial().parse(req.body);
+      console.log(`[MFG-UPDATE] User: ${user.id} (${user.role})`);
+      
+      // Step 1: Validate data with Zod
+      console.log(`[MFG-UPDATE] Step 1: Validating request body with Zod schema...`);
+      let validatedData;
+      try {
+        validatedData = insertManufacturingSchema.partial().parse(req.body);
+        console.log(`[MFG-UPDATE] Step 1 SUCCESS: Zod validation passed. Validated keys:`, Object.keys(validatedData));
+      } catch (zodError: any) {
+        console.error(`[MFG-UPDATE] Step 1 FAILED: Zod validation error:`, zodError.errors || zodError.message);
+        throw zodError;
+      }
 
-      // Validate manufacturing status if provided
+      // Step 2: Validate manufacturing status if provided
+      console.log(`[MFG-UPDATE] Step 2: Checking manufacturing status validity...`);
       if (validatedData.status && !isValidManufacturingStatus(validatedData.status)) {
+        console.error(`[MFG-UPDATE] Step 2 FAILED: Invalid status "${validatedData.status}"`);
         return res.status(400).json({ 
           message: `Invalid manufacturing status. Allowed values: ${getValidManufacturingStatuses().join(', ')}` 
         });
       }
+      console.log(`[MFG-UPDATE] Step 2 SUCCESS: Status "${validatedData.status}" is valid`);
 
-      const existingRecord = await storage.getManufacturingRecord(id, user);
-      if (!existingRecord) {
-        return res.status(404).json({ message: "Manufacturing record not found" });
-      }
-
-      const updatedRecord = await storage.updateManufacturing(id, validatedData);
-
-      // Sync tracking number to order tracking table
-      const orderId = updatedRecord.orderId;
-      
-      // Check if a tracking number already exists for this order
-      const [existingTracking] = await db
-        .select()
-        .from(orderTrackingNumbers)
-        .where(eq(orderTrackingNumbers.orderId, orderId))
-        .limit(1);
-
-      // Handle tracking number changes (including clearing)
-      const trackingChanged = 
-        ('trackingNumber' in validatedData) && 
-        validatedData.trackingNumber !== existingRecord.trackingNumber;
-      
-      const carrierProvided = req.body.carrierCompany;
-      const carrierChanged = carrierProvided && carrierProvided !== existingTracking?.carrierCompany;
-
-      if (trackingChanged || carrierChanged) {
-        if (existingTracking) {
-          // If tracking number is cleared (empty or null), delete the record
-          if (trackingChanged && !validatedData.trackingNumber) {
-            await db
-              .delete(orderTrackingNumbers)
-              .where(eq(orderTrackingNumbers.id, existingTracking.id));
-          } else {
-            // Update existing tracking number and/or carrier
-            // Use new values if provided, otherwise keep existing
-            const updateData: any = {};
-            if (trackingChanged) {
-              updateData.trackingNumber = validatedData.trackingNumber;
-            }
-            if (carrierChanged) {
-              updateData.carrierCompany = carrierProvided;
-            }
-            
-            if (Object.keys(updateData).length > 0) {
-              await db
-                .update(orderTrackingNumbers)
-                .set(updateData)
-                .where(eq(orderTrackingNumbers.id, existingTracking.id));
-            }
-          }
-        } else if (validatedData.trackingNumber) {
-          // Create new tracking number if one is provided
-          await db.insert(orderTrackingNumbers).values({
-            orderId,
-            trackingNumber: validatedData.trackingNumber,
-            carrierCompany: carrierProvided || "Manufacturing Team",
-          });
+      // Step 3: Fetch existing record
+      console.log(`[MFG-UPDATE] Step 3: Fetching existing manufacturing record ID ${id}...`);
+      let existingRecord;
+      try {
+        existingRecord = await storage.getManufacturingRecord(id, user);
+        if (!existingRecord) {
+          console.error(`[MFG-UPDATE] Step 3 FAILED: Manufacturing record ID ${id} not found`);
+          return res.status(404).json({ message: "Manufacturing record not found" });
         }
+        console.log(`[MFG-UPDATE] Step 3 SUCCESS: Found record. Current status: "${existingRecord.status}", orderId: ${existingRecord.orderId}`);
+      } catch (fetchError: any) {
+        console.error(`[MFG-UPDATE] Step 3 FAILED: Error fetching record:`, fetchError.message, fetchError.stack);
+        throw fetchError;
       }
 
-      // If status changed, create a status update entry
-      if (validatedData.status && validatedData.status !== existingRecord.status) {
-        await storage.createManufacturingUpdate({
-          manufacturingId: id,
-          status: validatedData.status,
-          notes: req.body.statusNotes || `Status changed from ${existingRecord.status} to ${validatedData.status}`,
-          updatedBy: user.id,
-          manufacturerId: updatedRecord.manufacturerId || undefined,
-        });
+      // Step 4: Update the manufacturing record
+      console.log(`[MFG-UPDATE] Step 4: Updating manufacturing record in database...`);
+      let updatedRecord;
+      try {
+        updatedRecord = await storage.updateManufacturing(id, validatedData);
+        console.log(`[MFG-UPDATE] Step 4 SUCCESS: Record updated. New status: "${updatedRecord.status}"`);
+      } catch (updateError: any) {
+        console.error(`[MFG-UPDATE] Step 4 FAILED: Error updating record:`, updateError.message, updateError.stack);
+        throw updateError;
       }
 
-      // Log activity
-      await storage.logActivity(
-        user.id,
-        'manufacturing',
-        id,
-        'updated',
-        existingRecord,
-        updatedRecord
-      );
+      // Step 5: Sync tracking number to order tracking table
+      console.log(`[MFG-UPDATE] Step 5: Syncing tracking number for orderId ${updatedRecord.orderId}...`);
+      try {
+        const orderId = updatedRecord.orderId;
+        
+        // Check if a tracking number already exists for this order
+        const [existingTracking] = await db
+          .select()
+          .from(orderTrackingNumbers)
+          .where(eq(orderTrackingNumbers.orderId, orderId))
+          .limit(1);
+        console.log(`[MFG-UPDATE] Step 5: Existing tracking record:`, existingTracking ? `ID ${existingTracking.id}` : 'None');
 
+        // Handle tracking number changes (including clearing)
+        const trackingChanged = 
+          ('trackingNumber' in validatedData) && 
+          validatedData.trackingNumber !== existingRecord.trackingNumber;
+        
+        const carrierProvided = req.body.carrierCompany;
+        const carrierChanged = carrierProvided && carrierProvided !== existingTracking?.carrierCompany;
+        console.log(`[MFG-UPDATE] Step 5: trackingChanged=${trackingChanged}, carrierChanged=${carrierChanged}`);
+
+        if (trackingChanged || carrierChanged) {
+          if (existingTracking) {
+            // If tracking number is cleared (empty or null), delete the record
+            if (trackingChanged && !validatedData.trackingNumber) {
+              console.log(`[MFG-UPDATE] Step 5: Deleting tracking record (cleared)`);
+              await db
+                .delete(orderTrackingNumbers)
+                .where(eq(orderTrackingNumbers.id, existingTracking.id));
+            } else {
+              // Update existing tracking number and/or carrier
+              const updateData: any = {};
+              if (trackingChanged) {
+                updateData.trackingNumber = validatedData.trackingNumber;
+              }
+              if (carrierChanged) {
+                updateData.carrierCompany = carrierProvided;
+              }
+              
+              if (Object.keys(updateData).length > 0) {
+                console.log(`[MFG-UPDATE] Step 5: Updating tracking record with:`, updateData);
+                await db
+                  .update(orderTrackingNumbers)
+                  .set(updateData)
+                  .where(eq(orderTrackingNumbers.id, existingTracking.id));
+              }
+            }
+          } else if (validatedData.trackingNumber) {
+            // Create new tracking number if one is provided
+            console.log(`[MFG-UPDATE] Step 5: Creating new tracking record`);
+            await db.insert(orderTrackingNumbers).values({
+              orderId,
+              trackingNumber: validatedData.trackingNumber,
+              carrierCompany: carrierProvided || "Manufacturing Team",
+            });
+          }
+        }
+        console.log(`[MFG-UPDATE] Step 5 SUCCESS: Tracking sync complete`);
+      } catch (trackingError: any) {
+        console.error(`[MFG-UPDATE] Step 5 FAILED: Error syncing tracking:`, trackingError.message, trackingError.stack);
+        throw trackingError;
+      }
+
+      // Step 6: If status changed, create a status update entry
+      console.log(`[MFG-UPDATE] Step 6: Checking if status update record needed...`);
+      try {
+        if (validatedData.status && validatedData.status !== existingRecord.status) {
+          console.log(`[MFG-UPDATE] Step 6: Status changed from "${existingRecord.status}" to "${validatedData.status}", creating update record...`);
+          await storage.createManufacturingUpdate({
+            manufacturingId: id,
+            status: validatedData.status,
+            notes: req.body.statusNotes || `Status changed from ${existingRecord.status} to ${validatedData.status}`,
+            updatedBy: user.id,
+            manufacturerId: updatedRecord.manufacturerId || undefined,
+          });
+          console.log(`[MFG-UPDATE] Step 6 SUCCESS: Manufacturing update record created`);
+        } else {
+          console.log(`[MFG-UPDATE] Step 6 SKIPPED: No status change`);
+        }
+      } catch (updateError: any) {
+        console.error(`[MFG-UPDATE] Step 6 FAILED: Error creating status update:`, updateError.message, updateError.stack);
+        throw updateError;
+      }
+
+      // Step 7: Log activity
+      console.log(`[MFG-UPDATE] Step 7: Logging activity...`);
+      try {
+        await storage.logActivity(
+          user.id,
+          'manufacturing',
+          id,
+          'updated',
+          existingRecord,
+          updatedRecord
+        );
+        console.log(`[MFG-UPDATE] Step 7 SUCCESS: Activity logged`);
+      } catch (activityError: any) {
+        console.error(`[MFG-UPDATE] Step 7 FAILED: Error logging activity:`, activityError.message, activityError.stack);
+        throw activityError;
+      }
+
+      // Step 8: Filter and return response
+      console.log(`[MFG-UPDATE] Step 8: Filtering and returning response...`);
       const filteredRecord = stripFinancialData(updatedRecord, user.role);
+      const elapsed = Date.now() - startTime;
+      console.log(`[MFG-UPDATE] ========== SUCCESS: Manufacturing update completed in ${elapsed}ms ==========`);
       res.json(filteredRecord);
-    } catch (error) {
+    } catch (error: any) {
+      const elapsed = Date.now() - startTime;
+      console.error(`[MFG-UPDATE] ========== FAILED after ${elapsed}ms ==========`);
+      console.error(`[MFG-UPDATE] Error type:`, error?.constructor?.name);
+      console.error(`[MFG-UPDATE] Error message:`, error?.message);
+      console.error(`[MFG-UPDATE] Error stack:`, error?.stack);
+      
       if (error instanceof z.ZodError) {
+        console.error(`[MFG-UPDATE] Zod validation errors:`, JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
-      console.error("Error updating manufacturing record:", error);
-      res.status(500).json({ message: "Failed to update manufacturing record" });
+      
+      // Return detailed error in development, generic in production
+      const errorMessage = process.env.NODE_ENV === 'production' 
+        ? "Failed to update manufacturing record" 
+        : `Failed to update manufacturing record: ${error?.message}`;
+      res.status(500).json({ message: errorMessage, errorType: error?.constructor?.name });
     }
   });
 

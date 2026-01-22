@@ -2491,23 +2491,46 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateManufacturing(id: number, record: Partial<InsertManufacturing>): Promise<Manufacturing> {
+    console.log(`[STORAGE] updateManufacturing called for ID ${id}`);
+    console.log(`[STORAGE] Update fields:`, Object.keys(record));
+    
     const updateData: any = { ...record, updatedAt: new Date() };
+    console.log(`[STORAGE] updateData prepared with ${Object.keys(updateData).length} fields`);
 
     // Track status change in manufacturing updates table if status changed
     if (record.status) {
+      console.log(`[STORAGE] Status field present: "${record.status}", checking current status...`);
       const [currentRecord] = await db.select().from(manufacturing).where(eq(manufacturing.id, id));
-      if (currentRecord && currentRecord.status !== record.status) {
-        // We'll need to manually create an update record when status changes
-        // This will be handled by the route handler
+      if (currentRecord) {
+        console.log(`[STORAGE] Current record status: "${currentRecord.status}"`);
+        if (currentRecord.status !== record.status) {
+          console.log(`[STORAGE] Status change detected: "${currentRecord.status}" -> "${record.status}"`);
+        }
+      } else {
+        console.log(`[STORAGE] WARNING: No current record found for ID ${id}`);
       }
     }
 
-    const [updated] = await db
-      .update(manufacturing)
-      .set(updateData)
-      .where(eq(manufacturing.id, id))
-      .returning();
-    return updated;
+    try {
+      console.log(`[STORAGE] Executing UPDATE query...`);
+      const [updated] = await db
+        .update(manufacturing)
+        .set(updateData)
+        .where(eq(manufacturing.id, id))
+        .returning();
+      
+      if (!updated) {
+        console.error(`[STORAGE] ERROR: Update returned no record for ID ${id}`);
+        throw new Error(`Manufacturing record ${id} not found or could not be updated`);
+      }
+      
+      console.log(`[STORAGE] SUCCESS: Updated manufacturing ID ${id}, new status: "${updated.status}"`);
+      return updated;
+    } catch (dbError: any) {
+      console.error(`[STORAGE] DATABASE ERROR in updateManufacturing:`, dbError.message);
+      console.error(`[STORAGE] Database error stack:`, dbError.stack);
+      throw dbError;
+    }
   }
 
   async deleteManufacturing(id: number): Promise<void> {
