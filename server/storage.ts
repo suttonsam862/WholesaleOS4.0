@@ -373,7 +373,7 @@ export interface IStorage {
   getOrderWithLineItems(id: number): Promise<(Order & { lineItems: OrderLineItem[]; salespersonName?: string | null }) | undefined>;
   createOrder(order: InsertOrder): Promise<Order>;
   createOrderWithLineItems(order: InsertOrder, lineItems: InsertOrderLineItem[]): Promise<Order & { lineItems: OrderLineItem[] }>;
-  updateOrder(id: number, order: Partial<InsertOrder>): Promise<Order>;
+  updateOrder(id: number, order: Partial<InsertOrder>): Promise<Order | null>;
   deleteOrder(id: number): Promise<void>;
   getOrdersBySalesperson(userId: string): Promise<(Order & { organization?: Organization; contact?: Contact; salespersonName?: string | null })[]>;
 
@@ -1732,13 +1732,27 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async updateOrder(id: number, order: Partial<InsertOrder>): Promise<Order> {
-    const [updated] = await db
-      .update(orders)
-      .set({ ...order, updatedAt: new Date() })
-      .where(eq(orders.id, id))
-      .returning();
-    return updated;
+  async updateOrder(id: number, order: Partial<InsertOrder>): Promise<Order | null> {
+    console.log(`[Storage] updateOrder called for id=${id} with fields:`, Object.keys(order));
+    
+    try {
+      const [updated] = await db
+        .update(orders)
+        .set({ ...order, updatedAt: new Date() })
+        .where(eq(orders.id, id))
+        .returning();
+      
+      if (!updated) {
+        console.log(`[Storage] updateOrder: No order found with id=${id}`);
+        return null;
+      }
+      
+      console.log(`[Storage] updateOrder success for id=${id}`);
+      return updated;
+    } catch (error) {
+      console.error(`[Storage] updateOrder error for id=${id}:`, error instanceof Error ? error.message : error);
+      throw error;
+    }
   }
 
   async deleteOrder(id: number): Promise<void> {

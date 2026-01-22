@@ -407,10 +407,11 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
       });
       onClose();
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error('[ManufacturingDetailModal] Update error:', error);
       toast({
         title: "Error",
-        description: "Failed to update manufacturing record",
+        description: error.message || "Failed to update manufacturing record. Please try again.",
         variant: "destructive",
       });
     },
@@ -804,8 +805,11 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
   };
 
   // Check if user can edit manufacturing details
-  const canEdit = user?.role === 'admin' || user?.role === 'ops' || 
-    (user?.role === 'manufacturer' && manufacturingUpdate?.assignedManufacturerId === user.id);
+  // Note: assignedManufacturerId may be a number while user.id is a string, so we compare as strings
+  const isAssignedManufacturer = user?.role === 'manufacturer' && 
+    manufacturingUpdate?.assignedManufacturerId != null &&
+    String(manufacturingUpdate.assignedManufacturerId) === String(user.id);
+  const canEdit = user?.role === 'admin' || user?.role === 'ops' || isAssignedManufacturer;
 
   // Check if user can view/refresh line items (more permissive - any manufacturer can view)
   const canViewLineItems = user?.role === 'admin' || user?.role === 'ops' || user?.role === 'manufacturer';

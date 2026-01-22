@@ -539,6 +539,12 @@ export function registerOrdersRoutes(app: Express): void {
       };
 
       const updatedOrder = await storage.updateOrder(id, cleanedData);
+      
+      // Handle case where order was not found (storage returns null)
+      if (!updatedOrder) {
+        console.error(`[OrderUpdate] Order ${id} not found during update`);
+        return res.status(404).json({ message: `Order with id ${id} not found` });
+      }
 
       // Log activity
       await storage.logActivity(
@@ -562,10 +568,17 @@ export function registerOrdersRoutes(app: Express): void {
       res.json(updatedOrder);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("[OrderUpdate] Validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
-      console.error("Error updating order:", error);
-      // Provide more specific error message
+      
+      console.error("[OrderUpdate] Error updating order:", {
+        orderId: req.params.id,
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        fields: Object.keys(req.body || {})
+      });
+      
       const errorMessage = error instanceof Error ? error.message : "Failed to update order";
       res.status(500).json({ message: errorMessage });
     }

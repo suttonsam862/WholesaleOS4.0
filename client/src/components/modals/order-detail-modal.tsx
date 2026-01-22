@@ -274,10 +274,11 @@ export function OrderDetailModal({ orderId, isOpen, onClose }: OrderDetailModalP
       });
       setIsEditing(false);
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error('[OrderDetailModal] Update order error:', error);
       toast({
         title: "Error",
-        description: "Failed to update order",
+        description: error.message || "Failed to update order. Please try again.",
         variant: "destructive",
       });
     },
