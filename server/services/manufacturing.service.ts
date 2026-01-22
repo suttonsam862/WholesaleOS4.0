@@ -7,44 +7,25 @@ import { storage } from '../storage';
 import type { Manufacturing, InsertManufacturing, User } from '@shared/schema';
 import {
   MANUFACTURING_STATUSES,
-  MANUFACTURING_STATUS_TRANSITIONS,
   isManufacturingStatus,
-  isValidManufacturingStatusTransition,
   type ManufacturingStatus,
 } from '@shared/constants';
 import {
   ServiceError,
   ValidationError,
   NotFoundError,
-  InvalidTransitionError,
   ConflictError,
   logActivity,
 } from './base.service';
 
 export class ManufacturingService {
   /**
-   * Validate that a status transition is allowed
+   * Validate that a status is valid (no transition restrictions)
    */
-  static validateStatusTransition(
-    currentStatus: ManufacturingStatus,
-    newStatus: ManufacturingStatus
-  ): void {
-    if (currentStatus === newStatus) {
-      return; // No change, always valid
-    }
-
+  static validateStatusValue(newStatus: string): void {
     if (!isManufacturingStatus(newStatus)) {
       throw new ValidationError(
         `Invalid manufacturing status: "${newStatus}". Valid statuses are: ${MANUFACTURING_STATUSES.join(', ')}`
-      );
-    }
-
-    if (!isValidManufacturingStatusTransition(currentStatus, newStatus)) {
-      const allowedTransitions = MANUFACTURING_STATUS_TRANSITIONS[currentStatus];
-      throw new InvalidTransitionError(
-        'manufacturing',
-        currentStatus,
-        newStatus
       );
     }
   }
@@ -61,13 +42,14 @@ export class ManufacturingService {
   }
 
   /**
-   * Get allowed next statuses for a manufacturing record
+   * Get allowed next statuses for a manufacturing record (all statuses are allowed)
    */
   static getAllowedNextStatuses(currentStatus: ManufacturingStatus): ManufacturingStatus[] {
     if (!isManufacturingStatus(currentStatus)) {
       return [];
     }
-    return MANUFACTURING_STATUS_TRANSITIONS[currentStatus] || [];
+    // All statuses are allowed - no transition restrictions
+    return MANUFACTURING_STATUSES.filter(s => s !== currentStatus) as ManufacturingStatus[];
   }
 
   /**
@@ -128,12 +110,9 @@ export class ManufacturingService {
       throw new NotFoundError('Manufacturing', manufacturingId);
     }
 
-    // Validate status if being changed
+    // Validate status value if being changed (no transition restrictions)
     if (data.status && data.status !== existing.status) {
-      this.validateStatusTransition(
-        existing.status as ManufacturingStatus,
-        data.status as ManufacturingStatus
-      );
+      this.validateStatusValue(data.status);
     }
 
     // Preserve the previous state for audit
@@ -174,7 +153,7 @@ export class ManufacturingService {
   }
 
   /**
-   * Update only the manufacturing status with full transition validation
+   * Update only the manufacturing status (no transition restrictions)
    */
   static async updateManufacturingStatus(
     manufacturingId: number,
@@ -186,11 +165,8 @@ export class ManufacturingService {
       throw new NotFoundError('Manufacturing', manufacturingId);
     }
 
-    // Validate the transition
-    this.validateStatusTransition(
-      existing.status as ManufacturingStatus,
-      newStatus
-    );
+    // Validate the status value only
+    this.validateStatusValue(newStatus);
 
     // Update just the status
     const updated = await storage.updateManufacturing(manufacturingId, { status: newStatus });

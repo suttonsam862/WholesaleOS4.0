@@ -10,7 +10,6 @@
 import { storage } from '../storage';
 import { InsertDesignJob, DesignJob, User } from '../../shared/schema';
 import {
-  DESIGN_JOB_STATUS_TRANSITIONS,
   DESIGN_JOB_STATUSES,
   type DesignJobStatus
 } from '../../shared/constants';
@@ -18,16 +17,10 @@ import { ValidationError, NotFoundError, ForbiddenError, logActivity } from './b
 
 export class DesignJobService {
   /**
-   * Check if a status transition is valid
+   * Check if a status is valid (no transition restrictions)
    */
-  static isValidTransition(from: DesignJobStatus | null, to: DesignJobStatus): boolean {
-    // If no current status (new job), can only transition to 'pending'
-    if (from === null) {
-      return to === 'pending';
-    }
-    
-    const allowed = DESIGN_JOB_STATUS_TRANSITIONS[from];
-    return allowed ? allowed.includes(to) : false;
+  static isValidStatus(status: string): boolean {
+    return DESIGN_JOB_STATUSES.includes(status as DesignJobStatus);
   }
 
   /**
@@ -103,12 +96,11 @@ export class DesignJobService {
       throw new NotFoundError('Design job', id);
     }
 
-    // Validate status transition if status is being changed
+    // Validate status value if being changed (no transition restrictions)
     if (updates.status && updates.status !== existing.status) {
-      if (!this.isValidTransition(existing.status as DesignJobStatus, updates.status as DesignJobStatus)) {
+      if (!this.isValidStatus(updates.status)) {
         throw new ValidationError(
-          `Invalid status transition: ${existing.status} -> ${updates.status}. ` +
-          `Allowed transitions from '${existing.status}': ${DESIGN_JOB_STATUS_TRANSITIONS[existing.status as DesignJobStatus]?.join(', ') || 'none'}`
+          `Invalid design job status: ${updates.status}. Must be one of: ${DESIGN_JOB_STATUSES.join(', ')}`
         );
       }
     }
@@ -143,10 +135,10 @@ export class DesignJobService {
       throw new NotFoundError('Design job', id);
     }
 
-    if (!this.isValidTransition(existing.status as DesignJobStatus, newStatus)) {
+    // Validate status value only (no transition restrictions)
+    if (!this.isValidStatus(newStatus)) {
       throw new ValidationError(
-        `Invalid status transition: ${existing.status} -> ${newStatus}. ` +
-        `Allowed transitions from '${existing.status}': ${DESIGN_JOB_STATUS_TRANSITIONS[existing.status as DesignJobStatus]?.join(', ') || 'none'}`
+        `Invalid design job status: ${newStatus}. Must be one of: ${DESIGN_JOB_STATUSES.join(', ')}`
       );
     }
 

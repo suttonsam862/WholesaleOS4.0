@@ -7,17 +7,13 @@ import { storage } from '../storage';
 import type { Order, InsertOrder, User } from '@shared/schema';
 import {
   ORDER_STATUSES,
-  ORDER_STATUS_TRANSITIONS,
   isOrderStatus,
-  isValidOrderStatusTransition,
   type OrderStatus,
 } from '@shared/constants';
 import {
   ServiceError,
   ValidationError,
   NotFoundError,
-  ForbiddenError,
-  InvalidTransitionError,
   logActivity,
 } from './base.service';
 
@@ -39,37 +35,25 @@ export interface OrderWithRelations extends Order {
 
 export class OrderService {
   /**
-   * Validate that a status transition is allowed
+   * Validate that a status is valid (no transition restrictions)
    */
-  static validateStatusTransition(currentStatus: OrderStatus, newStatus: OrderStatus): void {
-    if (currentStatus === newStatus) {
-      return; // No change, always valid
-    }
-
+  static validateStatus(newStatus: string): void {
     if (!isOrderStatus(newStatus)) {
       throw new ValidationError(
         `Invalid order status: "${newStatus}". Valid statuses are: ${ORDER_STATUSES.join(', ')}`
       );
     }
-
-    if (!isValidOrderStatusTransition(currentStatus, newStatus)) {
-      const allowedTransitions = ORDER_STATUS_TRANSITIONS[currentStatus];
-      throw new InvalidTransitionError(
-        'order',
-        currentStatus,
-        newStatus
-      );
-    }
   }
 
   /**
-   * Get allowed next statuses for an order
+   * Get allowed next statuses for an order (all statuses are allowed)
    */
   static getAllowedNextStatuses(currentStatus: OrderStatus): OrderStatus[] {
     if (!isOrderStatus(currentStatus)) {
       return [];
     }
-    return ORDER_STATUS_TRANSITIONS[currentStatus] || [];
+    // All statuses are allowed - no transition restrictions
+    return ORDER_STATUSES.filter(s => s !== currentStatus) as OrderStatus[];
   }
 
   /**
@@ -129,12 +113,9 @@ export class OrderService {
       throw new NotFoundError('Order', orderId);
     }
 
-    // Validate status transition if status is being changed
+    // Validate status value if being changed (no transition restrictions)
     if (data.status && data.status !== existingOrder.status) {
-      this.validateStatusTransition(
-        existingOrder.status as OrderStatus,
-        data.status as OrderStatus
-      );
+      this.validateStatus(data.status);
     }
 
     // Preserve the previous state for audit
@@ -172,7 +153,7 @@ export class OrderService {
   }
 
   /**
-   * Update only the order status with full transition validation
+   * Update only the order status (no transition restrictions)
    */
   static async updateOrderStatus(
     orderId: number,
@@ -184,11 +165,8 @@ export class OrderService {
       throw new NotFoundError('Order', orderId);
     }
 
-    // Validate the transition
-    this.validateStatusTransition(
-      existingOrder.status as OrderStatus,
-      newStatus
-    );
+    // Validate the status value only
+    this.validateStatus(newStatus);
 
     // Update just the status
     const updatedOrder = await storage.updateOrder(orderId, { status: newStatus });

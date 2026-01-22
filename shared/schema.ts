@@ -2539,7 +2539,7 @@ export const insertOrderSchema = createInsertSchema(orders).omit({
   updatedAt: true,
 }).extend({
   orderName: z.string().min(1, "Order name is required"),
-  status: z.enum(["new", "waiting_sizes", "invoiced", "production", "shipped", "completed", "cancelled"]),
+  status: z.enum(["new", "waiting_sizes", "design_created", "sizes_validated", "invoiced", "production", "shipped", "completed", "cancelled"]),
   priority: z.enum(["low", "normal", "high"]).optional(),
   estDelivery: z.string().nullable().optional().or(z.null()),
 }).passthrough();
