@@ -104,7 +104,7 @@ function formatDate(dateStr: string | null | undefined): string {
   }
 }
 
-async function loadImage(url: string): Promise<string | null> {
+async function loadImage(url: string, preserveTransparency: boolean = false): Promise<string | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -125,8 +125,17 @@ async function loadImage(url: string): Promise<string | null> {
         
         canvas.width = width;
         canvas.height = height;
-        ctx?.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', 0.7));
+        
+        if (preserveTransparency) {
+          ctx?.clearRect(0, 0, width, height);
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/png'));
+        } else {
+          ctx!.fillStyle = '#FFFFFF';
+          ctx!.fillRect(0, 0, width, height);
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        }
       } catch {
         resolve(null);
       }
@@ -134,6 +143,18 @@ async function loadImage(url: string): Promise<string | null> {
     img.onerror = () => resolve(null);
     img.src = url;
   });
+}
+
+function calculateTotalFromSizes(item: any): number {
+  const sizeKeys = ['yxs', 'ys', 'ym', 'yl', 'xs', 's', 'm', 'l', 'xl', 'xxl', 'xxxl', 'xxxxl'];
+  let total = 0;
+  for (const key of sizeKeys) {
+    const val = item[key];
+    if (typeof val === 'number' && val > 0) {
+      total += val;
+    }
+  }
+  return total;
 }
 
 async function loadLineItemImages(lineItems: ManufacturingPdfData['lineItems']): Promise<Map<number, string>> {
@@ -170,7 +191,7 @@ export async function generateManufacturingPdf(data: ManufacturingPdfData): Prom
   let yPosition = margin;
 
   const [compressedLogo, lineItemImages] = await Promise.all([
-    loadImage(logoPath),
+    loadImage(logoPath, true),
     loadLineItemImages(lineItems),
   ]);
 
@@ -194,7 +215,7 @@ export async function generateManufacturingPdf(data: ManufacturingPdfData): Prom
 
   if (compressedLogo) {
     const logoSize = 22;
-    doc.addImage(compressedLogo, 'JPEG', pageWidth - margin - logoSize, 6, logoSize, logoSize);
+    doc.addImage(compressedLogo, 'PNG', pageWidth - margin - logoSize, 6, logoSize, logoSize);
   }
 
   yPosition = 45;
@@ -346,38 +367,40 @@ export async function generateManufacturingPdf(data: ManufacturingPdfData): Prom
         doc.text(truncated, textStartX, labelY);
       }
 
+      const calculatedTotal = calculateTotalFromSizes(item);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.setTextColor(...accentColor);
-      doc.text(`Total: ${item.totalQty || 0}`, pageWidth - margin - 25, yPosition + 8);
+      doc.text(`Total: ${calculatedTotal}`, pageWidth - margin - 25, yPosition + 8);
 
       if (itemSizes.length > 0) {
         const sizeTableY = yPosition + 22;
         const sizeTableX = textStartX;
-        const cellWidth = 18;
-        const cellHeight = 10;
+        const cellWidth = 22;
+        const cellHeight = 12;
 
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(7);
+        doc.setFontSize(8);
         doc.setTextColor(255, 255, 255);
         doc.setFillColor(...primaryColor);
 
         itemSizes.forEach((sizeKey, idx) => {
           const x = sizeTableX + idx * cellWidth;
           doc.rect(x, sizeTableY, cellWidth, cellHeight / 2, 'F');
-          doc.text(SIZE_LABELS[sizeKey], x + cellWidth / 2, sizeTableY + 3.5, { align: 'center' });
+          doc.text(SIZE_LABELS[sizeKey], x + cellWidth / 2, sizeTableY + 4, { align: 'center' });
         });
 
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9);
+        doc.setFontSize(10);
         doc.setTextColor(60, 60, 60);
         doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(...mediumGray);
 
         itemSizes.forEach((sizeKey, idx) => {
           const x = sizeTableX + idx * cellWidth;
           const val = (item as any)[sizeKey] || 0;
           doc.rect(x, sizeTableY + cellHeight / 2, cellWidth, cellHeight / 2, 'FD');
-          doc.text(val.toString(), x + cellWidth / 2, sizeTableY + cellHeight - 1.5, { align: 'center' });
+          doc.text(val.toString(), x + cellWidth / 2, sizeTableY + cellHeight - 2, { align: 'center' });
         });
       }
 
