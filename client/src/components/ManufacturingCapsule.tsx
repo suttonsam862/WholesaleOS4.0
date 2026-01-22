@@ -758,6 +758,7 @@ export function ManufacturingCapsule({ isOpen, onClose, manufacturingId }: Manuf
           variantName: item.variantCode,
           sku: item.sku,
           descriptors: item.descriptors,
+          imageUrl: item.imageUrl,
           yxs: item.yxs,
           ys: item.ys,
           ym: item.ym,

@@ -1112,6 +1112,31 @@ export function ManufacturingDetailModal({ isOpen, onClose, manufacturingUpdate 
                   </CardContent>
                 </Card>
 
+                {/* Customer Shipping Address */}
+                {organization?.shippingAddress && (
+                  <Card className="glass-card border-white/10 bg-blue-500/5">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium flex items-center">
+                        <Truck className="w-4 h-4 mr-2 text-blue-400" />
+                        Shipping Address
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-1">
+                        <p className="font-semibold text-lg">{organization?.name}</p>
+                        <p className="text-sm text-muted-foreground whitespace-pre-line">
+                          {organization.shippingAddress}
+                        </p>
+                        {(organization?.city || organization?.state) && (
+                          <p className="text-sm text-muted-foreground">
+                            {[organization.city, organization.state].filter(Boolean).join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Card className="glass-card border-white/10">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-medium flex items-center">
