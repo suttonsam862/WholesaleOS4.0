@@ -1090,3 +1090,1034 @@ Key variables needed:
 - Look at similar pages for frontend patterns
 - Test with different user roles to understand permissions
 - Check browser console and server logs for debugging
+
+---
+
+# PART 2: DEEP TECHNICAL ANALYSIS
+
+This section provides 10x more detail on the codebase, including architectural analysis, code quality assessment, bugs, inconsistencies, and precise build status of every component.
+
+---
+
+## 17. Architectural Deep Dive
+
+### 17.1 How the Request-Response Cycle Works
+
+**Complete Flow for a Typical Request (e.g., GET /api/orders/123)**:
+
+```
+1. BROWSER
+   └── User clicks order link
+   └── React Router (wouter) matches /orders/:id
+   └── OrderDetail component mounts
+   └── useQuery({ queryKey: ['/api/orders', 123] }) fires
+
+2. FRONTEND QUERY LAYER (client/src/lib/queryClient.ts)
+   └── buildUrlFromQueryKey() → "/api/orders/123"
+   └── Validates URL starts with /api
+   └── fetch("/api/orders/123", { credentials: "include" })
+   └── Session cookie automatically included
+
+3. EXPRESS SERVER (server/index.ts)
+   └── Request hits Express middleware chain:
+       ├── express.json() - Parse body
+       ├── cookieParser() - Parse cookies
+       ├── session() - Load session from PostgreSQL
+       ├── passport.session() - Deserialize user
+       └── Rate limiter check
+
+4. ROUTE HANDLER (server/routes/orders.routes.ts)
+   └── isAuthenticated middleware
+       └── Check req.isAuthenticated()
+       └── If false: 401 Unauthorized
+   └── loadUserData middleware
+       └── Fetch full user from DB
+       └── Attach to req.user.userData
+   └── requirePermission('orders', 'view')
+       └── Check PERMISSIONS[role].orders.read
+       └── Check database rolePermissions table
+       └── Check database userPermissions table
+       └── If denied: 403 Forbidden
+   └── Route handler executes
+
+5. STORAGE LAYER (server/storage.ts)
+   └── storage.getOrderWithLineItems(123)
+   └── Drizzle ORM query with relations
+   └── Returns Order & { lineItems: OrderLineItem[] }
+
+6. DATA TRANSFORMATION
+   └── filterDataByRole() - Remove fields based on role
+   └── stripFinancialData() - Remove prices for manufacturers
+   └── JSON.stringify response
+
+7. BACK TO BROWSER
+   └── Response received
+   └── throwIfResNotOk() checks status
+   └── JSON parsed
+   └── TanStack Query caches result
+   └── Component re-renders with data
+```
+
+### 17.2 Dual Permission Systems (Complexity/Debt)
+
+The app has **TWO overlapping permission systems** that create confusion:
+
+**System 1: Hardcoded PERMISSIONS Object** (`server/permissions.ts`)
+```typescript
+export const PERMISSIONS = {
+  admin: {
+    leads: { read: true, write: true, delete: true, viewAll: true },
+    // ...
+  },
+  sales: {
+    leads: { read: true, write: true, delete: false, viewAll: false },
+    // ...
+  }
+};
+```
+- Defined in code, cannot be changed without deployment
+- Used by `requirePermission()` middleware
+- 6 roles × 26 resources = 156 permission configurations
+
+**System 2: Database Permission Tables** (`shared/schema.ts`)
+```typescript
+roles, resources, rolePermissions, userPermissions
+```
+- Stored in database, editable via Admin UI
+- Supports user-level overrides
+- Has `pageVisible` flag for navigation control
+
+**The Problem**: Both systems are checked, but they don't always agree. The code tries to merge them:
+```typescript
+// In loadUserData middleware
+const dbPermissions = await storage.getRolePermissions(user.role);
+// Merge with PERMISSIONS constant...
+```
+
+**Result**: Sometimes permissions work, sometimes they don't. Inconsistent behavior across the app.
+
+**Recommendation**: Pick ONE system. The database approach is more flexible but requires migration of all hardcoded permissions.
+
+### 17.3 The Storage Layer Pattern
+
+The `server/storage.ts` file is a **Data Access Object (DAO)** pattern implementation:
+
+**Structure**:
+```typescript
+export interface IStorage {
+  // 200+ method signatures
+  getOrders(): Promise<Order[]>;
+  getOrder(id: number): Promise<Order | undefined>;
+  createOrder(order: InsertOrder): Promise<Order>;
+  updateOrder(id: number, order: Partial<InsertOrder>): Promise<Order | null>;
+  deleteOrder(id: number): Promise<void>;
+  // ...
+}
+
+export class MemStorage implements IStorage {
+  // In-memory implementation (not used)
+}
+
+export class DatabaseStorage implements IStorage {
+  // Drizzle ORM implementation (active)
+}
+
+export const storage = new DatabaseStorage();
+```
+
+**What Works Well**:
+- All database access is centralized
+- Type-safe with Drizzle ORM
+- Relations are handled consistently
+- Insert schemas validate data before DB operations
+
+**What's Problematic**:
+- 7,371 lines in one file - massive cognitive load
+- No domain separation (orders, leads, manufacturing all mixed)
+- Some methods have complex role-based filtering built in
+- 17 active TypeScript errors in the file (see Bug Analysis)
+
+**Recommended Refactor**:
+```
+server/storage/
+├── index.ts          # Re-exports all modules
+├── users.storage.ts
+├── orders.storage.ts
+├── leads.storage.ts
+├── manufacturing.storage.ts
+├── design.storage.ts
+├── events.storage.ts
+└── finance.storage.ts
+```
+
+### 17.4 Frontend State Management Architecture
+
+**Server State: TanStack Query v5**
+
+The app uses TanStack Query for ALL server-side data. This is well-implemented:
+
+```typescript
+// Typical pattern in pages
+const { data: orders, isLoading, error } = useQuery<Order[]>({
+  queryKey: ['/api/orders'],
+  // queryFn uses default from queryClient.ts
+});
+
+// Mutations with cache invalidation
+const mutation = useMutation({
+  mutationFn: (data) => apiRequest('POST', '/api/orders', data),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
+    toast({ title: 'Order created' });
+  }
+});
+```
+
+**Custom queryClient Configuration** (`client/src/lib/queryClient.ts`):
+- Default queryFn handles all GET requests
+- CSRF token automatically injected for mutations
+- Global error handling with toast notifications
+- Caches data for 30 seconds (staleTime)
+- Keeps unused data for 5 minutes (gcTime)
+
+**Client State**: Pure React hooks (useState, useReducer, useContext)
+
+**Forms**: react-hook-form with zodResolver
+```typescript
+const form = useForm<InsertOrder>({
+  resolver: zodResolver(insertOrderSchema),
+  defaultValues: { status: 'new' }
+});
+```
+
+### 17.5 The Hub-List-Detail Page Pattern
+
+The frontend follows a consistent pattern for each domain:
+
+```
+/{domain}          → Hub page (overview, quick actions, navigation)
+/{domain}/list     → List page (data table, filters, search)
+/{domain}/:id      → Detail page (full editor, tabs, actions)
+/{domain}/actions  → Quick action wizards
+```
+
+**Example - Orders**:
+```
+/orders           → OrdersHub (stage counts, quick actions)
+/orders/list      → OrdersList (full table, filters)
+/orders/:id       → OrderDetail (line items, manufacturing, invoices)
+/orders/actions   → OrdersActions (quick create, ship, invoice wizards)
+```
+
+**Hub Page Structure**:
+1. Header with title and "View All" button
+2. Stage/status cards showing counts
+3. Quick action buttons (ActionDeck component)
+4. Role-specific content filtering
+
+**List Page Structure**:
+1. Filters (status, date, salesperson, etc.)
+2. Data table with pagination
+3. Row click → navigate to detail
+4. Create button (if permission)
+
+**Detail Page Structure**:
+1. Header with back button, title, status badge
+2. Tabbed interface (Info, Line Items, Manufacturing, etc.)
+3. Action buttons (Save, Delete, Archive)
+4. Related data in cards/sections
+
+---
+
+## 18. Code Quality Analysis
+
+### 18.1 What's Well-Built
+
+**1. TanStack Query Integration** (★★★★★)
+- Consistent patterns across all pages
+- Proper cache invalidation
+- Global error handling
+- Type-safe query keys
+
+**2. Drizzle ORM Schema** (★★★★☆)
+- Comprehensive type definitions
+- Good use of relations
+- Proper indexes on foreign keys
+- Insert schemas with Zod validation
+
+**3. shadcn/ui Component Library** (★★★★★)
+- Consistent design system
+- Accessible components (Radix UI base)
+- Good dark mode support
+- Properly themed
+
+**4. AI Design Lab** (★★★★★)
+- Well-architected with versioning
+- Layer-based composition
+- OpenAI integration works
+- Image compositing with Sharp
+
+**5. Manufacturing Status System** (★★★★☆)
+- Dual-status approach (public vs internal)
+- First-piece approval workflow
+- Comprehensive update tracking
+
+**6. CSRF Protection** (★★★★☆)
+- Token-based system
+- Automatic injection in mutations
+- Properly validated on server
+
+### 18.2 What's Poorly Built
+
+**1. Legacy routes.ts** (★☆☆☆☆)
+- 274KB, 7,294 lines of monolithic code
+- Duplicates much of the modular route files
+- Contains dead code and old patterns
+- Should be deleted after full migration
+
+**2. Permission System Duplication** (★★☆☆☆)
+- Two competing systems (code vs database)
+- Inconsistent behavior
+- Hard to debug permission issues
+
+**3. Error Handling** (★★☆☆☆)
+- 505 try/catch blocks but inconsistent patterns
+- Many routes don't differentiate error types
+- Generic 500 errors hide real issues
+
+**4. Test Coverage** (★☆☆☆☆)
+- Only 2 test files exist:
+  - `tests/integration/health.test.ts`
+  - `tests/unit/localAuth.test.ts`
+- 90+ pages with no tests
+- No E2E tests
+
+**5. Debug Logging Left in Production** (★☆☆☆☆)
+- 223 console.log statements in route files
+- 602 console.error statements
+- Many with `[DEBUG]` prefix meant to be removed
+- Example: `console.log('🔍 [DEBUG] POST /api/orders started');`
+
+**6. Type Safety in Storage Layer** (★★☆☆☆)
+- 17 TypeScript errors currently
+- Type mismatches between schema and insert types
+- null vs undefined inconsistencies
+
+### 18.3 Inconsistency Catalog
+
+**Schema Inconsistencies**:
+
+| Issue | Location | Details |
+|-------|----------|---------|
+| `active` vs `isActive` | users table | Both exist: `active: boolean` AND `isActive: boolean` |
+| `serial` vs `generatedAlwaysAsIdentity` | Various tables | Most use `generatedAlwaysAsIdentity()` but some legacy use `serial` |
+| Status type definitions | Multiple tables | Some use string literals, others use type narrowing |
+| Timestamp handling | Insert types | Some accept strings, some require Dates |
+
+**Detailed Field Duplication in Users Table**:
+```typescript
+// In shared/schema.ts - users table
+active: boolean("active").default(true), // Legacy field - use isActive instead
+isActive: boolean("is_active").default(true),
+```
+This causes confusion - which field is authoritative?
+
+**API Response Inconsistencies**:
+
+| Issue | Details |
+|-------|---------|
+| Pagination | Some endpoints paginate, others return all |
+| Error format | Some return `{ message }`, others `{ error }` |
+| Empty responses | Some return `[]`, others `null` |
+| Date format | Some ISO strings, some Date objects |
+
+**Route Registration Inconsistencies**:
+
+Some routes are in:
+1. `server/routes.ts` (legacy monolith)
+2. `server/routes/*.routes.ts` (modular files)
+
+Sometimes both exist for the same endpoint, causing shadowing.
+
+---
+
+## 19. Active Bug Analysis
+
+### 19.1 TypeScript Errors in Storage Layer
+
+**Location**: `server/storage.ts`
+**Count**: 17 active errors
+**Severity**: Medium - compiles but type safety compromised
+
+**Error Categories**:
+
+1. **Type Narrowing Issues (Lines 1355, 1365)**
+   - `geoPrecision` field expects specific literals but receives `string`
+   - Fix: Add proper type casting or schema constraint
+
+2. **Insert Type Mismatches (Lines 2489, 5969, 5997)**
+   - Passing single object where array expected
+   - Error: "missing properties: length, pop, push, concat..."
+   - Fix: Wrap in array or fix insert call
+
+3. **Date/String Confusion (Lines 5976, 6004)**
+   - Passing string dates where Date objects expected
+   - Fields: `flightArrival`, `dueDate`
+   - Fix: Parse strings to Date before insert
+
+4. **Null vs Undefined (Lines 6709-6717)**
+   - Returning `null` where `undefined` expected
+   - Fix: Use nullish coalescing or update return types
+
+### 19.2 Debug Statements in Production Code
+
+**Severity**: Low (noise) to Medium (security - may leak data)
+
+**Locations with Heavy Debug Logging**:
+```
+server/routes/orders.routes.ts: 16 DEBUG statements
+server/routes/events.routes.ts: 45 DEBUG statements
+server/routes/catalog.routes.ts: 2 DEBUG statements
+server/routes.ts: 200+ DEBUG statements
+```
+
+**Example Problematic Log**:
+```typescript
+console.log('🔍 [DEBUG] Request body received:', JSON.stringify(req.body, null, 2));
+```
+This logs entire request bodies which could contain sensitive data.
+
+### 19.3 Potential Runtime Bugs
+
+**1. Race Condition in Order Creation**
+```typescript
+// In orders.routes.ts
+const orderCode = await generateOrderCode(); // May conflict
+const order = await storage.createOrder({ orderCode, ... });
+```
+If two orders created simultaneously, code generation could collide.
+
+**2. Missing Transaction Boundaries**
+```typescript
+// Creating order with line items is not atomic
+const order = await storage.createOrder(orderData);
+for (const item of lineItems) {
+  await storage.createOrderLineItem({ orderId: order.id, ...item });
+}
+// If line item creation fails, orphan order exists
+```
+
+**3. Unhandled Promise Rejections**
+Many async operations lack proper catch blocks:
+```typescript
+// Some routes do this
+storage.createAuditLog({ ... }); // No await, no catch
+```
+
+**4. Session Fixation Potential**
+Session is not regenerated on login:
+```typescript
+req.login(sessionData, (err) => {
+  // Session ID stays the same
+});
+```
+
+### 19.4 UI/UX Bugs
+
+**1. Loading States Not Consistent**
+- Some pages show skeleton loaders
+- Some pages show blank content
+- Some pages show "Loading..." text
+
+**2. Error Boundaries Missing**
+- No global error boundary for React
+- Individual component errors crash entire page
+
+**3. Form Validation Timing**
+- Some forms validate on blur
+- Some validate on submit only
+- Inconsistent user experience
+
+---
+
+## 20. Precise Build Status by Module
+
+### 20.1 Sales & Leads Module
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Lead CRUD | ✅ Complete | Full create, read, update, delete |
+| Pipeline View | ✅ Complete | Kanban with drag-drop |
+| Lead Stages | ✅ Complete | 8 stages with transitions |
+| Lead Assignment | ✅ Complete | Assign to salesperson |
+| Lead Archiving | ✅ Complete | Soft delete with archive |
+| Lead Dependencies | ✅ Complete | Check orders/design jobs |
+| Communication Logs | ⚠️ 70% | UI exists, email/SMS not integrated |
+| Lead Scoring | ⚠️ 50% | Field exists, no auto-calculation |
+| Sales Map | ⚠️ 80% | Geocoding works, some edge cases |
+| Lead Import | ❌ Missing | No bulk import feature |
+
+### 20.2 Design Module
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Design Job CRUD | ✅ Complete | Full lifecycle |
+| Job Assignment | ✅ Complete | Assign to designer |
+| Job Comments | ✅ Complete | With internal flag |
+| Status Workflow | ✅ Complete | 7-stage workflow |
+| AI Design Lab Projects | ✅ Complete | Project creation/management |
+| AI Design Versions | ✅ Complete | Version history |
+| AI Design Layers | ✅ Complete | Typography, logos, graphics |
+| AI Generation | ✅ Complete | OpenAI integration |
+| Image Compositing | ✅ Complete | Sharp-based processing |
+| Style Presets | ✅ Complete | Admin-managed |
+| Training Sets | ⚠️ 80% | Upload works, training not connected |
+| Design Portfolio | ⚠️ 70% | Basic view, limited features |
+| Design Resources | ✅ Complete | File library |
+
+### 20.3 Orders Module
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Order CRUD | ✅ Complete | Full lifecycle |
+| Line Items | ✅ Complete | Add, edit, delete |
+| Size Grid | ✅ Complete | 12 sizes, auto-totals |
+| Order Status | ✅ Complete | 9-stage workflow |
+| Salesperson Assignment | ✅ Complete | With filtering |
+| Customer Order Form | ✅ Complete | Public size submission |
+| Customer Portal | ✅ Complete | Tracking page |
+| Tracking Numbers | ✅ Complete | Multiple carriers |
+| Order PDF | ✅ Complete | PDF generation |
+| Order Cloning | ✅ Complete | Duplicate order |
+| Batch Operations | ❌ Missing | No bulk status update |
+| Order History | ⚠️ 60% | Audit log partial |
+
+### 20.4 Manufacturing Module
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Manufacturing CRUD | ✅ Complete | Full lifecycle |
+| Status Updates | ✅ Complete | With history |
+| Dual Status System | ✅ Complete | Public + internal |
+| Manufacturer Assignment | ✅ Complete | Per line item |
+| First Piece Approval | ✅ Complete | QC workflow |
+| Finished Images | ✅ Complete | Image uploads |
+| Manufacturing Notes | ✅ Complete | Categorized notes |
+| Manufacturer Portal | ✅ Complete | External access |
+| Manufacturer Queue | ✅ Complete | Job management |
+| Batching | ⚠️ 70% | UI exists, limited use |
+| Quality Checkpoints | ⚠️ 60% | Schema exists, partial UI |
+| Production Schedule | ⚠️ 40% | Schema exists, minimal UI |
+| Capacity Dashboard | ⚠️ 50% | Basic metrics only |
+
+### 20.5 Catalog Module
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Category CRUD | ✅ Complete | Full management |
+| Product CRUD | ✅ Complete | Full management |
+| Variant CRUD | ✅ Complete | Color, size, material |
+| Variant Templates | ✅ Complete | Front/back images |
+| Variant Pricing | ✅ Complete | MSRP, cost |
+| Variant Specifications | ⚠️ 70% | Schema exists, partial UI |
+| Fabric Management | ⚠️ 80% | Basic CRUD, approval partial |
+| Fabric Submissions | ⚠️ 70% | Workflow partial |
+| Default Manufacturer | ✅ Complete | Per variant |
+
+### 20.6 Finance Module
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Invoice CRUD | ✅ Complete | Create, edit, send |
+| Invoice Status | ✅ Complete | Draft→Sent→Paid |
+| Invoice PDF | ✅ Complete | PDF generation |
+| Payment Recording | ✅ Complete | Multiple methods |
+| Commission Tracking | ⚠️ 80% | Auto-calculation partial |
+| Commission Payments | ⚠️ 70% | Basic tracking |
+| Financial Matching | ⚠️ 60% | UI exists, workflow partial |
+| Product COGS | ⚠️ 70% | Schema exists, partial use |
+| Expense Tracking | ⚠️ 50% | Basic implementation |
+| QuickBooks Sync | ❌ Missing | Not implemented |
+| Financial Reports | ❌ Missing | No reporting dashboard |
+
+### 20.7 Events Module
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Event CRUD | ✅ Complete | Full lifecycle |
+| Event Status | ✅ Complete | 6-stage workflow |
+| 10-Stage Wizard | ⚠️ 80% | All stages exist, some partial |
+| Stage 1: Overview | ✅ Complete | Basic info |
+| Stage 2: Branding | ⚠️ 80% | Theme, colors, logos |
+| Stage 3: Staff | ✅ Complete | Assignment |
+| Stage 4: Contractors | ✅ Complete | CRUD + payments |
+| Stage 5: Merchandise | ⚠️ 70% | Allocation partial |
+| Stage 6: Budget | ⚠️ 70% | Basic tracking |
+| Stage 7: Marketing | ⚠️ 60% | Campaign partial |
+| Stage 8: Registration | ⚠️ 70% | Tickets, attendees |
+| Stage 9: Logistics | ⚠️ 60% | Venues, equipment |
+| Stage 10: Post-Event | ⚠️ 40% | Basic wrap-up |
+| Customer Event Portal | ⚠️ 70% | Public view partial |
+
+### 20.8 Team Stores Module
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Team Store CRUD | ✅ Complete | Basic management |
+| Store Status | ✅ Complete | Open/closed dates |
+| Line Item Selection | ✅ Complete | From order |
+| Store Analytics | ⚠️ 40% | Basic counts |
+| Shopify Sync | ❌ Missing | Not implemented |
+| Store Customization | ❌ Missing | No theming |
+| Order Collection | ❌ Missing | No public ordering |
+
+### 20.9 Quotes Module
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Quote CRUD | ✅ Complete | Full lifecycle |
+| Quote Status | ✅ Complete | Draft→Sent→Accepted |
+| Line Items | ✅ Complete | Full management |
+| Quote PDF | ✅ Complete | PDF generation |
+| Quote Expiration | ✅ Complete | Validity tracking |
+| Convert to Order | ✅ Complete | One-click conversion |
+| Quote Versioning | ❌ Missing | No revision history |
+| Quote Templates | ❌ Missing | No saved templates |
+
+### 20.10 System Administration
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| User Management | ✅ Complete | CRUD + roles |
+| Role Management | ✅ Complete | 6 roles |
+| Permission Management | ⚠️ 70% | UI exists, dual system issue |
+| User Invitations | ✅ Complete | Email + token |
+| Audit Logging | ⚠️ 50% | Some entities logged |
+| System Analytics | ⚠️ 60% | Basic metrics |
+| Connection Health | ⚠️ 60% | DB status check |
+| Notifications | ⚠️ 70% | In-app only |
+
+---
+
+## 21. Integration Status
+
+### 21.1 Currently Working Integrations
+
+| Integration | Status | Configuration |
+|-------------|--------|---------------|
+| PostgreSQL (Neon) | ✅ Working | `DATABASE_URL` env var |
+| Google Cloud Storage | ✅ Working | `GOOGLE_CLOUD_*` env vars |
+| OpenAI API | ✅ Working | `OPENAI_API_KEY` secret |
+| Replit Auth (OIDC) | ✅ Working | Automatic in Replit |
+| SendGrid | ⚠️ Configured | Key set but not used |
+
+### 21.2 Planned But Not Implemented
+
+| Integration | Priority | Notes |
+|-------------|----------|-------|
+| Shopify | High | Team store sync |
+| QuickBooks | High | Invoice/payment sync |
+| Printful | Medium | Print-on-demand |
+| Twilio | Medium | SMS notifications |
+| Pantone Connect | Low | Color matching API |
+| Stripe | Low | Payment processing |
+
+### 21.3 SendGrid Status (Partially Configured)
+
+SendGrid is configured but not triggered:
+```typescript
+// Package installed: @sendgrid/mail
+// Environment variable: SENDGRID_API_KEY (exists)
+// But no email sending code is actually called
+```
+
+The email infrastructure exists but no triggers:
+- No order status emails
+- No invoice emails
+- No invitation emails (shown in UI but not sent)
+
+---
+
+## 22. Database Analysis
+
+### 22.1 Table Count by Domain
+
+| Domain | Tables | Notes |
+|--------|--------|-------|
+| Core (users, orgs, contacts) | 6 | Foundational entities |
+| Leads | 3 | Leads + communication |
+| Products/Catalog | 6 | Categories, products, variants |
+| Orders | 8 | Orders, line items, tracking |
+| Design | 14 | Jobs, AI Lab, training |
+| Manufacturing | 15 | Production, batches, QC |
+| Finance | 10 | Invoices, payments, commissions |
+| Events | 18 | 10-stage wizard support |
+| Quotes | 3 | Quotes + line items |
+| Team Stores | 4 | Stores + line items |
+| Permissions | 4 | RBAC system |
+| System | 5 | Audit, notifications, etc. |
+| External Sync | 3 | Printful, integrations |
+| **TOTAL** | **108** | |
+
+### 22.2 Index Coverage
+
+Most tables have proper indexes on:
+- Primary keys (automatic)
+- Foreign keys (explicitly defined)
+- Common query fields (status, userId, createdAt)
+
+**Missing Indexes** (potential performance issues):
+- `orderLineItems.variantId` - frequently joined
+- `manufacturingUpdates.createdAt` - for history queries
+- `designJobs.deadline` - for deadline sorting
+
+### 22.3 Nullable Field Patterns
+
+The schema mixes patterns:
+```typescript
+// Some use .notNull()
+name: varchar("name").notNull(),
+
+// Some rely on defaults
+status: varchar("status").default("pending"),
+
+// Some are explicitly nullable
+notes: text("notes"), // implicitly nullable
+```
+
+**Recommendation**: Be explicit about nullability:
+```typescript
+notes: text("notes").nullable(), // or .notNull()
+```
+
+---
+
+## 23. Frontend Component Analysis
+
+### 23.1 Component Inventory
+
+| Directory | Components | Purpose |
+|-----------|------------|---------|
+| `components/ui/` | 45+ | shadcn/ui primitives |
+| `components/layout/` | 5 | Page layouts, sidebars |
+| `components/modals/` | 20+ | Dialog components |
+| `components/actions/` | 10+ | Quick action system |
+| `components/kanban/` | 8 | Kanban board |
+| `components/workflow/` | 6 | Status workflows |
+| `components/orders/` | 15 | Order-specific |
+| `components/manufacturing/` | 12 | Manufacturing UI |
+| `components/design-jobs/` | 10 | Design job UI |
+
+### 23.2 Page Count by Domain
+
+| Domain | Pages | Hub | List | Detail | Actions |
+|--------|-------|-----|------|--------|---------|
+| Dashboard | 2 | ✅ | - | - | - |
+| Leads | 6 | ✅ | ✅ | ✅ | ✅ |
+| Orders | 8 | ✅ | ✅ | ✅ | ✅ |
+| Design | 10 | ✅ | ✅ | ✅ | ✅ |
+| Manufacturing | 8 | ✅ | ✅ | ✅ | ✅ |
+| Catalog | 6 | ✅ | ✅ | ✅ | - |
+| Quotes | 4 | ✅ | ✅ | ✅ | ✅ |
+| Finance | 8 | ✅ | Multi | - | - |
+| Events | 6 | ✅ | ✅ | ✅ | - |
+| Team Stores | 3 | ✅ | ✅ | ✅ | - |
+| Admin | 10 | Multi | Multi | - | - |
+| **Total** | **90** | | | | |
+
+### 23.3 Shared Utilities
+
+| File | Purpose | Quality |
+|------|---------|---------|
+| `lib/queryClient.ts` | API client | ★★★★★ |
+| `lib/utils.ts` | Tailwind merge | ★★★★★ |
+| `lib/format.ts` | Date/currency formatting | ★★★★☆ |
+| `lib/permissions.ts` | Frontend permission checks | ★★★☆☆ |
+| `lib/routesConfig.ts` | Route definitions | ★★★★☆ |
+| `lib/featureFlags.ts` | Feature toggles | ★★★☆☆ |
+
+---
+
+## 24. API Route Analysis
+
+### 24.1 Route File Sizes (Lines of Code)
+
+```
+manufacturing.routes.ts    2,482 lines  ← Largest
+orders.routes.ts          2,281 lines
+events.routes.ts          1,543 lines
+design-lab.routes.ts      1,386 lines
+catalog.routes.ts         1,088 lines
+finance.routes.ts         1,085 lines
+quotes.routes.ts            911 lines
+sales-map.routes.ts         760 lines
+design.routes.ts            742 lines
+manufacturer-portal.routes.ts 526 lines
+analytics.routes.ts         451 lines
+permissions.routes.ts       363 lines
+users.routes.ts             365 lines
+team-stores.routes.ts       347 lines
+auth.routes.ts              340 lines
+tasks.routes.ts             323 lines
+```
+
+### 24.2 Endpoint Pattern Analysis
+
+**Standard CRUD**:
+```
+GET    /api/{resource}       - List all
+GET    /api/{resource}/:id   - Get one
+POST   /api/{resource}       - Create
+PATCH  /api/{resource}/:id   - Update
+DELETE /api/{resource}/:id   - Delete
+```
+
+**Nested Resources**:
+```
+GET    /api/orders/:id/line-items
+POST   /api/orders/:id/line-items
+GET    /api/events/:id/contractors
+POST   /api/events/:id/contractors/:cid/payments
+```
+
+**Actions**:
+```
+POST   /api/orders/:id/ship
+POST   /api/orders/:id/archive
+POST   /api/manufacturing/:id/approve-first-piece
+POST   /api/design-lab/generate
+```
+
+### 24.3 Missing API Standards
+
+- No API versioning (no `/api/v1/`)
+- No rate limiting per endpoint (only global)
+- No request ID tracking for debugging
+- No OpenAPI/Swagger documentation
+- Inconsistent error response format
+
+---
+
+## 25. Security Analysis
+
+### 25.1 What's Implemented
+
+| Security Measure | Status | Notes |
+|------------------|--------|-------|
+| Authentication | ✅ | Replit OIDC + Local |
+| Session Management | ✅ | PostgreSQL store |
+| CSRF Protection | ✅ | Token-based |
+| Role-Based Access | ✅ | 6 roles |
+| Password Hashing | ✅ | bcrypt |
+| HTTPS | ✅ | Replit managed |
+| Input Validation | ✅ | Zod schemas |
+
+### 25.2 Security Concerns
+
+1. **No Rate Limiting on Auth Endpoints**
+   - Login attempts not throttled
+   - Brute force possible
+
+2. **Session Not Regenerated on Login**
+   - Session fixation potential
+   - Should call `req.session.regenerate()`
+
+3. **Debug Logging May Leak Data**
+   - Request bodies logged
+   - Could contain passwords/tokens
+
+4. **No Content Security Policy**
+   - No CSP headers set
+   - XSS mitigation missing
+
+5. **File Upload Validation**
+   - Basic mime type check exists
+   - No virus scanning
+   - No content validation
+
+### 25.3 Recommendations
+
+1. Add rate limiting to `/api/auth/*` endpoints
+2. Regenerate session on login
+3. Remove debug logging from production
+4. Add CSP headers
+5. Implement file content validation
+
+---
+
+## 26. Performance Considerations
+
+### 26.1 Current Bottlenecks
+
+1. **Large Schema File**
+   - 3,839 lines loaded on every import
+   - 453 exports
+   - Consider code splitting
+
+2. **Unbounded List Queries**
+   - Many endpoints return all records
+   - No enforced pagination
+   - Will degrade with scale
+
+3. **N+1 Query Patterns**
+   - Some storage methods loop with individual queries
+   - Should use Drizzle relations
+
+4. **No Caching Layer**
+   - Every request hits database
+   - No Redis/memory cache
+   - Catalog data could be cached
+
+### 26.2 Recommendations
+
+1. Add pagination to all list endpoints
+2. Implement Redis caching for catalog
+3. Split schema imports by domain
+4. Add database query logging to identify N+1
+
+---
+
+## 27. Testing Gap Analysis
+
+### 27.1 Current Test Coverage
+
+| Area | Tests | Coverage |
+|------|-------|----------|
+| Unit Tests | 1 file | ~1% |
+| Integration Tests | 1 file | ~1% |
+| E2E Tests | 0 files | 0% |
+| Component Tests | 0 files | 0% |
+
+### 27.2 Testing Infrastructure
+
+The project has Vitest configured:
+```json
+"scripts": {
+  "test": "vitest run",
+  "test:watch": "vitest",
+  "test:ui": "vitest --ui",
+  "test:unit": "vitest run tests/unit",
+  "test:integration": "vitest run tests/integration",
+  "test:coverage": "vitest run --coverage"
+}
+```
+
+But almost no tests exist.
+
+### 27.3 Recommended Test Strategy
+
+**Priority 1 - Critical Paths**:
+- Authentication flow
+- Order creation with line items
+- Permission checks
+- Financial calculations
+
+**Priority 2 - Business Logic**:
+- Status transitions
+- Commission calculations
+- Size grid calculations
+- Quote to order conversion
+
+**Priority 3 - Integration**:
+- OpenAI integration
+- File uploads
+- PDF generation
+
+---
+
+## 28. Deployment & Operations
+
+### 28.1 Current Setup
+
+- **Platform**: Replit
+- **Database**: Neon PostgreSQL
+- **File Storage**: Google Cloud Storage
+- **SSL**: Replit managed
+- **CI/CD**: Replit deployments
+
+### 28.2 Environment Variables Required
+
+```
+# Database
+DATABASE_URL=postgresql://...
+
+# Storage
+GOOGLE_CLOUD_PROJECT_ID=...
+GOOGLE_CLOUD_BUCKET_NAME=...
+GOOGLE_CLOUD_CLIENT_EMAIL=...
+GOOGLE_CLOUD_PRIVATE_KEY=...
+
+# Email (configured but not used)
+SENDGRID_API_KEY=...
+
+# AI
+OPENAI_API_KEY=...
+
+# Session
+SESSION_SECRET=... (auto-generated if missing)
+```
+
+### 28.3 Build Process
+
+```bash
+npm run build
+# 1. Vite builds React app → dist/
+# 2. esbuild bundles server → dist/index.js
+```
+
+### 28.4 Monitoring Gaps
+
+- No APM (Application Performance Monitoring)
+- No error tracking (Sentry, etc.)
+- No log aggregation
+- No uptime monitoring
+- No alerting system
+
+---
+
+## 29. Recommendations Summary
+
+### 29.1 Immediate Actions (This Week)
+
+1. **Remove debug logging** - 223+ console.log statements
+2. **Fix TypeScript errors** - 17 errors in storage.ts
+3. **Delete legacy routes.ts** - After verifying all endpoints migrated
+
+### 29.2 Short Term (This Month)
+
+1. **Consolidate permission system** - Pick database or code
+2. **Add basic tests** - Auth, orders, permissions
+3. **Split storage.ts** - By domain
+4. **Add rate limiting** - Auth endpoints
+
+### 29.3 Medium Term (This Quarter)
+
+1. **Implement integrations** - Shopify, QuickBooks
+2. **Add email notifications** - Use existing SendGrid
+3. **Build reporting dashboard** - Financial analytics
+4. **Add E2E tests** - Critical user flows
+
+### 29.4 Long Term (This Year)
+
+1. **API versioning** - `/api/v1/`
+2. **Documentation** - OpenAPI/Swagger
+3. **Caching layer** - Redis
+4. **Error tracking** - Sentry
+5. **Mobile app** - React Native or PWA
+
+---
+
+## 30. Glossary
+
+| Term | Definition |
+|------|------------|
+| **Line Item** | Individual product in an order with quantity and sizes |
+| **Size Grid** | 12-size breakdown (YXS-XXXXL) for each line item |
+| **First Piece** | Initial production sample for approval |
+| **Manufacturing Update** | Status change record with notes |
+| **Manufacturer Job** | Work order for external manufacturer |
+| **Design Job** | Request for design work |
+| **Hub Page** | Domain landing page with overview and actions |
+| **Quick Action** | Wizard-style shortcut for common tasks |
+| **Capsule** | Compact card showing entity summary |
+| **Stage** | Step in a workflow (lead stage, order status) |
