@@ -25,13 +25,10 @@ export async function seedDefaultManufacturingNoteCategories(): Promise<void> {
     const existingCategories = await storage.getManufacturingNoteCategories();
     
     if (existingCategories.length === 0) {
-      console.log("🌱 Seeding default manufacturing note categories...");
       for (const category of DEFAULT_CATEGORIES) {
         await storage.createManufacturingNoteCategory(category);
       }
-      console.log("✅ Default manufacturing note categories seeded successfully");
     } else {
-      console.log(`✅ Found ${existingCategories.length} manufacturing note categories`);
     }
   } catch (error) {
     console.error("❌ Error seeding manufacturing note categories:", error);

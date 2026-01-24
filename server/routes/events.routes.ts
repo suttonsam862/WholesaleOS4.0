@@ -131,8 +131,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/stages', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating event stage with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventStageSchema.parse({ ...req.body, eventId });
       const stage = await storage.createEventStage(validatedData);
       res.status(201).json(stage);
@@ -185,8 +183,6 @@ export function registerEventRoutes(app: Express) {
     try {
       const eventId = parseInt(req.params.eventId);
       const userData = (req as AuthenticatedRequest).user.userData!;
-      console.log("[DEBUG] Creating event staff with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventStaffSchema.parse({ ...req.body, eventId, assignedBy: userData.id });
       const staff = await storage.createEventStaff(validatedData);
       return res.status(201).json(staff);
@@ -241,8 +237,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/contractors', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating contractor with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventContractorSchema.parse({ ...req.body, eventId });
       const contractor = await storage.createEventContractor(validatedData);
       res.status(201).json(contractor);
@@ -305,8 +299,6 @@ export function registerEventRoutes(app: Express) {
     try {
       const contractorId = parseInt(req.params.contractorId);
       const userData = (req as AuthenticatedRequest).user.userData!;
-      console.log("[DEBUG] Creating contractor payment with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With contractorId:", contractorId);
       const validatedData = insertContractorPaymentSchema.parse({ ...req.body, contractorId, createdBy: userData.id });
       const payment = await storage.createContractorPayment(validatedData);
       res.status(201).json(payment);
@@ -336,8 +328,6 @@ export function registerEventRoutes(app: Express) {
     try {
       const contractorId = parseInt(req.params.contractorId);
       const userData = (req as AuthenticatedRequest).user.userData!;
-      console.log("[DEBUG] Creating contractor file with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With contractorId:", contractorId);
       const validatedData = insertContractorFileSchema.parse({ ...req.body, contractorId, uploadedBy: userData.id });
       const file = await storage.createContractorFile(validatedData);
       res.status(201).json(file);
@@ -377,8 +367,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/merchandise', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating event merchandise with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventMerchandiseSchema.parse({ ...req.body, eventId });
       const merchandise = await storage.createEventMerchandise(validatedData);
       res.status(201).json(merchandise);
@@ -434,8 +422,6 @@ export function registerEventRoutes(app: Express) {
     try {
       const eventId = parseInt(req.params.eventId);
       const userData = (req as AuthenticatedRequest).user.userData!;
-      console.log("[DEBUG] Creating inventory movement with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventInventoryMovementSchema.parse({ ...req.body, eventId, movedBy: userData.id });
       const movement = await storage.createEventInventoryMovement(validatedData);
       res.status(201).json(movement);
@@ -464,8 +450,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/budgets', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating event budget with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventBudgetSchema.parse({ ...req.body, eventId });
       const budget = await storage.createEventBudget(validatedData);
       res.status(201).json(budget);
@@ -528,8 +512,6 @@ export function registerEventRoutes(app: Express) {
     try {
       const eventId = parseInt(req.params.eventId);
       const userData = (req as AuthenticatedRequest).user.userData!;
-      console.log("[DEBUG] Creating event campaign with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventCampaignSchema.parse({ ...req.body, eventId, createdBy: userData.id });
       const campaign = await storage.createEventCampaign(validatedData);
       res.status(201).json(campaign);
@@ -661,7 +643,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/tour-merch-bundles', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const userData = (req as AuthenticatedRequest).user.userData!;
-      console.log("[DEBUG] Creating tour merch bundle with body:", JSON.stringify(req.body, null, 2));
       const validatedData = insertTourMerchBundleSchema.parse(req.body);
       
       const bundleData = {
@@ -722,8 +703,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/sponsors', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating event sponsor with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventSponsorSchema.parse({ ...req.body, eventId });
       const sponsor = await storage.createEventSponsor(validatedData);
       res.status(201).json(sponsor);
@@ -778,8 +757,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/volunteers', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating event volunteer with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventVolunteerSchema.parse({ ...req.body, eventId });
       const volunteer = await storage.createEventVolunteer(validatedData);
       res.status(201).json(volunteer);
@@ -835,8 +812,6 @@ export function registerEventRoutes(app: Express) {
     try {
       const eventId = parseInt(req.params.eventId);
       const userData = (req as AuthenticatedRequest).user.userData!;
-      console.log("[DEBUG] Creating event graphic with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventGraphicSchema.parse({ ...req.body, eventId, uploadedBy: userData.id });
       const graphic = await storage.createEventGraphic(validatedData);
       res.status(201).json(graphic);
@@ -891,8 +866,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/venues', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating event venue with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventVenueSchema.parse({ ...req.body, eventId });
       const venue = await storage.createEventVenue(validatedData);
       res.status(201).json(venue);
@@ -947,8 +920,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/schedules', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating event schedule with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventScheduleSchema.parse({ ...req.body, eventId });
       const schedule = await storage.createEventSchedule(validatedData);
       res.status(201).json(schedule);
@@ -1003,8 +974,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/equipment', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating event equipment with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventEquipmentSchema.parse({ ...req.body, eventId });
       const equipmentItem = await storage.createEventEquipment(validatedData);
       res.status(201).json(equipmentItem);
@@ -1059,8 +1028,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/travel', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating event travel with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventTravelSchema.parse({ ...req.body, eventId });
       const travelItem = await storage.createEventTravel(validatedData);
       res.status(201).json(travelItem);
@@ -1115,8 +1082,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/tasks', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating event task with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventTaskSchema.parse({ ...req.body, eventId });
       const task = await storage.createEventTask(validatedData);
       res.status(201).json(task);
@@ -1172,8 +1137,6 @@ export function registerEventRoutes(app: Express) {
     try {
       const eventId = parseInt(req.params.eventId);
       const userData = (req as AuthenticatedRequest).user.userData!;
-      console.log("[DEBUG] Creating event document with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventDocumentSchema.parse({ ...req.body, eventId, uploadedBy: userData.id });
       const document = await storage.createEventDocument(validatedData);
       res.status(201).json(document);
@@ -1228,8 +1191,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/ticket-tiers', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating event ticket tier with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventTicketTierSchema.parse({ ...req.body, eventId });
       const ticketTier = await storage.createEventTicketTier(validatedData);
       res.status(201).json(ticketTier);
@@ -1284,8 +1245,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/expenses', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating event expense with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventExpenseSchema.parse({ ...req.body, eventId });
       const expense = await storage.createEventExpense(validatedData);
       res.status(201).json(expense);
@@ -1347,8 +1306,6 @@ export function registerEventRoutes(app: Express) {
     try {
       const eventId = parseInt(req.params.eventId);
       const userData = (req as AuthenticatedRequest).user.userData!;
-      console.log("[DEBUG] Creating event note with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventNoteSchema.parse({ ...req.body, eventId, createdBy: userData.id });
       const note = await storage.createEventNote(validatedData);
       res.status(201).json(note);
@@ -1403,8 +1360,6 @@ export function registerEventRoutes(app: Express) {
   app.post('/api/events/:eventId/checklists', isAuthenticated, loadUserData, requirePermission('events', 'write'), async (req, res) => {
     try {
       const eventId = parseInt(req.params.eventId);
-      console.log("[DEBUG] Creating event checklist with body:", JSON.stringify(req.body, null, 2));
-      console.log("[DEBUG] With eventId:", eventId);
       const validatedData = insertEventChecklistSchema.parse({ ...req.body, eventId });
       const checklist = await storage.createEventChecklist(validatedData);
       res.status(201).json(checklist);

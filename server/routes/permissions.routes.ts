@@ -8,7 +8,6 @@ import { fromZodError } from "zod-validation-error";
 
 // Seed function to populate database with default roles, resources, and permissions
 async function seedPermissions() {
-  console.log("Starting permissions seed...");
   
   // Define resources with descriptions
   const resourceDefinitions: Array<{name: string; displayName: string; description: string; resourceType: "page" | "modal" | "button" | "feature"}> = [
@@ -59,11 +58,9 @@ async function seedPermissions() {
       const existingResource = await storage.getResourceByName(resDef.name);
       if (existingResource) {
         resourceMap.set(resDef.name, existingResource.id);
-        console.log(`Resource ${resDef.name} already exists`);
       } else {
         const newResource = await storage.createResource(resDef);
         resourceMap.set(resDef.name, newResource.id);
-        console.log(`Created resource: ${resDef.name}`);
       }
     }
 
@@ -74,11 +71,9 @@ async function seedPermissions() {
       const existingRole = roles.find(r => r.name === roleDef.name);
       if (existingRole) {
         roleMap.set(roleDef.name, existingRole.id);
-        console.log(`Role ${roleDef.name} already exists`);
       } else {
         const newRole = await storage.createRole(roleDef);
         roleMap.set(roleDef.name, newRole.id);
-        console.log(`Created role: ${roleDef.name}`);
       }
     }
 
@@ -110,10 +105,8 @@ async function seedPermissions() {
 
         await storage.upsertRolePermission(roleId, resourceId, permissionData);
       }
-      console.log(`Created permissions for role: ${roleName}`);
     }
 
-    console.log("Permissions seed completed successfully!");
     return { success: true, message: "Permissions seeded successfully" };
   } catch (error) {
     console.error("Error seeding permissions:", error);

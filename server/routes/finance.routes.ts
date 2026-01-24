@@ -155,9 +155,6 @@ export function registerFinanceRoutes(app: Express): void {
 
   app.post('/api/invoices', isAuthenticated, loadUserData, requirePermission('finance', 'write'), async (req, res) => {
     try {
-      console.log('=== INVOICE CREATION START ===');
-      console.log('Request body:', JSON.stringify(req.body, null, 2));
-      console.log('User:', (req as AuthenticatedRequest).user.userData?.id);
 
       // Ensure createdBy is set if not provided
       const invoiceData = {
@@ -165,13 +162,10 @@ export function registerFinanceRoutes(app: Express): void {
         createdBy: req.body.createdBy || (req as AuthenticatedRequest).user.userData!.id
       };
 
-      console.log('Invoice data with createdBy:', JSON.stringify(invoiceData, null, 2));
 
       const validatedData = insertInvoiceSchema.parse(invoiceData);
-      console.log('Validated data:', JSON.stringify(validatedData, null, 2));
 
       const invoice = await storage.createInvoice(validatedData);
-      console.log('Invoice created successfully:', invoice.id);
 
       // Log activity
       await storage.logActivity(
@@ -183,7 +177,6 @@ export function registerFinanceRoutes(app: Express): void {
         invoice
       );
 
-      console.log('=== INVOICE CREATION SUCCESS ===');
       res.status(201).json(invoice);
     } catch (error) {
       console.error("=== INVOICE CREATION ERROR ===");

@@ -1056,10 +1056,8 @@ export default function EventDetail() {
         body: {
           campaignName: data.campaignName,
           campaignType: data.campaignType || 'email',
-          targetAudience: data.targetAudience || null,
           content: data.content || null,
           scheduledAt: data.scheduledAt || null,
-          status: data.status || 'draft',
         },
       });
     },
@@ -1083,7 +1081,6 @@ export default function EventDetail() {
           attendeePhone: data.attendeePhone || null,
           ticketType: data.ticketType || null,
           paymentStatus: data.paymentStatus || 'pending',
-          amountPaid: data.amountPaid || null,
         },
       });
     },
@@ -1813,7 +1810,7 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-sponsor-tier">Tier</Label>
-                        <Select value={editingSponsor.tier || "bronze"} onValueChange={(value) => setEditingSponsor({...editingSponsor, tier: value})}>
+                        <Select value={editingSponsor.tier || "bronze"} onValueChange={(value) => setEditingSponsor({...editingSponsor, tier: value as "platinum" | "gold" | "silver" | "bronze" | "custom"})}>
                           <SelectTrigger data-testid="select-edit-sponsor-tier">
                             <SelectValue />
                           </SelectTrigger>
@@ -2655,16 +2652,18 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-graphic-type">File Type</Label>
-                        <Select value={editingGraphic.fileType || "image"} onValueChange={(value) => setEditingGraphic({...editingGraphic, fileType: value})}>
+                        <Select value={editingGraphic.fileType || "other"} onValueChange={(value) => setEditingGraphic({...editingGraphic, fileType: value as "flyer" | "poster" | "video" | "banner" | "social_media" | "logo" | "other"})}>
                           <SelectTrigger data-testid="select-edit-graphic-type">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="image">Image</SelectItem>
+                            <SelectItem value="poster">Poster</SelectItem>
                             <SelectItem value="video">Video</SelectItem>
                             <SelectItem value="logo">Logo</SelectItem>
                             <SelectItem value="flyer">Flyer</SelectItem>
                             <SelectItem value="banner">Banner</SelectItem>
+                            <SelectItem value="social_media">Social Media</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -3056,7 +3055,7 @@ export default function EventDetail() {
                             id="edit-schedule-start"
                             type="datetime-local"
                             value={editingSchedule.startTime ? new Date(editingSchedule.startTime).toISOString().slice(0, 16) : ""}
-                            onChange={(e) => setEditingSchedule({...editingSchedule, startTime: e.target.value ? new Date(e.target.value).toISOString() : null})}
+                            onChange={(e) => setEditingSchedule({...editingSchedule, startTime: e.target.value ? new Date(e.target.value) : new Date()})}
                             data-testid="input-edit-schedule-start"
                           />
                         </div>
@@ -3066,7 +3065,7 @@ export default function EventDetail() {
                             id="edit-schedule-end"
                             type="datetime-local"
                             value={editingSchedule.endTime ? new Date(editingSchedule.endTime).toISOString().slice(0, 16) : ""}
-                            onChange={(e) => setEditingSchedule({...editingSchedule, endTime: e.target.value ? new Date(e.target.value).toISOString() : null})}
+                            onChange={(e) => setEditingSchedule({...editingSchedule, endTime: e.target.value ? new Date(e.target.value) : null})}
                             data-testid="input-edit-schedule-end"
                           />
                         </div>
@@ -3082,7 +3081,7 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-schedule-type">Activity Type</Label>
-                        <Select value={editingSchedule.activityType || "session"} onValueChange={(value) => setEditingSchedule({...editingSchedule, activityType: value})}>
+                        <Select value={editingSchedule.activityType || "session"} onValueChange={(value) => setEditingSchedule({...editingSchedule, activityType: value as "session" | "break" | "registration" | "ceremony" | "other"})}>
                           <SelectTrigger data-testid="select-edit-schedule-type">
                             <SelectValue />
                           </SelectTrigger>
@@ -3279,12 +3278,19 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-equipment-category">Category</Label>
-                        <Input 
-                          id="edit-equipment-category" 
-                          value={editingEquipment.category || ""}
-                          onChange={(e) => setEditingEquipment({...editingEquipment, category: e.target.value})}
-                          data-testid="input-edit-equipment-category"
-                        />
+                        <Select value={editingEquipment.category || "other"} onValueChange={(value) => setEditingEquipment({...editingEquipment, category: value as "audio" | "visual" | "signage" | "furniture" | "sports" | "other"})}>
+                          <SelectTrigger data-testid="select-edit-equipment-category">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="audio">Audio</SelectItem>
+                            <SelectItem value="visual">Visual</SelectItem>
+                            <SelectItem value="signage">Signage</SelectItem>
+                            <SelectItem value="furniture">Furniture</SelectItem>
+                            <SelectItem value="sports">Sports</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-equipment-cost">Rental Cost ($)</Label>
@@ -3298,7 +3304,7 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-equipment-status">Status</Label>
-                        <Select value={editingEquipment.status || "pending"} onValueChange={(value) => setEditingEquipment({...editingEquipment, status: value})}>
+                        <Select value={editingEquipment.status || "reserved"} onValueChange={(value) => setEditingEquipment({...editingEquipment, status: value as "reserved" | "picked_up" | "returned" | "damaged"})}>
                           <SelectTrigger data-testid="select-edit-equipment-status">
                             <SelectValue />
                           </SelectTrigger>
@@ -3476,15 +3482,13 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-travel-type">Traveler Type</Label>
-                        <Select value={editingTravel.travelerType || "custom"} onValueChange={(value) => setEditingTravel({...editingTravel, travelerType: value})}>
+                        <Select value={editingTravel.travelerType || "custom"} onValueChange={(value) => setEditingTravel({...editingTravel, travelerType: value as "staff" | "contractor" | "custom"})}>
                           <SelectTrigger data-testid="select-edit-travel-type">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="staff">Staff</SelectItem>
-                            <SelectItem value="speaker">Speaker</SelectItem>
-                            <SelectItem value="vendor">Vendor</SelectItem>
-                            <SelectItem value="vip">VIP</SelectItem>
+                            <SelectItem value="contractor">Contractor</SelectItem>
                             <SelectItem value="custom">Custom</SelectItem>
                           </SelectContent>
                         </Select>
@@ -3492,11 +3496,11 @@ export default function EventDetail() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                           <Label htmlFor="edit-travel-arrival">Flight Arrival</Label>
-                          <Input id="edit-travel-arrival" type="datetime-local" value={editingTravel.flightArrival ? editingTravel.flightArrival.slice(0, 16) : ""} onChange={(e) => setEditingTravel({...editingTravel, flightArrival: e.target.value ? new Date(e.target.value).toISOString() : null})} data-testid="input-edit-travel-arrival" />
+                          <Input id="edit-travel-arrival" type="datetime-local" value={editingTravel.flightArrival ? (editingTravel.flightArrival instanceof Date ? editingTravel.flightArrival.toISOString() : editingTravel.flightArrival).slice(0, 16) : ""} onChange={(e) => setEditingTravel({...editingTravel, flightArrival: e.target.value ? new Date(e.target.value) : null})} data-testid="input-edit-travel-arrival" />
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="edit-travel-departure">Flight Departure</Label>
-                          <Input id="edit-travel-departure" type="datetime-local" value={editingTravel.flightDeparture ? editingTravel.flightDeparture.slice(0, 16) : ""} onChange={(e) => setEditingTravel({...editingTravel, flightDeparture: e.target.value ? new Date(e.target.value).toISOString() : null})} data-testid="input-edit-travel-departure" />
+                          <Input id="edit-travel-departure" type="datetime-local" value={editingTravel.flightDeparture ? (editingTravel.flightDeparture instanceof Date ? editingTravel.flightDeparture.toISOString() : editingTravel.flightDeparture).slice(0, 16) : ""} onChange={(e) => setEditingTravel({...editingTravel, flightDeparture: e.target.value ? new Date(e.target.value) : null})} data-testid="input-edit-travel-departure" />
                         </div>
                       </div>
                       <div className="grid gap-2">
@@ -3506,11 +3510,11 @@ export default function EventDetail() {
                       <div className="grid grid-cols-2 gap-4">
                         <div className="grid gap-2">
                           <Label htmlFor="edit-travel-checkin">Check-In</Label>
-                          <Input id="edit-travel-checkin" type="date" value={editingTravel.hotelCheckIn ? editingTravel.hotelCheckIn.slice(0, 10) : ""} onChange={(e) => setEditingTravel({...editingTravel, hotelCheckIn: e.target.value ? new Date(e.target.value).toISOString() : null})} data-testid="input-edit-travel-checkin" />
+                          <Input id="edit-travel-checkin" type="date" value={editingTravel.hotelCheckIn ? (editingTravel.hotelCheckIn instanceof Date ? editingTravel.hotelCheckIn.toISOString() : editingTravel.hotelCheckIn).slice(0, 10) : ""} onChange={(e) => setEditingTravel({...editingTravel, hotelCheckIn: e.target.value ? new Date(e.target.value) : null})} data-testid="input-edit-travel-checkin" />
                         </div>
                         <div className="grid gap-2">
                           <Label htmlFor="edit-travel-checkout">Check-Out</Label>
-                          <Input id="edit-travel-checkout" type="date" value={editingTravel.hotelCheckOut ? editingTravel.hotelCheckOut.slice(0, 10) : ""} onChange={(e) => setEditingTravel({...editingTravel, hotelCheckOut: e.target.value ? new Date(e.target.value).toISOString() : null})} data-testid="input-edit-travel-checkout" />
+                          <Input id="edit-travel-checkout" type="date" value={editingTravel.hotelCheckOut ? (editingTravel.hotelCheckOut instanceof Date ? editingTravel.hotelCheckOut.toISOString() : editingTravel.hotelCheckOut).slice(0, 10) : ""} onChange={(e) => setEditingTravel({...editingTravel, hotelCheckOut: e.target.value ? new Date(e.target.value) : null})} data-testid="input-edit-travel-checkout" />
                         </div>
                       </div>
                       <div className="grid gap-2">
@@ -3805,7 +3809,7 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-document-type">Document Type</Label>
-                        <Select value={editingDocument.documentType || "other"} onValueChange={(value) => setEditingDocument({...editingDocument, documentType: value})}>
+                        <Select value={editingDocument.documentType || "other"} onValueChange={(value) => setEditingDocument({...editingDocument, documentType: value as "contract" | "invoice" | "permit" | "insurance" | "receipt" | "other"})}>
                           <SelectTrigger data-testid="select-edit-document-type">
                             <SelectValue />
                           </SelectTrigger>
@@ -3813,8 +3817,8 @@ export default function EventDetail() {
                             <SelectItem value="contract">Contract</SelectItem>
                             <SelectItem value="permit">Permit</SelectItem>
                             <SelectItem value="invoice">Invoice</SelectItem>
-                            <SelectItem value="agenda">Agenda</SelectItem>
-                            <SelectItem value="presentation">Presentation</SelectItem>
+                            <SelectItem value="insurance">Insurance</SelectItem>
+                            <SelectItem value="receipt">Receipt</SelectItem>
                             <SelectItem value="other">Other</SelectItem>
                           </SelectContent>
                         </Select>
@@ -3941,7 +3945,7 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-budget-status">Approval Status</Label>
-                        <Select value={editingBudget.approvalStatus || "pending"} onValueChange={(value) => setEditingBudget({...editingBudget, approvalStatus: value})}>
+                        <Select value={editingBudget.approvalStatus || "pending"} onValueChange={(value) => setEditingBudget({...editingBudget, approvalStatus: value as "pending" | "approved" | "rejected"})}>
                           <SelectTrigger data-testid="select-edit-budget-status">
                             <SelectValue />
                           </SelectTrigger>
@@ -4289,7 +4293,7 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-expense-category">Category</Label>
-                        <Select value={editingExpense.expenseCategory || "other"} onValueChange={(value) => setEditingExpense({...editingExpense, expenseCategory: value})}>
+                        <Select value={editingExpense.expenseCategory || "other"} onValueChange={(value) => setEditingExpense({...editingExpense, expenseCategory: value as "venue" | "catering" | "equipment" | "staffing" | "travel" | "marketing" | "other"})}>
                           <SelectTrigger data-testid="select-edit-expense-category">
                             <SelectValue />
                           </SelectTrigger>
@@ -4297,9 +4301,9 @@ export default function EventDetail() {
                             <SelectItem value="venue">Venue</SelectItem>
                             <SelectItem value="catering">Catering</SelectItem>
                             <SelectItem value="equipment">Equipment</SelectItem>
+                            <SelectItem value="staffing">Staffing</SelectItem>
                             <SelectItem value="marketing">Marketing</SelectItem>
                             <SelectItem value="travel">Travel</SelectItem>
-                            <SelectItem value="supplies">Supplies</SelectItem>
                             <SelectItem value="other">Other</SelectItem>
                           </SelectContent>
                         </Select>
@@ -4315,7 +4319,7 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-expense-status">Status</Label>
-                        <Select value={editingExpense.status || "pending"} onValueChange={(value) => setEditingExpense({...editingExpense, status: value})}>
+                        <Select value={editingExpense.status || "pending"} onValueChange={(value) => setEditingExpense({...editingExpense, status: value as "pending" | "approved" | "paid" | "reimbursed"})}>
                           <SelectTrigger data-testid="select-edit-expense-status">
                             <SelectValue />
                           </SelectTrigger>
@@ -4405,26 +4409,18 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-campaign-type">Type</Label>
-                        <Select value={editingCampaign.campaignType || "email"} onValueChange={(value) => setEditingCampaign({...editingCampaign, campaignType: value})}>
+                        <Select value={editingCampaign.campaignType || "email"} onValueChange={(value) => setEditingCampaign({...editingCampaign, campaignType: value as "email" | "sms" | "social" | "flyer" | "other"})}>
                           <SelectTrigger data-testid="select-edit-campaign-type">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="email">Email</SelectItem>
+                            <SelectItem value="sms">SMS</SelectItem>
                             <SelectItem value="social">Social</SelectItem>
-                            <SelectItem value="ads">Ads</SelectItem>
-                            <SelectItem value="content">Content</SelectItem>
+                            <SelectItem value="flyer">Flyer</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
                           </SelectContent>
                         </Select>
-                      </div>
-                      <div className="grid gap-2">
-                        <Label htmlFor="edit-campaign-audience">Target Audience</Label>
-                        <Input 
-                          id="edit-campaign-audience" 
-                          value={editingCampaign.targetAudience || ""}
-                          onChange={(e) => setEditingCampaign({...editingCampaign, targetAudience: e.target.value})}
-                          data-testid="input-edit-campaign-audience"
-                        />
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-campaign-content">Content</Label>
@@ -4517,10 +4513,10 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-registration-email">Email *</Label>
-                        <Input 
-                          id="edit-registration-email" 
+                        <Input
+                          id="edit-registration-email"
                           type="email"
-                          value={editingRegistration.attendeeEmail}
+                          value={editingRegistration.attendeeEmail || ""}
                           onChange={(e) => setEditingRegistration({...editingRegistration, attendeeEmail: e.target.value})}
                           data-testid="input-edit-registration-email"
                         />
@@ -4545,7 +4541,7 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-registration-status">Payment Status</Label>
-                        <Select value={editingRegistration.paymentStatus || "pending"} onValueChange={(value) => setEditingRegistration({...editingRegistration, paymentStatus: value})}>
+                        <Select value={editingRegistration.paymentStatus || "pending"} onValueChange={(value) => setEditingRegistration({...editingRegistration, paymentStatus: value as "pending" | "paid" | "refunded"})}>
                           <SelectTrigger data-testid="select-edit-registration-status">
                             <SelectValue />
                           </SelectTrigger>
@@ -4710,16 +4706,15 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-note-type">Type</Label>
-                        <Select value={editingNote.noteType || "general"} onValueChange={(value) => setEditingNote({...editingNote, noteType: value})}>
+                        <Select value={editingNote.noteType || "general"} onValueChange={(value) => setEditingNote({...editingNote, noteType: value as "general" | "urgent" | "internal" | "client_facing"})}>
                           <SelectTrigger data-testid="select-edit-note-type">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="general">General</SelectItem>
-                            <SelectItem value="planning">Planning</SelectItem>
-                            <SelectItem value="logistics">Logistics</SelectItem>
-                            <SelectItem value="feedback">Feedback</SelectItem>
-                            <SelectItem value="follow_up">Follow Up</SelectItem>
+                            <SelectItem value="urgent">Urgent</SelectItem>
+                            <SelectItem value="internal">Internal</SelectItem>
+                            <SelectItem value="client_facing">Client Facing</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -4868,7 +4863,7 @@ export default function EventDetail() {
                       </div>
                       <div className="grid gap-2">
                         <Label htmlFor="edit-checklist-type">Type</Label>
-                        <Select value={editingChecklist.checklistType || "pre_event"} onValueChange={(value) => setEditingChecklist({...editingChecklist, checklistType: value})}>
+                        <Select value={editingChecklist.checklistType || "pre_event"} onValueChange={(value) => setEditingChecklist({...editingChecklist, checklistType: value as "setup" | "teardown" | "pre_event" | "during_event" | "post_event"})}>
                           <SelectTrigger data-testid="select-edit-checklist-type">
                             <SelectValue />
                           </SelectTrigger>

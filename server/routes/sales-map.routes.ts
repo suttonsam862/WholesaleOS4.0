@@ -37,7 +37,6 @@ function buildLngCondition(lngColumn: any, westVal: number, eastVal: number) {
 
 router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Response) => {
   try {
-    console.log("[sales-map/feed] Request received with query:", req.query);
     const authReq = req as AuthenticatedRequest;
     const userId = authReq.user?.userData?.id;
     const userData = authReq.user?.userData;
@@ -343,12 +342,6 @@ router.get("/feed", isAuthenticated, loadUserData, async (req: Request, res: Res
       };
     }).filter(j => j.lat !== 0 && j.lng !== 0);
 
-    console.log("[sales-map/feed] Returning:", {
-      orgCount: mappedOrgs.length,
-      leadCount: mappedLeads.length,
-      orderCount: mappedOrders.length,
-      designJobCount: mappedDesignJobs.length,
-    });
     res.json({
       organizations: mappedOrgs,
       leads: attentionOnly ? mappedLeads.filter(l => l.needsAttention) : mappedLeads,

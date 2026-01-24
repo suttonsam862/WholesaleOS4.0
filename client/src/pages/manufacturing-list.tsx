@@ -221,14 +221,14 @@ export default function ManufacturingList() {
         manufacturing: {
           id: record.id,
           status: record.status,
-          estCompletion: record.estCompletion,
-          actualCompletion: record.actualCompletion,
+          estCompletion: record.estCompletion ? (typeof record.estCompletion === 'string' ? record.estCompletion : new Date(record.estCompletion).toISOString()) : '',
+          actualCompletion: record.actualCompletion ? (typeof record.actualCompletion === 'string' ? record.actualCompletion : new Date(record.actualCompletion).toISOString()) : null,
           trackingNumber: record.trackingNumber,
           productionNotes: record.productionNotes,
           qualityNotes: record.qualityNotes,
           specialInstructions: record.specialInstructions,
-          createdAt: record.createdAt,
-          updatedAt: record.updatedAt,
+          createdAt: record.createdAt ? (typeof record.createdAt === 'string' ? record.createdAt : new Date(record.createdAt).toISOString()) : '',
+          updatedAt: record.updatedAt ? (typeof record.updatedAt === 'string' ? record.updatedAt : new Date(record.updatedAt).toISOString()) : null,
           priority: record.priority,
         },
         order: record.order ? {

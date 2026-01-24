@@ -353,11 +353,6 @@ export function registerCatalogRoutes(app: Express): void {
   // Create catalog product (with category)
   app.post('/api/catalog', isAuthenticated, loadUserData, requirePermission('catalog', 'write'), async (req, res) => {
     try {
-      console.log("=== PRODUCT CREATION DEBUG START ===");
-      console.log("Request headers:", JSON.stringify(req.headers, null, 2));
-      console.log("Raw request body received:", JSON.stringify(req.body, null, 2));
-      console.log("Request body type:", typeof req.body);
-      console.log("Request body keys:", Object.keys(req.body || {}));
 
       // Ensure the request body exists and has the required fields
       if (!req.body || typeof req.body !== 'object' || Object.keys(req.body).length === 0) {
@@ -372,7 +367,6 @@ export function registerCatalogRoutes(app: Express): void {
 
       // Convert string categoryId to number for validation
       const requestData = { ...req.body };
-      console.log("Before processing:", JSON.stringify(requestData, null, 2));
 
       if (requestData.categoryId) {
         if (typeof requestData.categoryId === 'string') {
@@ -385,11 +379,8 @@ export function registerCatalogRoutes(app: Express): void {
         }
       }
 
-      console.log("After processing:", JSON.stringify(requestData, null, 2));
-      console.log("About to validate with schema...");
 
       const validatedData = insertProductSchema.parse(requestData);
-      console.log("Schema validation passed! Validated data:", JSON.stringify(validatedData, null, 2));
 
       const product = await storage.createProduct(validatedData);
 
@@ -406,11 +397,8 @@ export function registerCatalogRoutes(app: Express): void {
         product
       );
 
-      console.log("Product created successfully:", JSON.stringify(productWithCategory, null, 2));
-      console.log("=== PRODUCT CREATION DEBUG END ===");
       res.status(201).json(productWithCategory);
     } catch (error) {
-      console.log("=== PRODUCT CREATION ERROR ===");
       if (error instanceof z.ZodError) {
         console.error("Validation failed for product creation:");
         console.error("- Validation errors:", JSON.stringify(error.errors, null, 2));
@@ -429,7 +417,6 @@ export function registerCatalogRoutes(app: Express): void {
       console.error("Error creating catalog product:", error);
       console.error("Error type:", error?.constructor?.name);
       console.error("Error code:", (error as any)?.code);
-      console.log("=== PRODUCT CREATION ERROR END ===");
 
       // Check for specific database errors
       const errorObj = error as any;
@@ -628,12 +615,8 @@ export function registerCatalogRoutes(app: Express): void {
   // Create new variant
   app.post('/api/variants', isAuthenticated, loadUserData, requirePermission('catalog', 'write'), async (req, res) => {
     try {
-      console.log('=== VARIANT CREATION START ===');
-      console.log('Request body:', JSON.stringify(req.body, null, 2));
-      console.log('User:', (req as AuthenticatedRequest).user.userData?.id);
 
       const validatedData = insertProductVariantSchema.parse(req.body);
-      console.log('Validated data:', JSON.stringify(validatedData, null, 2));
 
       // Validate that the product exists before creating variant
       if (validatedData.productId) {
@@ -645,11 +628,9 @@ export function registerCatalogRoutes(app: Express): void {
             details: `Product with ID ${validatedData.productId} does not exist` 
           });
         }
-        console.log(`Product validated: ${product.name} (${product.id})`);
       }
 
       const variant = await storage.createProductVariant(validatedData);
-      console.log('Variant created successfully:', variant.id);
 
       // Log activity
       await storage.logActivity(
@@ -661,7 +642,6 @@ export function registerCatalogRoutes(app: Express): void {
         variant
       );
 
-      console.log('=== VARIANT CREATION SUCCESS ===');
       res.status(201).json(variant);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -719,20 +699,14 @@ export function registerCatalogRoutes(app: Express): void {
   app.put('/api/variants/:id', isAuthenticated, loadUserData, requirePermission('catalog', 'write'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
-      console.log('=== VARIANT UPDATE START ===');
-      console.log('Variant ID:', id);
-      console.log('Request body:', JSON.stringify(req.body, null, 2));
-      console.log('User:', (req as AuthenticatedRequest).user.userData?.id);
 
       const validatedData = insertProductVariantSchema.partial().parse(req.body);
-      console.log('Validated data:', JSON.stringify(validatedData, null, 2));
 
       const existingVariant = await storage.getProductVariant(id);
       if (!existingVariant) {
         console.error(`Variant not found: ${id}`);
         return res.status(404).json({ message: "Product variant not found" });
       }
-      console.log('Existing variant found:', existingVariant.variantCode);
 
       // Validate that the product exists if productId is being changed
       if (validatedData.productId && validatedData.productId !== existingVariant.productId) {
@@ -744,11 +718,9 @@ export function registerCatalogRoutes(app: Express): void {
             details: `Product with ID ${validatedData.productId} does not exist` 
           });
         }
-        console.log(`New product validated: ${product.name} (${product.id})`);
       }
 
       const updatedVariant = await storage.updateProductVariant(id, validatedData);
-      console.log('Variant updated successfully:', updatedVariant.id);
 
       // Log activity
       await storage.logActivity(
@@ -760,7 +732,6 @@ export function registerCatalogRoutes(app: Express): void {
         updatedVariant
       );
 
-      console.log('=== VARIANT UPDATE SUCCESS ===');
       res.json(updatedVariant);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -846,7 +817,6 @@ export function registerCatalogRoutes(app: Express): void {
         null
       );
 
-      console.log('=== VARIANT DELETION SUCCESS ===');
       res.status(204).send();
     } catch (error) {
       console.error("=== VARIANT DELETION ERROR ===");

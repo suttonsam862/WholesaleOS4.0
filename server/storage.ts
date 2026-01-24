@@ -1154,17 +1154,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateOrganization(id: number, org: Partial<InsertOrganization>): Promise<Organization> {
-    console.log(`[STORAGE] updateOrganization called with ID: ${id}`);
-    console.log(`[STORAGE] Input org param:`, JSON.stringify(org, null, 2));
 
     const updateData: any = { ...org, updatedAt: new Date() };
     if (org.clientType) {
       updateData.clientType = org.clientType as "retail" | "wholesale" | "enterprise" | "government";
     }
 
-    console.log(`[STORAGE] updateData before DB call:`, JSON.stringify(updateData, null, 2));
-    console.log(`[STORAGE] updateData.notes:`, updateData.notes);
-    console.log(`[STORAGE] updateData.shippingAddress:`, updateData.shippingAddress);
 
     const [updated] = await db
       .update(organizations)
@@ -1172,9 +1167,6 @@ export class DatabaseStorage implements IStorage {
       .where(eq(organizations.id, id))
       .returning();
 
-    console.log(`[STORAGE] Updated org from DB:`, JSON.stringify(updated, null, 2));
-    console.log(`[STORAGE] updated.notes:`, updated.notes);
-    console.log(`[STORAGE] updated.shippingAddress:`, updated.shippingAddress);
 
     if (!updated) {
       throw new Error(`Organization with id ${id} not found`);
@@ -1184,7 +1176,6 @@ export class DatabaseStorage implements IStorage {
 
   // Archive organization (soft delete)
   async archiveOrganization(id: number, userId: string): Promise<Organization> {
-    console.log(`[STORAGE] archiveOrganization called with ID: ${id}`);
     
     const [archived] = await db
       .update(organizations)
@@ -1201,13 +1192,11 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Organization with id ${id} not found`);
     }
     
-    console.log(`[STORAGE] Organization ${id} archived successfully`);
     return archived;
   }
   
   // Unarchive organization
   async unarchiveOrganization(id: number): Promise<Organization> {
-    console.log(`[STORAGE] unarchiveOrganization called with ID: ${id}`);
     
     const [unarchived] = await db
       .update(organizations)
@@ -1224,61 +1213,38 @@ export class DatabaseStorage implements IStorage {
       throw new Error(`Organization with id ${id} not found`);
     }
     
-    console.log(`[STORAGE] Organization ${id} unarchived successfully`);
     return unarchived;
   }
 
   // Legacy hard delete - kept for backward compatibility but should not be used
   async deleteOrganization(id: number): Promise<void> {
-    console.log(`[STORAGE] deleteOrganization called with ID: ${id} - DEPRECATED: use archiveOrganization instead`);
-    console.log(`[STORAGE] ID type: ${typeof id}, value: ${id}`);
 
     try {
-      console.log(`[STORAGE] Starting database transaction for organization deletion`);
 
       await db.transaction(async (tx) => {
-        console.log(`[STORAGE] Inside transaction - deleting organization ${id}`);
 
         // Check for foreign key dependencies and handle them
-        console.log(`[STORAGE] Step 1: Updating leads to remove organization reference`);
         const leadUpdateResult = await tx.update(leads)
           .set({ orgId: null })
           .where(eq(leads.orgId, id));
-        console.log(`[STORAGE] Lead update result:`, leadUpdateResult);
-        console.log(`[STORAGE] Updated ${leadUpdateResult.rowCount || 0} leads to remove organization reference`);
 
-        console.log(`[STORAGE] Step 2: Updating contacts to remove organization reference`);
         const contactUpdateResult = await tx.update(contacts)
           .set({ orgId: null })
           .where(eq(contacts.orgId, id));
-        console.log(`[STORAGE] Contact update result:`, contactUpdateResult);
-        console.log(`[STORAGE] Updated ${contactUpdateResult.rowCount || 0} contacts to remove organization reference`);
 
-        console.log(`[STORAGE] Step 3: Updating orders to remove organization reference`);
         const orderUpdateResult = await tx.update(orders)
           .set({ orgId: null })
           .where(eq(orders.orgId, id));
-        console.log(`[STORAGE] Order update result:`, orderUpdateResult);
-        console.log(`[STORAGE] Updated ${orderUpdateResult.rowCount || 0} orders to remove organization reference`);
 
-        console.log(`[STORAGE] Step 4: Updating design jobs to remove organization reference`);
         const designJobUpdateResult = await tx.update(designJobs)
           .set({ orgId: null })
           .where(eq(designJobs.orgId, id));
-        console.log(`[STORAGE] Design job update result:`, designJobUpdateResult);
-        console.log(`[STORAGE] Updated ${designJobUpdateResult.rowCount || 0} design jobs to remove organization reference`);
 
-        console.log(`[STORAGE] Step 5: Updating quotes to remove organization reference`);
         const quoteUpdateResult = await tx.update(quotes)
           .set({ orgId: null })
           .where(eq(quotes.orgId, id));
-        console.log(`[STORAGE] Quote update result:`, quoteUpdateResult);
-        console.log(`[STORAGE] Updated ${quoteUpdateResult.rowCount || 0} quotes to remove organization reference`);
 
-        console.log(`[STORAGE] Step 6: Finally deleting the organization`);
         const deleteResult = await tx.delete(organizations).where(eq(organizations.id, id));
-        console.log(`[STORAGE] Organization delete result:`, deleteResult);
-        console.log(`[STORAGE] Delete result rowCount:`, deleteResult.rowCount);
 
         if (deleteResult.rowCount === 0) {
           const errorMsg = `Organization with ID ${id} was not found or could not be deleted`;
@@ -1286,10 +1252,8 @@ export class DatabaseStorage implements IStorage {
           throw new Error(errorMsg);
         }
 
-        console.log(`[STORAGE] Organization ${id} deleted successfully from database`);
       });
 
-      console.log(`[STORAGE] Transaction completed successfully for organization ${id}`);
     } catch (error) {
       console.error(`[STORAGE] Error deleting organization ${id}:`, error);
       console.error(`[STORAGE] Error type:`, typeof error);
@@ -1352,17 +1316,40 @@ export class DatabaseStorage implements IStorage {
 
   async createLead(lead: InsertLead): Promise<Lead> {
     const leadCode = await this.getNextCode("L");
+    // Validate geoPrecision to ensure it's a valid enum value
+    const validGeoPrecisions = ["rooftop", "city", "state", "manual"] as const;
+    type GeoPrecision = typeof validGeoPrecisions[number];
+    const { geoPrecision, ...restLead } = lead;
+    const validatedGeoPrecision = geoPrecision && validGeoPrecisions.includes(geoPrecision as GeoPrecision)
+      ? (geoPrecision as GeoPrecision)
+      : undefined;
+
     const [created] = await db.insert(leads).values({
-      ...lead,
+      ...restLead,
+      geoPrecision: validatedGeoPrecision,
       leadCode,
     }).returning();
     return created;
   }
 
   async updateLead(id: number, lead: Partial<InsertLead>): Promise<Lead> {
+    // Validate geoPrecision to ensure it's a valid enum value
+    const validGeoPrecisions = ["rooftop", "city", "state", "manual"] as const;
+    type GeoPrecision = typeof validGeoPrecisions[number];
+    const { geoPrecision, ...restLead } = lead;
+    const validatedGeoPrecision = geoPrecision !== undefined
+      ? (geoPrecision && validGeoPrecisions.includes(geoPrecision as GeoPrecision)
+          ? (geoPrecision as GeoPrecision)
+          : null)
+      : undefined;
+
+    const updateData = validatedGeoPrecision !== undefined
+      ? { ...restLead, geoPrecision: validatedGeoPrecision, updatedAt: new Date() }
+      : { ...restLead, updatedAt: new Date() };
+
     const [updated] = await db
       .update(leads)
-      .set({ ...lead, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(leads.id, id))
       .returning();
 
@@ -1733,7 +1720,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateOrder(id: number, order: Partial<InsertOrder>): Promise<Order | null> {
-    console.log(`[Storage] updateOrder called for id=${id} with fields:`, Object.keys(order));
     
     try {
       const [updated] = await db
@@ -1743,11 +1729,9 @@ export class DatabaseStorage implements IStorage {
         .returning();
       
       if (!updated) {
-        console.log(`[Storage] updateOrder: No order found with id=${id}`);
         return null;
       }
       
-      console.log(`[Storage] updateOrder success for id=${id}`);
       return updated;
     } catch (error) {
       console.error(`[Storage] updateOrder error for id=${id}:`, error instanceof Error ? error.message : error);
@@ -1895,7 +1879,7 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateSizeAdjustmentRequest(id: number, data: { status?: string; adminResponse?: string; respondedBy?: string }): Promise<any> {
+  async updateSizeAdjustmentRequest(id: number, data: { status?: "pending" | "approved" | "rejected" | "completed"; adminResponse?: string; respondedBy?: string }): Promise<any> {
     const [result] = await db
       .update(sizeAdjustmentRequests)
       .set({
@@ -2332,11 +2316,9 @@ export class DatabaseStorage implements IStorage {
 
   // Manufacturing operations
   async getManufacturing(user?: User): Promise<(Manufacturing & { order?: Order; manufacturer?: Manufacturer; assignedUser?: User })[]> {
-    console.log('[getManufacturing] Fetching manufacturing records for user:', user?.id, 'role:', user?.role);
 
     // Role-based filtering - manufacturer users now see all records like admin/ops/sales
     if (user?.role === 'admin' || user?.role === 'ops' || user?.role === 'sales' || user?.role === 'manufacturer') {
-      console.log(`[getManufacturing] Admin/Ops/Sales/Manufacturer user - fetching all non-archived records`);
       const results = await db
         .select({
           manufacturing: manufacturing,
@@ -2350,7 +2332,6 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(users, eq(manufacturing.assignedTo, users.id))
         .where(eq(manufacturing.archived, false));
 
-      console.log(`[getManufacturing] Found ${results.length} total manufacturing records`);
       return results.map((r: any) => ({
         ...r.manufacturing,
         order: r.order || undefined,
@@ -2370,10 +2351,8 @@ export class DatabaseStorage implements IStorage {
         );
 
       const orderIds = designerOrders.map(d => d.orderId).filter((id): id is number => id !== null);
-      console.log('[getManufacturing] Designer user - associated order IDs:', orderIds);
 
       if (orderIds.length === 0) {
-        console.log('[getManufacturing] No orders assigned to designer, returning empty array');
         return [];
       }
 
@@ -2395,7 +2374,6 @@ export class DatabaseStorage implements IStorage {
           )
         );
 
-      console.log('[getManufacturing] Found', results.length, 'records for designer user');
       return results.map((r: any) => ({
         ...r.manufacturing,
         order: r.order || undefined,
@@ -2403,7 +2381,6 @@ export class DatabaseStorage implements IStorage {
         assignedUser: r.assignedUser || undefined,
       }));
     } else {
-      console.log('[getManufacturing] Unknown or unauthorized role - returning empty array');
       return [];
     }
   }
@@ -2486,33 +2463,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createManufacturing(record: InsertManufacturing): Promise<Manufacturing> {
-    const [created] = await db.insert(manufacturing).values(record).returning();
+    // Validate firstPieceStatus to ensure it's a valid enum value
+    const validFirstPieceStatuses = ["pending", "awaiting_approval", "approved", "rejected"] as const;
+    type FirstPieceStatus = typeof validFirstPieceStatuses[number];
+    const { firstPieceStatus, ...restRecord } = record;
+    const validatedFirstPieceStatus = firstPieceStatus && validFirstPieceStatuses.includes(firstPieceStatus as FirstPieceStatus)
+      ? (firstPieceStatus as FirstPieceStatus)
+      : undefined;
+
+    const [created] = await db.insert(manufacturing).values({
+      ...restRecord,
+      ...(validatedFirstPieceStatus !== undefined && { firstPieceStatus: validatedFirstPieceStatus }),
+    }).returning();
     return created;
   }
 
   async updateManufacturing(id: number, record: Partial<InsertManufacturing>): Promise<Manufacturing> {
-    console.log(`[STORAGE] updateManufacturing called for ID ${id}`);
-    console.log(`[STORAGE] Update fields:`, Object.keys(record));
     
     const updateData: any = { ...record, updatedAt: new Date() };
-    console.log(`[STORAGE] updateData prepared with ${Object.keys(updateData).length} fields`);
 
     // Track status change in manufacturing updates table if status changed
     if (record.status) {
-      console.log(`[STORAGE] Status field present: "${record.status}", checking current status...`);
       const [currentRecord] = await db.select().from(manufacturing).where(eq(manufacturing.id, id));
       if (currentRecord) {
-        console.log(`[STORAGE] Current record status: "${currentRecord.status}"`);
         if (currentRecord.status !== record.status) {
-          console.log(`[STORAGE] Status change detected: "${currentRecord.status}" -> "${record.status}"`);
         }
       } else {
-        console.log(`[STORAGE] WARNING: No current record found for ID ${id}`);
       }
     }
 
     try {
-      console.log(`[STORAGE] Executing UPDATE query...`);
       const [updated] = await db
         .update(manufacturing)
         .set(updateData)
@@ -2524,7 +2504,6 @@ export class DatabaseStorage implements IStorage {
         throw new Error(`Manufacturing record ${id} not found or could not be updated`);
       }
       
-      console.log(`[STORAGE] SUCCESS: Updated manufacturing ID ${id}, new status: "${updated.status}"`);
       return updated;
     } catch (dbError: any) {
       console.error(`[STORAGE] DATABASE ERROR in updateManufacturing:`, dbError.message);
@@ -3407,11 +3386,9 @@ export class DatabaseStorage implements IStorage {
     commissionPaid: number;
     commissionOwed: number;
   })[]> {
-    console.log('🔍 [Storage] Getting salespeople with metrics...');
 
     try {
       const allSalespeople = await db.select().from(salespersons).orderBy(desc(salespersons.createdAt));
-      console.log('🔍 [Storage] Found salespeople:', allSalespeople.length);
 
       const results = await Promise.all(allSalespeople.map(async (sp) => {
         try {
@@ -3495,7 +3472,6 @@ export class DatabaseStorage implements IStorage {
         }
       }));
 
-      console.log('🔍 [Storage] Processed all salespeople metrics');
       return results;
     } catch (error) {
       console.error('🔍 [Storage] Error in getSalespeopleWithMetrics:', error);
@@ -4626,12 +4602,10 @@ export class DatabaseStorage implements IStorage {
         const [result] = await tx.select({ 
           maxCode: sql<string>`MAX(${orders.orderCode})` 
         }).from(orders).where(sql`${orders.orderCode} LIKE 'O-%'`);
-        console.log(`getNextCode: maxCode found: ${result.maxCode}`);
         if (result.maxCode) {
           const match = result.maxCode.match(/O-(\d+)/);
           if (match) {
             nextNumber = parseInt(match[1]) + 1;
-            console.log(`getNextCode: extracted number ${match[1]}, nextNumber: ${nextNumber}`);
           }
         }
       } else if (prefix === "DJ") {
@@ -4777,36 +4751,26 @@ export class DatabaseStorage implements IStorage {
 
   async createQuoteWithLineItems(quoteData: InsertQuote, lineItemsData: InsertQuoteLineItem[]): Promise<Quote> {
     try {
-      console.log("[STORAGE] createQuoteWithLineItems - Starting transaction");
-      console.log("[STORAGE] Quote data:", JSON.stringify(quoteData, null, 2));
-      console.log("[STORAGE] Line items count:", lineItemsData.length);
 
       return await db.transaction(async (tx) => {
-        console.log("[STORAGE] Inserting quote into database...");
         const dataWithCode = {
           ...quoteData,
           quoteCode: quoteData.quoteCode || `Q-${Date.now()}`
         };
         const [quote] = await tx.insert(quotes).values(dataWithCode).returning();
-        console.log("[STORAGE] Quote inserted with ID:", quote.id);
 
         if (lineItemsData.length > 0) {
           const lineItemsWithQuoteId = lineItemsData.map(item => ({
             ...item,
             quoteId: quote.id
           }));
-          console.log("[STORAGE] Inserting", lineItemsWithQuoteId.length, "line items...");
           await tx.insert(quoteLineItems).values(lineItemsWithQuoteId);
-          console.log("[STORAGE] Line items inserted successfully");
 
           // Calculate totals properly after inserting line items using the same transaction
-          console.log("[STORAGE] Recalculating quote totals...");
           const finalQuote = await this.recalculateQuoteTotals(quote.id, tx);
-          console.log("[STORAGE] Quote totals recalculated successfully");
           return finalQuote;
         }
 
-        console.log("[STORAGE] No line items to insert, returning quote");
         return quote;
       });
     } catch (error) {
@@ -4915,43 +4879,34 @@ export class DatabaseStorage implements IStorage {
   async recalculateQuoteTotals(quoteId: number, existingTx?: any): Promise<Quote> {
     const executeRecalculation = async (tx: any) => {
       try {
-        console.log("[STORAGE] recalculateQuoteTotals - Quote ID:", quoteId);
 
         // Get current quote
         const [quote] = await tx.select().from(quotes).where(eq(quotes.id, quoteId));
         if (!quote) {
           throw new Error(`Quote with id ${quoteId} not found`);
         }
-        console.log("[STORAGE] Quote found:", JSON.stringify(quote, null, 2));
 
         // Get all line items for this quote
         const lineItems = await tx.select().from(quoteLineItems).where(eq(quoteLineItems.quoteId, quoteId));
-        console.log("[STORAGE] Found", lineItems.length, "line items");
 
         // Calculate subtotal from line items (sum of all line totals)
         const subtotal = lineItems.reduce((sum: number, item: any) => {
           const lineTotal = Number(item.unitPrice) * item.quantity;
-          console.log(`[STORAGE] Line item: unitPrice=${item.unitPrice}, quantity=${item.quantity}, lineTotal=${lineTotal}`);
           return sum + lineTotal;
         }, 0);
-        console.log("[STORAGE] Calculated subtotal:", subtotal);
 
         // Apply discount to get taxable amount
         const discountAmount = Number(quote.discount) || 0;
         const taxableAmount = subtotal - discountAmount;
-        console.log("[STORAGE] Discount:", discountAmount, "Taxable amount:", taxableAmount);
 
         // Calculate tax on the discounted amount (not full subtotal)
         const taxRate = Number(quote.taxRate) || 0;
         const taxAmount = taxableAmount * taxRate;
-        console.log("[STORAGE] Tax rate:", taxRate, "Tax amount:", taxAmount);
 
         // Calculate final total
         const total = taxableAmount + taxAmount;
-        console.log("[STORAGE] Final total:", total);
 
         // Update quote with recalculated values
-        console.log("[STORAGE] Updating quote with new totals...");
         const [updatedQuote] = await tx
           .update(quotes)
           .set({
@@ -4963,7 +4918,6 @@ export class DatabaseStorage implements IStorage {
           .where(eq(quotes.id, quoteId))
           .returning();
 
-        console.log("[STORAGE] Quote updated successfully:", JSON.stringify(updatedQuote, null, 2));
         return updatedQuote;
       } catch (error) {
         console.error("[STORAGE] Error in recalculateQuoteTotals:", error);
@@ -4974,10 +4928,8 @@ export class DatabaseStorage implements IStorage {
 
     // If transaction is provided, use it; otherwise create a new one
     if (existingTx) {
-      console.log("[STORAGE] Using existing transaction for recalculation");
       return await executeRecalculation(existingTx);
     } else {
-      console.log("[STORAGE] Creating new transaction for recalculation");
       return await db.transaction(executeRecalculation);
     }
   }
@@ -5966,14 +5918,41 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEventTravel(travel: InsertEventTravel): Promise<EventTravel> {
-    const [created] = await db.insert(eventTravel).values(travel).returning();
+    // Convert date strings to Date objects for timestamp fields
+    const toDate = (val: Date | string | null | undefined): Date | null => {
+      if (!val) return null;
+      return val instanceof Date ? val : new Date(val);
+    };
+    const processedTravel = {
+      ...travel,
+      flightArrival: toDate(travel.flightArrival),
+      flightDeparture: toDate(travel.flightDeparture),
+      hotelCheckIn: toDate(travel.hotelCheckIn),
+      hotelCheckOut: toDate(travel.hotelCheckOut),
+    };
+    const [created] = await db.insert(eventTravel).values(processedTravel as any).returning();
     return created;
   }
 
   async updateEventTravel(id: number, travel: Partial<InsertEventTravel>): Promise<EventTravel> {
+    // Convert date strings to Date objects for timestamp fields
+    const toDate = (val: Date | string | null | undefined): Date | null | undefined => {
+      if (val === undefined) return undefined;
+      if (!val) return null;
+      return val instanceof Date ? val : new Date(val);
+    };
+    const processedTravel: any = {
+      ...travel,
+      updatedAt: new Date(),
+    };
+    if (travel.flightArrival !== undefined) processedTravel.flightArrival = toDate(travel.flightArrival);
+    if (travel.flightDeparture !== undefined) processedTravel.flightDeparture = toDate(travel.flightDeparture);
+    if (travel.hotelCheckIn !== undefined) processedTravel.hotelCheckIn = toDate(travel.hotelCheckIn);
+    if (travel.hotelCheckOut !== undefined) processedTravel.hotelCheckOut = toDate(travel.hotelCheckOut);
+
     const [updated] = await db
       .update(eventTravel)
-      .set({ ...travel, updatedAt: new Date() })
+      .set(processedTravel)
       .where(eq(eventTravel.id, id))
       .returning();
     if (!updated) throw new Error("Travel record not found");
@@ -5994,14 +5973,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createEventTask(task: InsertEventTask): Promise<EventTask> {
-    const [created] = await db.insert(eventTasks).values(task).returning();
+    // Convert date strings to Date objects for timestamp fields
+    const toDate = (val: Date | string | null | undefined): Date | null => {
+      if (!val) return null;
+      return val instanceof Date ? val : new Date(val);
+    };
+    const processedTask = {
+      ...task,
+      dueDate: toDate(task.dueDate),
+      completedAt: toDate(task.completedAt),
+    };
+    const [created] = await db.insert(eventTasks).values(processedTask as any).returning();
     return created;
   }
 
   async updateEventTask(id: number, task: Partial<InsertEventTask>): Promise<EventTask> {
+    // Convert date strings to Date objects for timestamp fields
+    const toDate = (val: Date | string | null | undefined): Date | null | undefined => {
+      if (val === undefined) return undefined;
+      if (!val) return null;
+      return val instanceof Date ? val : new Date(val);
+    };
+    const processedTask: any = {
+      ...task,
+      updatedAt: new Date(),
+    };
+    if (task.dueDate !== undefined) processedTask.dueDate = toDate(task.dueDate);
+    if (task.completedAt !== undefined) processedTask.completedAt = toDate(task.completedAt);
+
     const [updated] = await db
       .update(eventTasks)
-      .set({ ...task, updatedAt: new Date() })
+      .set(processedTask)
       .where(eq(eventTasks.id, id))
       .returning();
     if (!updated) throw new Error("Task not found");
@@ -6706,15 +6708,15 @@ export class DatabaseStorage implements IStorage {
     if (status === "approved") {
       const newFabric = await this.createFabric({
         name: submission.fabricName,
-        gsm: submission.gsm,
-        blend: submission.blend,
-        vendorName: submission.vendorName,
-        vendorLocation: submission.vendorLocation,
-        vendorCountry: submission.vendorCountry,
-        fabricType: submission.fabricType,
-        weight: submission.weight,
-        stretchType: submission.stretchType,
-        notes: submission.notes,
+        gsm: submission.gsm ?? undefined,
+        blend: submission.blend ?? undefined,
+        vendorName: submission.vendorName ?? undefined,
+        vendorLocation: submission.vendorLocation ?? undefined,
+        vendorCountry: submission.vendorCountry ?? undefined,
+        fabricType: submission.fabricType ?? undefined,
+        weight: submission.weight ?? undefined,
+        stretchType: submission.stretchType ?? undefined,
+        notes: submission.notes ?? undefined,
         isApproved: true,
         approvedBy: reviewerId,
         createdBy: submission.submittedBy,

@@ -943,7 +943,6 @@ export function registerDesignLabRoutes(app: Express): void {
             status: 'in_progress',
           });
 
-          console.log(`Generation ${generationRequest.requestCode} completed successfully`);
         } catch (error) {
           console.error(`Generation ${generationRequest.requestCode} failed:`, error);
           await storage.updateDesignGenerationRequest(generationRequest.id, {

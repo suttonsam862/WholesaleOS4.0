@@ -437,97 +437,59 @@ export function registerManufacturingRoutes(app: Express): void {
   });
 
   app.put('/api/manufacturing/:id', isAuthenticated, loadUserData, requirePermission('manufacturing', 'write'), async (req, res) => {
-    const startTime = Date.now();
     const id = parseInt(req.params.id);
-    console.log(`[MFG-UPDATE] ========== START: Manufacturing update for ID ${id} ==========`);
-    console.log(`[MFG-UPDATE] Request body keys:`, Object.keys(req.body));
-    console.log(`[MFG-UPDATE] Request body (sanitized):`, JSON.stringify({
-      status: req.body.status,
-      trackingNumber: req.body.trackingNumber ? '[PRESENT]' : '[EMPTY]',
-      carrierCompany: req.body.carrierCompany,
-      productionNotes: req.body.productionNotes ? '[PRESENT]' : '[EMPTY]',
-      qualityNotes: req.body.qualityNotes ? '[PRESENT]' : '[EMPTY]',
-      actualCompletion: req.body.actualCompletion,
-    }));
-    
+
     try {
       const user = (req as AuthenticatedRequest).user.userData!;
-      console.log(`[MFG-UPDATE] User: ${user.id} (${user.role})`);
-      
-      // Step 1: Validate data with Zod
-      console.log(`[MFG-UPDATE] Step 1: Validating request body with Zod schema...`);
+
+      // Validate data with Zod
       let validatedData;
       try {
         validatedData = insertManufacturingSchema.partial().parse(req.body);
-        console.log(`[MFG-UPDATE] Step 1 SUCCESS: Zod validation passed. Validated keys:`, Object.keys(validatedData));
       } catch (zodError: any) {
-        console.error(`[MFG-UPDATE] Step 1 FAILED: Zod validation error:`, zodError.errors || zodError.message);
+        console.error("Manufacturing update validation error:", zodError.errors || zodError.message);
         throw zodError;
       }
 
-      // Step 2: Validate manufacturing status if provided
-      console.log(`[MFG-UPDATE] Step 2: Checking manufacturing status validity...`);
+      // Validate manufacturing status if provided
       if (validatedData.status && !isValidManufacturingStatus(validatedData.status)) {
-        console.error(`[MFG-UPDATE] Step 2 FAILED: Invalid status "${validatedData.status}"`);
-        return res.status(400).json({ 
-          message: `Invalid manufacturing status. Allowed values: ${getValidManufacturingStatuses().join(', ')}` 
+        return res.status(400).json({
+          message: `Invalid manufacturing status. Allowed values: ${getValidManufacturingStatuses().join(', ')}`
         });
       }
-      console.log(`[MFG-UPDATE] Step 2 SUCCESS: Status "${validatedData.status}" is valid`);
 
-      // Step 3: Fetch existing record
-      console.log(`[MFG-UPDATE] Step 3: Fetching existing manufacturing record ID ${id}...`);
-      let existingRecord;
-      try {
-        existingRecord = await storage.getManufacturingRecord(id, user);
-        if (!existingRecord) {
-          console.error(`[MFG-UPDATE] Step 3 FAILED: Manufacturing record ID ${id} not found`);
-          return res.status(404).json({ message: "Manufacturing record not found" });
-        }
-        console.log(`[MFG-UPDATE] Step 3 SUCCESS: Found record. Current status: "${existingRecord.status}", orderId: ${existingRecord.orderId}`);
-      } catch (fetchError: any) {
-        console.error(`[MFG-UPDATE] Step 3 FAILED: Error fetching record:`, fetchError.message, fetchError.stack);
-        throw fetchError;
+      // Fetch existing record
+      const existingRecord = await storage.getManufacturingRecord(id, user);
+      if (!existingRecord) {
+        return res.status(404).json({ message: "Manufacturing record not found" });
       }
 
-      // Step 4: Update the manufacturing record
-      console.log(`[MFG-UPDATE] Step 4: Updating manufacturing record in database...`);
-      let updatedRecord;
-      try {
-        updatedRecord = await storage.updateManufacturing(id, validatedData);
-        console.log(`[MFG-UPDATE] Step 4 SUCCESS: Record updated. New status: "${updatedRecord.status}"`);
-      } catch (updateError: any) {
-        console.error(`[MFG-UPDATE] Step 4 FAILED: Error updating record:`, updateError.message, updateError.stack);
-        throw updateError;
-      }
+      // Update the manufacturing record
+      const updatedRecord = await storage.updateManufacturing(id, validatedData);
 
-      // Step 5: Sync tracking number to order tracking table
-      console.log(`[MFG-UPDATE] Step 5: Syncing tracking number for orderId ${updatedRecord.orderId}...`);
+      // Sync tracking number to order tracking table
       try {
         const orderId = updatedRecord.orderId;
-        
+
         // Check if a tracking number already exists for this order
         const [existingTracking] = await db
           .select()
           .from(orderTrackingNumbers)
           .where(eq(orderTrackingNumbers.orderId, orderId))
           .limit(1);
-        console.log(`[MFG-UPDATE] Step 5: Existing tracking record:`, existingTracking ? `ID ${existingTracking.id}` : 'None');
 
         // Handle tracking number changes (including clearing)
-        const trackingChanged = 
-          ('trackingNumber' in validatedData) && 
+        const trackingChanged =
+          ('trackingNumber' in validatedData) &&
           validatedData.trackingNumber !== existingRecord.trackingNumber;
-        
+
         const carrierProvided = req.body.carrierCompany;
         const carrierChanged = carrierProvided && carrierProvided !== existingTracking?.carrierCompany;
-        console.log(`[MFG-UPDATE] Step 5: trackingChanged=${trackingChanged}, carrierChanged=${carrierChanged}`);
 
         if (trackingChanged || carrierChanged) {
           if (existingTracking) {
             // If tracking number is cleared (empty or null), delete the record
             if (trackingChanged && !validatedData.trackingNumber) {
-              console.log(`[MFG-UPDATE] Step 5: Deleting tracking record (cleared)`);
               await db
                 .delete(orderTrackingNumbers)
                 .where(eq(orderTrackingNumbers.id, existingTracking.id));
@@ -540,9 +502,8 @@ export function registerManufacturingRoutes(app: Express): void {
               if (carrierChanged) {
                 updateData.carrierCompany = carrierProvided;
               }
-              
+
               if (Object.keys(updateData).length > 0) {
-                console.log(`[MFG-UPDATE] Step 5: Updating tracking record with:`, updateData);
                 await db
                   .update(orderTrackingNumbers)
                   .set(updateData)
@@ -551,7 +512,6 @@ export function registerManufacturingRoutes(app: Express): void {
             }
           } else if (validatedData.trackingNumber) {
             // Create new tracking number if one is provided
-            console.log(`[MFG-UPDATE] Step 5: Creating new tracking record`);
             await db.insert(orderTrackingNumbers).values({
               orderId,
               trackingNumber: validatedData.trackingNumber,
@@ -559,73 +519,42 @@ export function registerManufacturingRoutes(app: Express): void {
             });
           }
         }
-        console.log(`[MFG-UPDATE] Step 5 SUCCESS: Tracking sync complete`);
       } catch (trackingError: any) {
-        console.error(`[MFG-UPDATE] Step 5 FAILED: Error syncing tracking:`, trackingError.message, trackingError.stack);
+        console.error("Error syncing tracking number:", trackingError.message);
         throw trackingError;
       }
 
-      // Step 6: If status changed, create a status update entry
-      console.log(`[MFG-UPDATE] Step 6: Checking if status update record needed...`);
-      try {
-        if (validatedData.status && validatedData.status !== existingRecord.status) {
-          console.log(`[MFG-UPDATE] Step 6: Status changed from "${existingRecord.status}" to "${validatedData.status}", creating update record...`);
-          await storage.createManufacturingUpdate({
-            manufacturingId: id,
-            status: validatedData.status,
-            notes: req.body.statusNotes || `Status changed from ${existingRecord.status} to ${validatedData.status}`,
-            updatedBy: user.id,
-            manufacturerId: updatedRecord.manufacturerId || undefined,
-          });
-          console.log(`[MFG-UPDATE] Step 6 SUCCESS: Manufacturing update record created`);
-        } else {
-          console.log(`[MFG-UPDATE] Step 6 SKIPPED: No status change`);
-        }
-      } catch (updateError: any) {
-        console.error(`[MFG-UPDATE] Step 6 FAILED: Error creating status update:`, updateError.message, updateError.stack);
-        throw updateError;
+      // If status changed, create a status update entry
+      if (validatedData.status && validatedData.status !== existingRecord.status) {
+        await storage.createManufacturingUpdate({
+          manufacturingId: id,
+          status: validatedData.status,
+          notes: req.body.statusNotes || `Status changed from ${existingRecord.status} to ${validatedData.status}`,
+          updatedBy: user.id,
+          manufacturerId: updatedRecord.manufacturerId || undefined,
+        });
       }
 
-      // Step 7: Log activity
-      console.log(`[MFG-UPDATE] Step 7: Logging activity...`);
-      try {
-        await storage.logActivity(
-          user.id,
-          'manufacturing',
-          id,
-          'updated',
-          existingRecord,
-          updatedRecord
-        );
-        console.log(`[MFG-UPDATE] Step 7 SUCCESS: Activity logged`);
-      } catch (activityError: any) {
-        console.error(`[MFG-UPDATE] Step 7 FAILED: Error logging activity:`, activityError.message, activityError.stack);
-        throw activityError;
-      }
+      // Log activity
+      await storage.logActivity(
+        user.id,
+        'manufacturing',
+        id,
+        'updated',
+        existingRecord,
+        updatedRecord
+      );
 
-      // Step 8: Filter and return response
-      console.log(`[MFG-UPDATE] Step 8: Filtering and returning response...`);
       const filteredRecord = stripFinancialData(updatedRecord, user.role);
-      const elapsed = Date.now() - startTime;
-      console.log(`[MFG-UPDATE] ========== SUCCESS: Manufacturing update completed in ${elapsed}ms ==========`);
       res.json(filteredRecord);
     } catch (error: any) {
-      const elapsed = Date.now() - startTime;
-      console.error(`[MFG-UPDATE] ========== FAILED after ${elapsed}ms ==========`);
-      console.error(`[MFG-UPDATE] Error type:`, error?.constructor?.name);
-      console.error(`[MFG-UPDATE] Error message:`, error?.message);
-      console.error(`[MFG-UPDATE] Error stack:`, error?.stack);
-      
+      console.error("Error updating manufacturing record:", error.message);
+
       if (error instanceof z.ZodError) {
-        console.error(`[MFG-UPDATE] Zod validation errors:`, JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
       }
-      
-      // Return detailed error in development, generic in production
-      const errorMessage = process.env.NODE_ENV === 'production' 
-        ? "Failed to update manufacturing record" 
-        : `Failed to update manufacturing record: ${error?.message}`;
-      res.status(500).json({ message: errorMessage, errorType: error?.constructor?.name });
+
+      res.status(500).json({ message: "Failed to update manufacturing record" });
     }
   });
 
@@ -1420,13 +1349,11 @@ export function registerManufacturingRoutes(app: Express): void {
   app.get('/api/manufacturing-updates/:id/export-pdf', isAuthenticated, loadUserData, requirePermission('manufacturing', 'read'), async (req, res) => {
     try {
       const updateId = parseInt(req.params.id);
-      console.log(`[PDF EXPORT] Starting PDF export for update ID: ${updateId}`);
-      
+
       // Get the specific manufacturing update
       const update = await storage.getManufacturingUpdateById(updateId);
-      
+
       if (!update) {
-        console.error(`[PDF EXPORT] Manufacturing update ${updateId} not found`);
         return res.status(404).json({ message: "Manufacturing update not found" });
       }
 
@@ -1436,7 +1363,7 @@ export function registerManufacturingRoutes(app: Express): void {
       try {
         manufacturingRecord = await storage.getManufacturingRecord(update.manufacturingId, user);
       } catch (dbError) {
-        console.error(`[PDF EXPORT] Database error fetching manufacturing record:`, dbError);
+        console.error("Database error fetching manufacturing record:", dbError);
         try {
           const [record] = await db
             .select()
@@ -1444,13 +1371,12 @@ export function registerManufacturingRoutes(app: Express): void {
             .where(eq(manufacturing.id, update.manufacturingId));
           manufacturingRecord = record;
         } catch (fallbackError) {
-          console.error(`[PDF EXPORT] Fallback query also failed:`, fallbackError);
+          console.error("Fallback query also failed:", fallbackError);
           throw dbError;
         }
       }
-      
+
       if (!manufacturingRecord) {
-        console.error(`[PDF EXPORT] Manufacturing record ${update.manufacturingId} not found`);
         return res.status(404).json({ message: "Manufacturing record not found" });
       }
 
@@ -1461,7 +1387,7 @@ export function registerManufacturingRoutes(app: Express): void {
         order = manufacturingRecord.orderId ? await storage.getOrder(manufacturingRecord.orderId) : null;
         org = order?.orgId ? await storage.getOrganization(order.orgId) : null;
       } catch (err) {
-        console.error(`[PDF EXPORT] Error fetching order/org details:`, err);
+        console.error("Error fetching order/org details:", err);
       }
 
       // Get line items for this update
@@ -1469,8 +1395,6 @@ export function registerManufacturingRoutes(app: Express): void {
         .select()
         .from(manufacturingUpdateLineItems)
         .where(eq(manufacturingUpdateLineItems.manufacturingUpdateId, updateId));
-      
-      console.log(`[PDF EXPORT] Found ${lineItemsData.length} line items`);
       
       // Get manufacturer assignments for each line item
       const lineItemIds = lineItemsData.map(li => li.lineItemId);
@@ -1506,10 +1430,9 @@ export function registerManufacturingRoutes(app: Express): void {
             const imageBuffer = await objectStorageService.fetchImageAsBuffer(item.imageUrl, baseUrl);
             if (imageBuffer) {
               imageCache.set(item.imageUrl, imageBuffer);
-              console.log(`[PDF EXPORT] Cached image for item ${item.id} (${imageBuffer.length} bytes)`);
             }
           } catch (err) {
-            console.warn(`[PDF EXPORT] Failed to cache image for item ${item.id}:`, err);
+            // Silently continue if image fetch fails
           }
         }
       }
@@ -1543,7 +1466,7 @@ export function registerManufacturingRoutes(app: Express): void {
           logoBuffer = fs.readFileSync(logoPath);
         }
       } catch (err) {
-        console.warn('[PDF EXPORT] Could not load company logo:', err);
+        // Logo load failed, continue without it
       }
 
       // Helper function to draw header on each page
@@ -1556,7 +1479,7 @@ export function registerManufacturingRoutes(app: Express): void {
           try {
             doc.image(logoBuffer, margin, 15, { height: 40 });
           } catch (e) {
-            console.warn('[PDF EXPORT] Failed to render logo');
+            // Logo render failed, continue without it
           }
         }
         
@@ -1858,7 +1781,6 @@ export function registerManufacturingRoutes(app: Express): void {
       const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
         doc.on('end', () => {
           const buffer = Buffer.concat(chunks);
-          console.log(`[PDF EXPORT] PDF generated successfully (${buffer.length} bytes)`);
           resolve(buffer);
         });
         doc.on('error', reject);
@@ -1871,12 +1793,11 @@ export function registerManufacturingRoutes(app: Express): void {
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(pdfBuffer);
     } catch (error) {
-      console.error("[PDF EXPORT] Error:", error);
-      console.error("[PDF EXPORT] Error stack:", error instanceof Error ? error.stack : 'No stack trace');
-      
+      console.error("Error generating PDF export:", error);
+
       if (!res.headersSent) {
-        res.status(500).json({ 
-          message: "Failed to generate PDF export", 
+        res.status(500).json({
+          message: "Failed to generate PDF export",
           error: error instanceof Error ? error.message : String(error)
         });
       }
@@ -1887,83 +1808,57 @@ export function registerManufacturingRoutes(app: Express): void {
   app.get('/api/manufacturing-updates/:id/export-zip', isAuthenticated, loadUserData, requirePermission('manufacturing', 'read'), async (req, res) => {
     try {
       const updateId = parseInt(req.params.id);
-      console.log(`[ZIP EXPORT] Starting ZIP export for update ID: ${updateId}`);
-      console.log(`[ZIP EXPORT] User role: ${(req as AuthenticatedRequest).user.userData?.role}`);
-      
+
       // Get the specific manufacturing update
-      console.log(`[ZIP EXPORT] Fetching manufacturing update from database...`);
       const update = await storage.getManufacturingUpdateById(updateId);
-      console.log(`[ZIP EXPORT] Update found:`, update ? 'YES' : 'NO');
-      
+
       if (!update) {
-        console.error(`[ZIP EXPORT] Manufacturing update ${updateId} not found in database`);
         return res.status(404).json({ message: "Manufacturing update not found" });
       }
-      
-      console.log(`[ZIP EXPORT] Update details:`, JSON.stringify(update, null, 2));
 
       // Get manufacturing record to fetch attachments
       const manufacturingId = update.manufacturingId;
-      console.log(`[ZIP EXPORT] Fetching attachments for manufacturing ID: ${manufacturingId}`);
-      
+
       let attachments: ManufacturingAttachment[];
       try {
         attachments = await storage.getManufacturingAttachments(manufacturingId);
       } catch (err) {
-        console.error(`[ZIP EXPORT] Error fetching attachments:`, err);
+        console.error("Error fetching attachments:", err);
         attachments = [];
       }
-      
-      console.log(`[ZIP EXPORT] Attachments found: ${attachments.length}`);
 
       if (attachments.length === 0) {
-        console.warn(`[ZIP EXPORT] No attachments found for manufacturing ID: ${manufacturingId}`);
         return res.status(404).json({ message: "No attachments found for this manufacturing update" });
       }
-      
-      console.log(`[ZIP EXPORT] Attachment details:`, JSON.stringify(attachments, null, 2));
 
-      console.log(`[ZIP EXPORT] Creating archive...`);
       const archive = archiver('zip', {
         zlib: { level: 9 }
       });
 
-      console.log(`[ZIP EXPORT] Setting response headers...`);
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename="manufacturing-update-${updateId}-attachments.zip"`);
 
       archive.on('error', (err) => {
-        console.error('[ZIP EXPORT] Archive error:', err);
-        console.error('[ZIP EXPORT] Archive error stack:', err.stack);
+        console.error('Archive error:', err);
         if (!res.headersSent) {
           res.status(500).json({ message: "Failed to create archive" });
         }
       });
 
-      archive.on('warning', (warn) => {
-        console.warn('[ZIP EXPORT] Archive warning:', warn);
-      });
-
-      archive.on('progress', (progress) => {
-        console.log(`[ZIP EXPORT] Archive progress: ${progress.entries.processed}/${progress.entries.total} entries`);
-      });
-
-      console.log(`[ZIP EXPORT] Piping archive to response...`);
       archive.pipe(res);
 
       // Group attachments by category and add to ZIP
       const categories = ['logos', 'psds', 'mockups', 'production_files', 'other'];
-      console.log(`[ZIP EXPORT] Processing ${categories.length} categories...`);
-      
+
       let totalFilesAdded = 0;
       let failedFiles = 0;
-      
+
       // Check if ObjectStorageService is available
       let objectStorageService;
       try {
         objectStorageService = new ObjectStorageService();
       } catch (err) {
-        console.error('[ZIP EXPORT] ObjectStorageService not available:', err);
+        console.error('ObjectStorageService not available:', err);
         // Add a README explaining the issue
         archive.append('Object storage service is not available. Files cannot be retrieved.', {
           name: 'ERROR_README.txt'
@@ -1971,15 +1866,12 @@ export function registerManufacturingRoutes(app: Express): void {
         archive.finalize();
         return;
       }
-      
+
       for (const category of categories) {
         const categoryAttachments = attachments.filter(a => a.category === category);
-        console.log(`[ZIP EXPORT] Category '${category}': ${categoryAttachments.length} attachments`);
-        
+
         for (const attachment of categoryAttachments) {
           try {
-            console.log(`[ZIP EXPORT] Fetching file from object storage: ${attachment.fileUrl}`);
-            
             // Strip /public-objects prefix if present, then remove leading slash
             let filePath = attachment.fileUrl;
             if (filePath.startsWith('/public-objects/')) {
@@ -1989,46 +1881,39 @@ export function registerManufacturingRoutes(app: Express): void {
             } else {
               filePath = filePath.replace(/^\//, '');
             }
-            
-            console.log(`[ZIP EXPORT] Searching for file: ${filePath}`);
-            
+
             const file = await objectStorageService.searchPublicObject(filePath);
-            
+
             if (!file) {
-              console.warn(`[ZIP EXPORT] File not found in object storage: ${filePath}`);
               // Add a placeholder text file indicating the file wasn't found
               const errorContent = `File not found in object storage\nOriginal URL: ${attachment.fileUrl}\nSearched path: ${filePath}\nDescription: ${attachment.description || 'N/A'}`;
-              archive.append(errorContent, { 
-                name: `${category}/${attachment.fileName}_NOT_FOUND.txt` 
+              archive.append(errorContent, {
+                name: `${category}/${attachment.fileName}_NOT_FOUND.txt`
               });
               failedFiles++;
               continue;
             }
-            
+
             // Download the file as a buffer
             const [fileBuffer] = await file.download();
             const [metadata] = await file.getMetadata();
-            
-            console.log(`[ZIP EXPORT] Adding file: ${category}/${attachment.fileName} (${fileBuffer.length} bytes)`);
-            
+
             // Add the actual file to the archive
-            archive.append(fileBuffer, { 
-              name: `${category}/${attachment.fileName}` 
+            archive.append(fileBuffer, {
+              name: `${category}/${attachment.fileName}`
             });
             totalFilesAdded++;
           } catch (err) {
-            console.error(`[ZIP EXPORT] Error adding file ${attachment.fileName}:`, err);
+            console.error(`Error adding file ${attachment.fileName}:`, err);
             // Add error text file instead
             const errorContent = `Error downloading file: ${err instanceof Error ? err.message : String(err)}\nOriginal URL: ${attachment.fileUrl}`;
-            archive.append(errorContent, { 
-              name: `${category}/${attachment.fileName}_ERROR.txt` 
+            archive.append(errorContent, {
+              name: `${category}/${attachment.fileName}_ERROR.txt`
             });
             failedFiles++;
           }
         }
       }
-      
-      console.log(`[ZIP EXPORT] Archive summary: ${totalFilesAdded} files added, ${failedFiles} files failed`);
       
       // Add a summary file
       const summaryContent = `Manufacturing Update Export Summary
@@ -2041,19 +1926,16 @@ Files Added: ${totalFilesAdded}
 Failed Files: ${failedFiles}
 `;
       archive.append(summaryContent, { name: 'EXPORT_SUMMARY.txt' });
-      
+
       // Finalize the archive
-      console.log(`[ZIP EXPORT] Finalizing archive...`);
       archive.finalize();
     } catch (error) {
-      console.error("[ZIP EXPORT] Error:", error);
-      console.error("[ZIP EXPORT] Error stack:", error instanceof Error ? error.stack : 'No stack trace');
-      
+      console.error("Error generating ZIP export:", error);
+
       if (!res.headersSent) {
-        res.status(500).json({ 
-          message: "Failed to generate ZIP export", 
-          error: error instanceof Error ? error.message : String(error),
-          details: error instanceof Error ? error.stack : undefined
+        res.status(500).json({
+          message: "Failed to generate ZIP export",
+          error: error instanceof Error ? error.message : String(error)
         });
       }
     }

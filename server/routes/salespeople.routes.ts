@@ -18,12 +18,10 @@ export function registerSalespeopleRoutes(app: Express): void {
 
   app.get('/api/salespeople/with-metrics', isAuthenticated, loadUserData, requirePermission('salespeople', 'read'), async (req, res) => {
     try {
-      console.log('🔍 [API] Fetching salespeople with metrics...');
       const userRole = (req as AuthenticatedRequest).user.userData!.role as UserRole;
       const userId = (req as AuthenticatedRequest).user.userData!.id;
 
       const salespeople = await storage.getSalespeopleWithMetrics();
-      console.log('🔍 [API] Found salespeople:', salespeople.length);
 
       // Sales users can only see their own metrics
       if (userRole === 'sales') {

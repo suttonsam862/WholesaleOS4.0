@@ -6,11 +6,9 @@ import { isAuthenticated } from "../replitAuth";
 import { loadUserData, requirePermission, type AuthenticatedRequest } from "../permissions";
 
 export function registerFinancialMatchingRoutes(app: Express): void {
-  console.log('🔧 Registering Financial Matching routes...');
   
   // Get all orders with financial summary - no date restriction, returns ALL orders in database
   app.get('/api/financial-matching/orders', isAuthenticated, loadUserData, requirePermission('finance', 'read'), async (req, res) => {
-    console.log('📊 Financial matching orders endpoint hit');
     try {
       // Get ALL orders in the database - no date restriction
       const allOrders = await db

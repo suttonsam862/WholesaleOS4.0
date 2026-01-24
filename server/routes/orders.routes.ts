@@ -92,10 +92,7 @@ export function registerOrdersRoutes(app: Express): void {
 
   // Create new order
   app.post('/api/orders', isAuthenticated, loadUserData, requirePermission('orders', 'write'), async (req, res) => {
-    console.log('🔍 [DEBUG] POST /api/orders started');
     try {
-      console.log('🔍 [DEBUG] Request body received:', JSON.stringify(req.body, null, 2));
-      console.log('🔍 [DEBUG] Request headers:', JSON.stringify(req.headers, null, 2));
 
       // Check if body is parsed correctly
       if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
@@ -123,8 +120,6 @@ export function registerOrdersRoutes(app: Express): void {
 
       // Separate line items from order data
       const { lineItems, ...orderData } = req.body;
-      console.log('🔍 [DEBUG] Order data extracted:', JSON.stringify(orderData, null, 2));
-      console.log('🔍 [DEBUG] Line items extracted:', JSON.stringify(lineItems, null, 2));
 
       // Validate required fields before schema validation
       if (!orderData.orderName) {
@@ -158,15 +153,12 @@ export function registerOrdersRoutes(app: Express): void {
       }
 
       const validatedOrder = insertOrderSchema.parse(processedOrderData);
-      console.log('🔍 [DEBUG] ✅ Order schema validation passed!');
 
       // If line items are provided, validate and create order with line items
       if (lineItems && Array.isArray(lineItems) && lineItems.length > 0) {
-        console.log('🔍 [DEBUG] Processing line items...');
 
         // Validate each line item
         const validatedLineItems = lineItems.map((item: any, index: number) => {
-          console.log(`🔍 [DEBUG] Processing line item ${index}:`, JSON.stringify(item, null, 2));
 
           // Ensure all size fields have default values and are numbers
           const lineItemData = {
@@ -188,11 +180,9 @@ export function registerOrdersRoutes(app: Express): void {
             notes: item.notes || null,
           };
 
-          console.log(`🔍 [DEBUG] Processed line item ${index}:`, JSON.stringify(lineItemData, null, 2));
 
           try {
             const validated = insertOrderLineItemSchema.parse(lineItemData);
-            console.log(`🔍 [DEBUG] ✅ Line item ${index} validation passed`);
             return validated;
           } catch (validationError) {
             console.error(`🔍 [DEBUG] ❌ Line item ${index} validation failed:`, validationError);
@@ -200,15 +190,12 @@ export function registerOrdersRoutes(app: Express): void {
           }
         });
 
-        console.log('🔍 [DEBUG] All line items validated successfully');
-        console.log('🔍 [DEBUG] Creating order with line items...');
 
         const orderWithLineItems = await storage.createOrderWithLineItems(
           validatedOrder,
           validatedLineItems
         );
 
-        console.log('🔍 [DEBUG] Order with line items created successfully:', orderWithLineItems.id);
 
         // Log activity
         await storage.logActivity(
@@ -222,12 +209,10 @@ export function registerOrdersRoutes(app: Express): void {
 
         res.status(201).json(orderWithLineItems);
       } else {
-        console.log('🔍 [DEBUG] Creating order without line items...');
 
         // Create order without line items
         const order = await storage.createOrder(validatedOrder);
 
-        console.log('🔍 [DEBUG] Order created successfully:', order.id);
 
         // Log activity
         await storage.logActivity(
@@ -242,7 +227,6 @@ export function registerOrdersRoutes(app: Express): void {
         res.status(201).json(order);
       }
     } catch (error) {
-      console.log("=== ORDER CREATION ERROR ===");
       if (error instanceof z.ZodError) {
         console.error("Validation failed for order creation:");
         console.error("- Validation errors:", JSON.stringify(error.errors, null, 2));
@@ -261,7 +245,6 @@ export function registerOrdersRoutes(app: Express): void {
       console.error("Error creating order:", error);
       console.error("Error type:", error?.constructor?.name);
       console.error("Error code:", (error as any)?.code);
-      console.log("=== ORDER CREATION ERROR END ===");
 
       // Check for specific database errors
       const errorObj = error as any;
@@ -483,7 +466,6 @@ export function registerOrdersRoutes(app: Express): void {
               status: 'awaiting_admin_confirmation',
               productionNotes: 'Auto-created when order moved to production',
             });
-            console.log(`[OrderProduction] Created manufacturing record for order ${id}`);
           }
         } catch (mfgError) {
           // Log but don't fail the order update
@@ -521,7 +503,6 @@ export function registerOrdersRoutes(app: Express): void {
       // Simplified: No automatic invoice creation - users can create invoices manually when needed
       let autoActionWarnings: string[] = [];
       if (validatedData.status === 'invoiced' && existingOrder.status !== 'invoiced') {
-        console.log(`[OrderInvoiced] Order ${id} moved to invoiced status`);
         // Invoice creation is now manual via Finance section
       }
 
@@ -529,7 +510,6 @@ export function registerOrdersRoutes(app: Express): void {
       if (validatedData.status === 'production' && existingOrder.status !== 'production') {
         // The basic validation and manufacturing record creation is already handled above
         // No complex cascading actions needed
-        console.log(`[OrderProduction] Order ${id} moved to production status`);
       }
 
       // Clean up empty string date fields before saving
@@ -1516,7 +1496,6 @@ export function registerOrdersRoutes(app: Express): void {
       res.setHeader('Content-Disposition', `attachment; filename="Quote-${quoteCode}.pdf"`);
       res.send(Buffer.from(pdfBuffer));
 
-      console.log(`[PUBLIC QUOTE PDF] Generated quote ${quoteCode} for order ${order.orderCode}`);
     } catch (error) {
       console.error("Error generating public order quote:", error);
       res.status(500).json({ message: "Failed to generate quote" });

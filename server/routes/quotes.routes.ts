@@ -50,8 +50,6 @@ export function registerQuoteRoutes(app: Express): void {
 
   app.post('/api/quotes', isAuthenticated, loadUserData, requirePermission('quotes', 'write'), async (req, res) => {
     try {
-      console.log("[QUOTE CREATE] Starting quote creation process");
-      console.log("[QUOTE CREATE] Request body:", JSON.stringify(req.body, null, 2));
       
       // Separate line items from quote data
       const { lineItems, ...quoteData } = req.body;
@@ -63,31 +61,23 @@ export function registerQuoteRoutes(app: Express): void {
         contactId: quoteData.contactId ? parseInt(quoteData.contactId) : undefined,
       };
 
-      console.log("[QUOTE CREATE] Validating quote data...");
       const validatedQuote = insertQuoteSchema.parse(processedQuoteData);
-      console.log("[QUOTE CREATE] Quote data validated successfully");
 
       // Sales users can only create quotes for themselves
       if ((req as AuthenticatedRequest).user.userData!.role === 'sales') {
         validatedQuote.salespersonId = (req as AuthenticatedRequest).user.userData!.id;
-        console.log("[QUOTE CREATE] Assigned salesperson ID:", validatedQuote.salespersonId);
       }
 
       // If line items are provided, validate and create quote with line items
       if (lineItems && Array.isArray(lineItems) && lineItems.length > 0) {
-        console.log("[QUOTE CREATE] Validating", lineItems.length, "line items...");
         const validatedLineItems = lineItems.map((item: any, index: number) => {
-          console.log(`[QUOTE CREATE] Validating line item ${index + 1}:`, item);
           return insertQuoteLineItemSchema.parse(item);
         });
-        console.log("[QUOTE CREATE] All line items validated successfully");
 
-        console.log("[QUOTE CREATE] Creating quote with line items...");
         const quoteWithLineItems = await storage.createQuoteWithLineItems(
           validatedQuote,
           validatedLineItems
         );
-        console.log("[QUOTE CREATE] Quote created successfully with ID:", quoteWithLineItems.id);
 
         // Log activity
         await storage.logActivity(
@@ -99,13 +89,10 @@ export function registerQuoteRoutes(app: Express): void {
           quoteWithLineItems
         );
 
-        console.log("[QUOTE CREATE] Sending success response");
         res.status(201).json(quoteWithLineItems);
       } else {
-        console.log("[QUOTE CREATE] Creating quote without line items...");
         // Create quote without line items
         const quote = await storage.createQuote(validatedQuote);
-        console.log("[QUOTE CREATE] Quote created successfully with ID:", quote.id);
 
         // Log activity
         await storage.logActivity(
@@ -117,7 +104,6 @@ export function registerQuoteRoutes(app: Express): void {
           quote
         );
 
-        console.log("[QUOTE CREATE] Sending success response");
         res.status(201).json(quote);
       }
     } catch (error) {
@@ -409,7 +395,6 @@ export function registerQuoteRoutes(app: Express): void {
       res.setHeader('Content-Disposition', `attachment; filename="Quote-${quote.quoteCode || id}.pdf"`);
       res.send(Buffer.from(pdfBuffer));
 
-      console.log(`[PDF] Generated PDF for quote ${quote.quoteCode}`);
     } catch (error) {
       console.error("Error generating quote PDF:", error);
       res.status(500).json({ message: "Failed to generate PDF" });
@@ -637,7 +622,6 @@ Rich Habits LLC`,
       };
 
       await sgMail.send(msg);
-      console.log(`[EMAIL] Sent quote ${quote.quoteCode} to ${recipientEmail}`);
 
       // Update quote status to "sent" if it was a draft
       if (quote.status === 'draft') {

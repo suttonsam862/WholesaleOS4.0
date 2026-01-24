@@ -21,7 +21,6 @@ export function registerAuthRoutes(app: Express): void {
   app.post('/api/auth/local/login', authRateLimiter, async (req, res) => {
     try {
       const { email, password } = req.body;
-      console.log(`[LocalAuth] Login attempt for: ${email}`);
 
       if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required" });
@@ -44,7 +43,6 @@ export function registerAuthRoutes(app: Express): void {
           return res.status(500).json({ message: "Failed to create session" });
         }
 
-        console.log(`[LocalAuth] Login successful for: ${email} (${user.role})`);
 
         // Ensure session is saved before responding
         req.session.save((saveErr) => {
@@ -114,7 +112,6 @@ export function registerAuthRoutes(app: Express): void {
 
       const { TestAuthenticationManager } = await import("../testAuth");
 
-      console.log(`🔐 [API] Test login for role: ${role}`);
 
       const authSetup = await TestAuthenticationManager.setupDeterministicAuthForRole(role as any);
 
@@ -160,7 +157,6 @@ export function registerAuthRoutes(app: Express): void {
 
       const { TestAuthenticationManager } = await import("../testAuth");
 
-      console.log('🔐 [API] Setting up deterministic test authentication...');
 
       // Set up deterministic authentication
       const authSetup = await TestAuthenticationManager.setupDeterministicAuth();
@@ -197,7 +193,6 @@ export function registerAuthRoutes(app: Express): void {
         return res.status(403).json({ message: "Test authentication only available in development" });
       }
 
-      console.log('🔍 [API] Test auth verify - bypassing middleware for mobile testing reliability');
 
       // CRITICAL FIX: Direct session validation bypassing complex middleware
       const sessionCookie = req.headers.cookie;
@@ -205,7 +200,6 @@ export function registerAuthRoutes(app: Express): void {
         const cookieMatch = sessionCookie.match(/connect\.sid=([^;]+)/);
         if (cookieMatch) {
           const rawCookie = cookieMatch[1];
-          console.log('   Found session cookie');
 
           // Import cookie-signature and verify the session ID  
           const signature = await import('cookie-signature');
@@ -215,7 +209,6 @@ export function registerAuthRoutes(app: Express): void {
             const decodedCookie = decodeURIComponent(rawCookie);
             const signedValue = decodedCookie.startsWith('s:') ? decodedCookie.slice(2) : decodedCookie;
             const sessionId = signature.default.unsign(signedValue, process.env.SESSION_SECRET!);
-            console.log('   Session ID verified');
 
             if (sessionId !== false) {
               // Look up session directly in database
@@ -230,7 +223,6 @@ export function registerAuthRoutes(app: Express): void {
 
               if (sessionRecord && sessionRecord.sess) {
                 const sessionData = sessionRecord.sess as any;
-                console.log('   Session found in database');
 
                 if (sessionData.passport && 
                     sessionData.passport.user && 
@@ -238,7 +230,6 @@ export function registerAuthRoutes(app: Express): void {
                     sessionData.passport.user.claims.email &&
                     sessionData.passport.user.claims.email.includes('test-admin@automated-testing.local')) {
 
-                  console.log('✅ [API] Test session verified successfully via direct database check');
 
                   // Create user data response from session
                   const userData = {
@@ -260,20 +251,15 @@ export function registerAuthRoutes(app: Express): void {
                   });
                 }
               } else {
-                console.log('   Session not found in database');
               }
             }
           } catch (signatureError) {
-            console.log('   Cookie signature verification failed:', signatureError instanceof Error ? signatureError.message : String(signatureError));
           }
         } else {
-          console.log('   No connect.sid cookie found in:', sessionCookie);
         }
       } else {
-        console.log('   No cookies in request');
       }
 
-      console.log('❌ [API] Test authentication verification failed - no valid session');
       res.status(401).json({ 
         authenticated: false,
         message: "Test session not found or invalid"

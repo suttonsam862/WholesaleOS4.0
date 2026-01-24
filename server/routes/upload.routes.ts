@@ -8,16 +8,13 @@ export function registerUploadRoutes(app: Express): void {
   // Serve public objects (e.g., logos, product images)
   app.get("/public-objects/:filePath(*)", async (req, res) => {
     const filePath = req.params.filePath;
-    console.log(`📷 [Public Objects] Requesting: ${filePath}`);
     
     try {
       const objectStorageService = new ObjectStorageService();
       const file = await objectStorageService.searchPublicObject(filePath);
       if (!file) {
-        console.log(`❌ [Public Objects] File not found: ${filePath}`);
         return res.status(404).json({ error: "File not found" });
       }
-      console.log(`✅ [Public Objects] Found file: ${filePath}`);
       await objectStorageService.downloadObject(file, res);
     } catch (error: any) {
       // Check for specific error types
@@ -108,12 +105,8 @@ export function registerUploadRoutes(app: Express): void {
         ? normalizedPath.slice('/public-objects/'.length)
         : normalizedPath;
 
-      console.log(`📤 [UPLOAD] Upload URL: ${uploadURL}`);
-      console.log(`📤 [UPLOAD] Normalized path: ${normalizedPath}`);
-      console.log(`📤 [UPLOAD] Object path: ${objectPath}`);
 
       // Log upload request for security audit
-      console.log(`📁 [Upload] User ${(req as AuthenticatedRequest).user.userData?.email} requesting upload: ${validationResult.sanitizedFilename}`);
       res.json({
         uploadURL,
         uploadId: objectPath,
@@ -170,13 +163,8 @@ export function registerUploadRoutes(app: Express): void {
         ? normalizedPath.slice('/public-objects/'.length)
         : normalizedPath;
 
-      console.log(`📤 [FILE UPLOAD] Upload URL: ${uploadURL}`);
-      console.log(`📤 [FILE UPLOAD] Normalized path: ${normalizedPath}`);
-      console.log(`📤 [FILE UPLOAD] Object path: ${objectPath}`);
 
       // Log upload request for security audit
-      console.log(`📁 [Upload File] User ${(req as AuthenticatedRequest).user.userData?.email} requesting upload: ${validationResult.sanitizedFilename}`);
-      console.log(`📁 [Upload File] File size: ${(size / (1024 * 1024)).toFixed(2)}MB`);
       res.json({
         uploadURL,
         uploadId: objectPath,

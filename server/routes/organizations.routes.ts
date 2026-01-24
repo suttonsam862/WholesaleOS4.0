@@ -121,7 +121,6 @@ export function registerOrganizationRoutes(app: Express): void {
 
   // Archive organization (soft delete)
   app.put('/api/organizations/:id/archive', isAuthenticated, loadUserData, requirePermission('organizations', 'delete'), async (req, res) => {
-    console.log(`[ARCHIVE ROUTE] Starting organization archive process for ID: ${req.params.id}`);
     
     try {
       const id = parseInt(req.params.id);
@@ -138,9 +137,7 @@ export function registerOrganizationRoutes(app: Express): void {
         return res.status(404).json({ message: "Organization not found" });
       }
 
-      console.log(`[ARCHIVE ROUTE] Archiving organization: ${existingOrg.name} (ID: ${id})`);
       const archived = await storage.archiveOrganization(id, userId);
-      console.log(`[ARCHIVE ROUTE] Organization archived successfully`);
 
       // Log activity
       await storage.logActivity(
@@ -161,7 +158,6 @@ export function registerOrganizationRoutes(app: Express): void {
 
   // Unarchive organization
   app.put('/api/organizations/:id/unarchive', isAuthenticated, loadUserData, requirePermission('organizations', 'delete'), async (req, res) => {
-    console.log(`[UNARCHIVE ROUTE] Starting organization unarchive process for ID: ${req.params.id}`);
     
     try {
       const id = parseInt(req.params.id);
@@ -178,9 +174,7 @@ export function registerOrganizationRoutes(app: Express): void {
         return res.status(404).json({ message: "Organization not found" });
       }
 
-      console.log(`[UNARCHIVE ROUTE] Unarchiving organization: ${existingOrg.name} (ID: ${id})`);
       const unarchived = await storage.unarchiveOrganization(id);
-      console.log(`[UNARCHIVE ROUTE] Organization unarchived successfully`);
 
       // Log activity
       await storage.logActivity(
@@ -201,8 +195,6 @@ export function registerOrganizationRoutes(app: Express): void {
 
   // Legacy delete endpoint - redirect to archive
   app.delete('/api/organizations/:id', isAuthenticated, loadUserData, requirePermission('organizations', 'delete'), async (req, res) => {
-    console.log(`[DELETE ROUTE] Legacy delete endpoint called - redirecting to archive`);
-    console.log(`[DELETE ROUTE] Organization ID: ${req.params.id}`);
 
     try {
       const id = parseInt(req.params.id);
@@ -220,9 +212,7 @@ export function registerOrganizationRoutes(app: Express): void {
       }
 
       // Archive instead of delete
-      console.log(`[DELETE ROUTE] Archiving organization instead of deleting: ${existingOrg.name} (ID: ${id})`);
       await storage.archiveOrganization(id, userId);
-      console.log(`[DELETE ROUTE] Organization archived successfully`);
 
       // Log activity
       await storage.logActivity(
@@ -234,7 +224,6 @@ export function registerOrganizationRoutes(app: Express): void {
         null
       );
 
-      console.log(`[DELETE ROUTE] Organization ${id} archived (soft delete), sending 204 response`);
       res.status(204).send();
     } catch (error) {
       console.error(`[DELETE ROUTE] Error archiving organization:`, error);
