@@ -7,6 +7,16 @@ export default defineConfig({
   plugins: [
     react(),
     runtimeErrorOverlay(),
+    {
+      name: "disable-hmr-overlay",
+      config: () => ({
+        server: {
+          hmr: {
+            overlay: false,
+          },
+        },
+      }),
+    },
     ...(process.env.NODE_ENV !== "production" &&
     process.env.REPL_ID !== undefined
       ? [
