@@ -34,6 +34,7 @@ args = "npm run dev"
 
 [agent]
 integrations = ["javascript_log_in_with_replit:1.0.0", "javascript_openai_ai_integrations:2.0.0"]
+expertMode = true
 
 [userenv]
 
