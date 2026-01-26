@@ -9,10 +9,6 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 5001
-externalPort = 3002
-
-[[ports]]
 localPort = 5002
 externalPort = 3000
 
@@ -22,6 +18,7 @@ deploymentTarget = "cloudrun"
 build = ["sh", "-c", "npm run build"]
 
 [workflows]
+runButton = "Project"
 
 [[workflows.workflow]]
 name = "Start Application"
@@ -31,6 +28,27 @@ author = 41090967
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
 
 [agent]
 integrations = ["javascript_log_in_with_replit:1.0.0", "javascript_openai_ai_integrations:2.0.0"]
