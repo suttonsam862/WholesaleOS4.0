@@ -37,6 +37,14 @@ import { registerAIRoutes } from "./ai.routes";
 import { registerManufacturingNotesRoutes, seedDefaultManufacturingNoteCategories } from "./manufacturing-notes.routes";
 import salesMapRoutes from "./sales-map.routes";
 import { registerDesignLabRoutes } from "./design-lab.routes";
+import { registerExternalRoutes } from "./external.routes";
+import { registerApiKeyRoutes } from "./api-keys.routes";
+import { registerProductFamilyRoutes } from "./product-families.routes";
+import { registerManufacturerDashboardRoutes } from "./manufacturer-dashboard.routes";
+import { registerRoutingRoutes } from "./routing.routes";
+import { registerFulfillmentRoutes } from "./fulfillment.routes";
+import { registerManufacturerOnboardingRoutes } from "./manufacturer-onboarding.routes";
+import { registerManufacturerPaymentsRoutes } from "./manufacturer-payments.routes";
 
 import { csrfProtection } from '../middleware/csrf.middleware';
 import { apiRateLimiter } from '../middleware/rateLimit.middleware';
@@ -47,8 +55,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Apply rate limiting to all API routes (before CSRF to reject abuse early)
   app.use('/api', apiRateLimiter);
-  
+
+  // Register external API routes BEFORE CSRF protection
+  // External routes use API key auth (Bearer token), not session-based auth
+  registerExternalRoutes(app);
+
   // Apply CSRF protection globally (after session middleware)
+  // This protects all routes EXCEPT /api/external/* which use API key auth
   app.use(csrfProtection);
 
   // Auto-seed permissions if roles or resources are missing/outdated
@@ -126,7 +139,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerAIRoutes(app);
   registerManufacturingNotesRoutes(app);
   registerDesignLabRoutes(app);
-  
+  registerApiKeyRoutes(app);
+  registerProductFamilyRoutes(app);
+  registerManufacturerDashboardRoutes(app);
+  registerRoutingRoutes(app);
+  registerFulfillmentRoutes(app);
+  registerManufacturerOnboardingRoutes(app);
+  registerManufacturerPaymentsRoutes(app);
+
   // Sales Map routes (mounted as router)
   app.use("/api/sales-map", salesMapRoutes);
 

@@ -54,6 +54,7 @@ const SalespeopleList = lazy(() => import("@/pages/salespeople"));
 const SettingsHub = lazy(() => import("@/pages/settings-hub"));
 const Settings = lazy(() => import("@/pages/settings"));
 const ManufacturingCategoriesSettings = lazy(() => import("@/pages/settings-manufacturing-categories"));
+const ApiKeysSettings = lazy(() => import("@/pages/settings-api-keys"));
 const NotificationsHub = lazy(() => import("@/pages/notifications-hub"));
 const Notifications = lazy(() => import("@/pages/notifications"));
 const DesignerManagementHub = lazy(() => import("@/pages/designer-management-hub"));
@@ -94,6 +95,12 @@ const FabricManagement = lazy(() => import("@/pages/fabric-management"));
 const ManufacturerPortal = lazy(() => import("@/pages/manufacturer-portal"));
 const ManufacturerQueue = lazy(() => import("@/pages/manufacturer-queue"));
 const ManufacturerJobDetail = lazy(() => import("@/pages/manufacturer-job-detail"));
+const ProductFamilies = lazy(() => import("@/pages/product-families"));
+const ManufacturerDashboard = lazy(() => import("@/pages/manufacturer-dashboard"));
+const RoutingAdmin = lazy(() => import("@/pages/routing-admin"));
+const FulfillmentAdmin = lazy(() => import("@/pages/fulfillment-admin"));
+const ManufacturerOnboardingAdmin = lazy(() => import("@/pages/manufacturer-onboarding-admin"));
+const ManufacturerFinanceAdmin = lazy(() => import("@/pages/manufacturer-finance-admin"));
 
 const OrdersActions = lazy(() => import("@/pages/actions/orders-actions"));
 const OrdersActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.OrdersActionDetail })));
@@ -216,6 +223,7 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/settings", title: "Settings Hub", component: SettingsHub, requiresAuth: true, requiresLayout: true, resource: "settings" },
   { path: "/settings/account", title: "Account Settings", component: Settings, requiresAuth: true, requiresLayout: true, resource: "settings" },
   { path: "/settings/manufacturing-categories", title: "Manufacturing Categories", component: ManufacturingCategoriesSettings, requiresAuth: true, requiresLayout: true, roles: ["admin", "ops"], resource: "manufacturing" },
+  { path: "/settings/api-keys", title: "API Keys", component: ApiKeysSettings, requiresAuth: true, requiresLayout: true, roles: ["admin"] },
   { path: "/notifications", title: "Notifications Hub", component: NotificationsHub, requiresAuth: true, requiresLayout: true },
   { path: "/notifications/list", title: "Notifications", component: Notifications, requiresAuth: true, requiresLayout: true },
   { path: "/designer-management", title: "Designer Management Hub", component: DesignerManagementHub, requiresAuth: true, requiresLayout: true, resource: "designerManagement" },
@@ -261,6 +269,12 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/manufacturer-portal", title: "Manufacturer Portal", component: ManufacturerPortal, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
   { path: "/manufacturer-portal/queue", title: "Manufacturer Queue", component: ManufacturerQueue, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
   { path: "/manufacturer-portal/job/:id", title: "Job Detail", component: ManufacturerJobDetail, requiresAuth: true, requiresLayout: true, resource: "manufacturing" },
+  { path: "/product-families", title: "Product Families", component: ProductFamilies, requiresAuth: true, requiresLayout: true, roles: ["admin"], resource: "catalog" },
+  { path: "/manufacturer-dashboard", title: "Manufacturer Dashboard", component: ManufacturerDashboard, requiresAuth: true, requiresLayout: true, roles: ["manufacturer", "admin", "ops"], resource: "manufacturing" },
+  { path: "/routing-admin", title: "Order Routing", component: RoutingAdmin, requiresAuth: true, requiresLayout: true, roles: ["admin", "ops"], resource: "manufacturing" },
+  { path: "/fulfillment", title: "Fulfillment", component: FulfillmentAdmin, requiresAuth: true, requiresLayout: true, roles: ["admin", "ops"], resource: "manufacturing" },
+  { path: "/manufacturer-onboarding", title: "Manufacturer Onboarding", component: ManufacturerOnboardingAdmin, requiresAuth: true, requiresLayout: true, roles: ["admin", "ops"], resource: "manufacturerManagement" },
+  { path: "/manufacturer-finance", title: "Manufacturer Finance", component: ManufacturerFinanceAdmin, requiresAuth: true, requiresLayout: true, roles: ["admin", "finance"], resource: "finance" },
 ];
 
 export const notFoundRoute: RouteConfig = {

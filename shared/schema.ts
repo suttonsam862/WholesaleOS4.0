@@ -71,6 +71,27 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// API Keys for external integrations (Hydrogen storefront, etc.)
+export const apiKeys = pgTable("api_keys", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(), // e.g., 'hydrogen-storefront', 'mobile-app'
+  keyHash: varchar("key_hash").notNull(), // bcrypt hash of the actual key
+  keyPrefix: varchar("key_prefix").notNull(), // First 8 chars for identification (e.g., 'wos_live_')
+  scopes: text("scopes").array(), // ['read:customers', 'read:orders', 'write:feedback', 'read:events']
+  description: text("description"),
+  lastUsedAt: timestamp("last_used_at"),
+  lastUsedIp: varchar("last_used_ip"),
+  expiresAt: timestamp("expires_at"),
+  revokedAt: timestamp("revoked_at"),
+  revokedBy: varchar("revoked_by").references(() => users.id),
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_api_keys_key_prefix").on(table.keyPrefix),
+  index("idx_api_keys_name").on(table.name),
+]);
+
 // Invitations table for tracking invitation tokens
 export const invitations = pgTable("invitations", {
   id: serial("id").primaryKey(), // Using serial to match existing database structure
@@ -182,6 +203,13 @@ export const organizations = pgTable("organizations", {
   clientType: varchar("client_type").$type<"retail" | "wholesale" | "enterprise" | "government" | "high_school" | "college" | "tour" | "in_house">(),
   annualVolume: decimal("annual_volume", { precision: 12, scale: 2 }),
   preferredSalespersonId: varchar("preferred_salesperson_id").references(() => users.id),
+  // Shopify Integration fields
+  shopifyCustomerId: varchar("shopify_customer_id").unique(), // Links to Shopify customer
+  tier: varchar("tier").$type<"standard" | "wholesale" | "vip">().default("standard"), // Pricing tier
+  discountPercentage: decimal("discount_percentage", { precision: 5, scale: 2 }).default("0"), // Wholesale discount
+  creditLimit: decimal("credit_limit", { precision: 12, scale: 2 }), // Credit limit for net terms
+  taxExempt: boolean("tax_exempt").default(false),
+  taxExemptCertificate: text("tax_exempt_certificate"), // URL to certificate
   // Branding fields
   brandPrimaryColor: varchar("brand_primary_color"),
   brandSecondaryColor: varchar("brand_secondary_color"),
@@ -247,12 +275,15 @@ export const categories = pgTable("categories", {
   name: varchar("name").unique().notNull(),
   description: text("description"),
   imageUrl: text("image_url"),
+  productFamilyId: integer("product_family_id"), // Links to product_families table
   archived: boolean("archived").default(false),
   archivedAt: timestamp("archived_at"),
   archivedBy: varchar("archived_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_categories_product_family_id").on(table.productFamilyId),
+]);
 
 // Products
 export const products = pgTable("products", {
@@ -260,6 +291,8 @@ export const products = pgTable("products", {
   sku: varchar("sku").unique().notNull(),
   name: varchar("name").notNull(),
   categoryId: integer("category_id").references(() => categories.id).notNull(),
+  productFamilyId: integer("product_family_id"), // Links to product_families - can override category setting
+  defaultManufacturerId: integer("default_manufacturer_id"), // Product-level manufacturer override
   style: varchar("style"),
   description: text("description"),
   basePrice: decimal("base_price", { precision: 10, scale: 2 }).notNull(),
@@ -274,7 +307,10 @@ export const products = pgTable("products", {
   archivedBy: varchar("archived_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_products_product_family_id").on(table.productFamilyId),
+  index("idx_products_default_manufacturer_id").on(table.defaultManufacturerId),
+]);
 
 // Product variants
 export const productVariants = pgTable("product_variants", {
@@ -345,6 +381,37 @@ export const designJobComments = pgTable("design_job_comments", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// ==================== PRODUCT FAMILY SYSTEM ====================
+
+// Manufacturing Job Status Enum (simplified 6-stage workflow)
+export const manufacturingJobStatusEnum = pgEnum("manufacturing_job_status", [
+  "new",
+  "accepted",
+  "in_production",
+  "qc",
+  "ready_to_ship",
+  "shipped"
+]);
+
+// Product Families - groups products by manufacturing type
+export const productFamilies = pgTable("product_families", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  code: varchar("code").unique().notNull(), // e.g., "CCS", "STOCK-SUB"
+  name: varchar("name").unique().notNull(), // e.g., "Custom Cut & Sew Sublimation"
+  description: text("description"),
+  decorationMethods: text("decoration_methods").array(), // ["sublimation", "screen_print", "embroidery"]
+  defaultLeadTimeDays: integer("default_lead_time_days").default(14),
+  defaultMinOrderQty: integer("default_min_order_qty").default(12),
+  defaultManufacturerId: integer("default_manufacturer_id"), // Will reference manufacturers.id
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_product_families_code").on(table.code),
+  index("idx_product_families_is_active").on(table.isActive),
+]);
+
 // Manufacturers
 export const manufacturers = pgTable("manufacturers", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
@@ -356,9 +423,47 @@ export const manufacturers = pgTable("manufacturers", {
   logoUrl: text("logo_url"),
   leadTimeDays: integer("lead_time_days").default(14),
   minOrderQty: integer("min_order_qty").default(1),
+  // New fields for multi-manufacturer network
+  country: varchar("country").default("USA"),
+  timezone: varchar("timezone").default("America/New_York"),
+  zone: varchar("zone").$type<"domestic" | "nearshore" | "offshore">().default("domestic"),
+  capabilities: text("capabilities").array(), // ["sublimation", "screen_print", "embroidery", "cut_sew"]
+  qualityRating: integer("quality_rating").default(5), // 1-5 stars
+  isActive: boolean("is_active").default(true),
+  acceptingNewOrders: boolean("accepting_new_orders").default(true),
+  maxConcurrentJobs: integer("max_concurrent_jobs").default(50),
+  // Financial fields (for Phase 6)
+  paymentTerms: varchar("payment_terms").$type<"prepaid" | "net15" | "net30" | "net60">().default("net30"),
+  creditLimit: decimal("credit_limit", { precision: 12, scale: 2 }),
+  currentBalance: decimal("current_balance", { precision: 12, scale: 2 }).default("0"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Product Family Manufacturers - junction table with priority and capabilities
+export const productFamilyManufacturers = pgTable("product_family_manufacturers", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  productFamilyId: integer("product_family_id").references(() => productFamilies.id).notNull(),
+  manufacturerId: integer("manufacturer_id").references(() => manufacturers.id).notNull(),
+  priority: integer("priority").default(1), // 1=primary, 2=first backup, etc.
+  isActive: boolean("is_active").default(true),
+  // Per-family capabilities and terms
+  leadTimeDays: integer("lead_time_days"), // Override family default
+  minOrderQty: integer("min_order_qty"), // Override family default
+  costPerUnit: decimal("cost_per_unit", { precision: 10, scale: 2 }),
+  // Capability flags for this family
+  canDoRush: boolean("can_do_rush").default(false),
+  canDoSamples: boolean("can_do_samples").default(true),
+  // Capacity
+  monthlyCapacity: integer("monthly_capacity"), // Units per month
+  currentMonthLoad: integer("current_month_load").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_pfm_product_family_id").on(table.productFamilyId),
+  index("idx_pfm_manufacturer_id").on(table.manufacturerId),
+  index("idx_pfm_priority").on(table.priority),
+]);
 
 // User-Manufacturer associations (for role-based access control)
 export const userManufacturerAssociations = pgTable("user_manufacturer_associations", {
@@ -856,6 +961,18 @@ export const manufacturerJobs = pgTable("manufacturer_jobs", {
   specialInstructions: text("special_instructions"),
   internalNotes: text("internal_notes"),
   priority: varchar("priority").notNull().$type<"low" | "normal" | "high" | "urgent">().default("normal"),
+  // Routing fields for auto-assignment
+  routedBy: varchar("routed_by").$type<"auto" | "manual" | "fallback" | "pending">().default("pending"),
+  routingReason: text("routing_reason"),
+  originalManufacturerId: integer("original_manufacturer_id").references(() => manufacturers.id),
+  // Simplified 6-stage status for manufacturer view (maps to detailed manufacturerStatus)
+  simplifiedStatus: varchar("simplified_status").$type<
+    "new" | "accepted" | "in_production" | "qc" | "ready_to_ship" | "shipped"
+  >().default("new"),
+  // Financial fields for Phase 6
+  quotedCost: decimal("quoted_cost", { precision: 10, scale: 2 }),
+  actualCost: decimal("actual_cost", { precision: 10, scale: 2 }),
+  invoiceId: integer("invoice_id"), // FK added after table defined
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -864,6 +981,9 @@ export const manufacturerJobs = pgTable("manufacturer_jobs", {
   index("idx_manufacturer_jobs_manufacturer_id").on(table.manufacturerId),
   index("idx_manufacturer_jobs_status").on(table.manufacturerStatus),
   index("idx_manufacturer_jobs_public_status").on(table.publicStatus),
+  index("idx_manufacturer_jobs_simplified_status").on(table.simplifiedStatus),
+  index("idx_manufacturer_jobs_routed_by").on(table.routedBy),
+  index("idx_manufacturer_jobs_invoice_id").on(table.invoiceId),
 ]);
 
 // Manufacturer Events - structured event log replacing chat-based updates
@@ -2204,14 +2324,15 @@ export const designAiTrainingSets = pgTable("design_ai_training_sets", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   name: varchar("name").notNull(),
   description: text("description"),
-  tags: text("tags").array(),
-  isActive: boolean("is_active").default(true),
+  category: varchar("category").$type<"typography" | "logo" | "graphic" | "pattern" | "general">().default("general"),
+  status: varchar("status").$type<"active" | "inactive" | "processing">().default("active"),
   imageCount: integer("image_count").default(0),
   createdBy: varchar("created_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
-  index("idx_design_ai_training_sets_is_active").on(table.isActive),
+  index("idx_design_ai_training_sets_status").on(table.status),
+  index("idx_design_ai_training_sets_category").on(table.category),
 ]);
 
 // Design AI Training Images - Individual training images in a set
@@ -2235,8 +2356,8 @@ export const designStylePresets = pgTable("design_style_presets", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
   name: varchar("name").notNull(),
   description: text("description"),
-  previewImageUrl: text("preview_image_url"),
-  promptSuffix: text("prompt_suffix"),
+  thumbnailUrl: text("thumbnail_url"), // Preview image for the preset
+  promptModifier: text("prompt_modifier"), // Text added to AI prompts when using this preset
   styleConfig: jsonb("style_config"),
   category: varchar("category"),
   sortOrder: integer("sort_order").default(0),
@@ -2302,6 +2423,417 @@ export const printfulSyncRecords = pgTable("printful_sync_records", {
   index("idx_printful_sync_status").on(table.status),
 ]);
 
+// ==================== 3PL / FULFILLMENT CENTER SYSTEM ====================
+
+// Fulfillment Centers - Warehouses where goods are received and shipped
+export const fulfillmentCenters = pgTable("fulfillment_centers", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  code: varchar("code").unique().notNull(), // e.g., "FC-EAST", "FC-WEST"
+  name: varchar("name").notNull(),
+  address: text("address").notNull(),
+  city: varchar("city").notNull(),
+  state: varchar("state").notNull(),
+  zipCode: varchar("zip_code").notNull(),
+  country: varchar("country").default("US"),
+  phone: varchar("phone"),
+  email: varchar("email"),
+  operatingHours: jsonb("operating_hours"), // { mon: "9-5", tue: "9-5", ... }
+  capabilities: text("capabilities").array(), // ["receiving", "shipping", "long_term_storage", "returns"]
+  defaultCarrier: varchar("default_carrier"),
+  isDefault: boolean("is_default").default(false), // Default receiving location
+  isActive: boolean("is_active").default(true),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_fulfillment_centers_code").on(table.code),
+  index("idx_fulfillment_centers_is_active").on(table.isActive),
+]);
+
+// Inbound Shipments - Shipments FROM manufacturers TO fulfillment centers
+export const inboundShipments = pgTable("inbound_shipments", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  shipmentCode: varchar("shipment_code").unique().notNull(), // e.g., "IB-2024-001234"
+  fulfillmentCenterId: integer("fulfillment_center_id").references(() => fulfillmentCenters.id).notNull(),
+  manufacturerId: integer("manufacturer_id").references(() => manufacturers.id),
+  manufacturerJobId: integer("manufacturer_job_id").references(() => manufacturerJobs.id),
+  status: varchar("status").notNull().$type<
+    "expected" | "in_transit" | "arrived" | "inspecting" | "stocked" | "issue" | "cancelled"
+  >().default("expected"),
+  trackingNumber: varchar("tracking_number"),
+  carrier: varchar("carrier"),
+  shippedDate: date("shipped_date"),
+  expectedArrivalDate: date("expected_arrival_date"),
+  actualArrivalDate: date("actual_arrival_date"),
+  receivedBy: varchar("received_by").references(() => users.id),
+  packageCount: integer("package_count").default(1),
+  totalWeight: decimal("total_weight", { precision: 10, scale: 2 }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_inbound_shipments_code").on(table.shipmentCode),
+  index("idx_inbound_shipments_fc_id").on(table.fulfillmentCenterId),
+  index("idx_inbound_shipments_status").on(table.status),
+  index("idx_inbound_shipments_tracking").on(table.trackingNumber),
+  index("idx_inbound_shipments_manufacturer_job_id").on(table.manufacturerJobId),
+]);
+
+// Inbound Shipment Items - What's expected in each inbound shipment
+export const inboundShipmentItems = pgTable("inbound_shipment_items", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  inboundShipmentId: integer("inbound_shipment_id").references(() => inboundShipments.id, { onDelete: 'cascade' }).notNull(),
+  orderLineItemId: integer("order_line_item_id").references(() => orderLineItems.id),
+  variantId: integer("variant_id").references(() => productVariants.id),
+  expectedQuantity: integer("expected_quantity").notNull(),
+  receivedQuantity: integer("received_quantity").default(0),
+  damagedQuantity: integer("damaged_quantity").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_inbound_shipment_items_shipment_id").on(table.inboundShipmentId),
+]);
+
+// QC Inspections - Quality control inspections of inbound shipments
+export const qcInspections = pgTable("qc_inspections", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  inspectionCode: varchar("inspection_code").unique().notNull(), // e.g., "QC-2024-001234"
+  inboundShipmentId: integer("inbound_shipment_id").references(() => inboundShipments.id).notNull(),
+  inspectorId: varchar("inspector_id").references(() => users.id),
+  status: varchar("status").notNull().$type<
+    "pending" | "in_progress" | "completed" | "on_hold"
+  >().default("pending"),
+  overallResult: varchar("overall_result").$type<
+    "pass" | "pass_with_notes" | "partial_pass" | "fail"
+  >(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_qc_inspections_code").on(table.inspectionCode),
+  index("idx_qc_inspections_inbound_id").on(table.inboundShipmentId),
+  index("idx_qc_inspections_status").on(table.status),
+]);
+
+// QC Inspection Items - Per-item inspection results
+export const qcInspectionItems = pgTable("qc_inspection_items", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  qcInspectionId: integer("qc_inspection_id").references(() => qcInspections.id, { onDelete: 'cascade' }).notNull(),
+  inboundShipmentItemId: integer("inbound_shipment_item_id").references(() => inboundShipmentItems.id).notNull(),
+  result: varchar("result").notNull().$type<
+    "pass" | "pass_with_notes" | "hold" | "fail_rework" | "fail_reject"
+  >().default("pass"),
+  quantityPassed: integer("quantity_passed").default(0),
+  quantityFailed: integer("quantity_failed").default(0),
+  visualQuality: boolean("visual_quality"), // Pass/fail
+  decorationQuality: boolean("decoration_quality"),
+  sizingCorrect: boolean("sizing_correct"),
+  packagingAcceptable: boolean("packaging_acceptable"),
+  photoUrls: text("photo_urls").array(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_qc_inspection_items_inspection_id").on(table.qcInspectionId),
+]);
+
+// Inventory - Stock levels at fulfillment centers
+export const inventory = pgTable("inventory", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  fulfillmentCenterId: integer("fulfillment_center_id").references(() => fulfillmentCenters.id).notNull(),
+  variantId: integer("variant_id").references(() => productVariants.id).notNull(),
+  binLocation: varchar("bin_location"), // e.g., "A-12-3"
+  quantityOnHand: integer("quantity_on_hand").default(0),
+  quantityReserved: integer("quantity_reserved").default(0), // Allocated to orders
+  quantityAvailable: integer("quantity_available").default(0), // On hand - reserved
+  reorderPoint: integer("reorder_point"),
+  maxQuantity: integer("max_quantity"),
+  costPerUnit: decimal("cost_per_unit", { precision: 10, scale: 2 }),
+  lastCountedAt: timestamp("last_counted_at"),
+  lastReceivedAt: timestamp("last_received_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_inventory_fc_id").on(table.fulfillmentCenterId),
+  index("idx_inventory_variant_id").on(table.variantId),
+  index("idx_inventory_fc_variant").on(table.fulfillmentCenterId, table.variantId),
+]);
+
+// Inventory Transactions - Log of all inventory movements
+export const inventoryTransactions = pgTable("inventory_transactions", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  inventoryId: integer("inventory_id").references(() => inventory.id).notNull(),
+  transactionType: varchar("transaction_type").notNull().$type<
+    "stock_in" | "stock_out" | "reserve" | "unreserve" | "adjustment" | "transfer"
+  >(),
+  quantity: integer("quantity").notNull(), // Positive for in, negative for out
+  previousQuantity: integer("previous_quantity").notNull(),
+  newQuantity: integer("new_quantity").notNull(),
+  referenceType: varchar("reference_type"), // "inbound_shipment", "outbound_shipment", "adjustment"
+  referenceId: integer("reference_id"),
+  reasonCode: varchar("reason_code"), // "qc_pass", "customer_order", "damage", "count_correction"
+  notes: text("notes"),
+  performedBy: varchar("performed_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_inventory_tx_inventory_id").on(table.inventoryId),
+  index("idx_inventory_tx_type").on(table.transactionType),
+  index("idx_inventory_tx_created_at").on(table.createdAt),
+]);
+
+// Outbound Shipments - Shipments FROM fulfillment centers TO customers
+export const outboundShipments = pgTable("outbound_shipments", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  shipmentCode: varchar("shipment_code").unique().notNull(), // e.g., "OB-2024-001234"
+  fulfillmentCenterId: integer("fulfillment_center_id").references(() => fulfillmentCenters.id).notNull(),
+  orderId: integer("order_id").references(() => orders.id),
+  status: varchar("status").notNull().$type<
+    "pending" | "picking" | "packed" | "shipped" | "delivered" | "cancelled" | "returned"
+  >().default("pending"),
+  shippingAddress: text("shipping_address").notNull(),
+  carrier: varchar("carrier"),
+  serviceLevel: varchar("service_level"), // "ground", "express", "overnight"
+  trackingNumber: varchar("tracking_number"),
+  shippedDate: date("shipped_date"),
+  estimatedDeliveryDate: date("estimated_delivery_date"),
+  actualDeliveryDate: date("actual_delivery_date"),
+  weight: decimal("weight", { precision: 10, scale: 2 }),
+  dimensions: jsonb("dimensions"), // { length, width, height }
+  shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }),
+  labelUrl: text("label_url"),
+  packingSlipUrl: text("packing_slip_url"),
+  pickedBy: varchar("picked_by").references(() => users.id),
+  packedBy: varchar("packed_by").references(() => users.id),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_outbound_shipments_code").on(table.shipmentCode),
+  index("idx_outbound_shipments_fc_id").on(table.fulfillmentCenterId),
+  index("idx_outbound_shipments_order_id").on(table.orderId),
+  index("idx_outbound_shipments_status").on(table.status),
+  index("idx_outbound_shipments_tracking").on(table.trackingNumber),
+]);
+
+// Outbound Shipment Items - What's in each outbound shipment
+export const outboundShipmentItems = pgTable("outbound_shipment_items", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  outboundShipmentId: integer("outbound_shipment_id").references(() => outboundShipments.id, { onDelete: 'cascade' }).notNull(),
+  inventoryId: integer("inventory_id").references(() => inventory.id),
+  orderLineItemId: integer("order_line_item_id").references(() => orderLineItems.id),
+  variantId: integer("variant_id").references(() => productVariants.id),
+  quantity: integer("quantity").notNull(),
+  pickedAt: timestamp("picked_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_outbound_shipment_items_shipment_id").on(table.outboundShipmentId),
+]);
+
+// ==================== MANUFACTURER ONBOARDING ====================
+
+// Manufacturer Invites - Admin-initiated invitations to manufacturers
+export const manufacturerInvites = pgTable("manufacturer_invites", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  inviteCode: varchar("invite_code").unique().notNull(),
+  companyName: varchar("company_name").notNull(),
+  contactEmail: varchar("contact_email").notNull(),
+  contactName: varchar("contact_name"),
+  expectedProductFamilies: integer("expected_product_families").array(), // Product family IDs
+  personalNote: text("personal_note"),
+  status: varchar("status").notNull().$type<
+    "pending" | "sent" | "opened" | "started" | "completed" | "expired" | "revoked"
+  >().default("pending"),
+  sentAt: timestamp("sent_at"),
+  openedAt: timestamp("opened_at"),
+  expiresAt: timestamp("expires_at"),
+  invitedBy: varchar("invited_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_manufacturer_invites_code").on(table.inviteCode),
+  index("idx_manufacturer_invites_email").on(table.contactEmail),
+  index("idx_manufacturer_invites_status").on(table.status),
+]);
+
+// Manufacturer Applications - Self-service or invite-based applications
+export const manufacturerApplications = pgTable("manufacturer_applications", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  applicationCode: varchar("application_code").unique().notNull(),
+  inviteId: integer("invite_id").references(() => manufacturerInvites.id),
+
+  // Status tracking
+  status: varchar("status").notNull().$type<
+    "draft" | "submitted" | "info_requested" | "under_review" | "approved" | "rejected" | "activated"
+  >().default("draft"),
+  currentStep: integer("current_step").default(1), // 1-5 for the wizard steps
+
+  // Step 1: Basic Information
+  companyName: varchar("company_name").notNull(),
+  companyLegalName: varchar("company_legal_name"),
+  contactName: varchar("contact_name").notNull(),
+  contactEmail: varchar("contact_email").notNull(),
+  contactPhone: varchar("contact_phone"),
+  country: varchar("country").notNull(),
+  address: text("address"),
+  city: varchar("city"),
+  state: varchar("state"),
+  zipCode: varchar("zip_code"),
+  yearsInBusiness: integer("years_in_business"),
+  employeeCount: varchar("employee_count"), // "1-10", "11-50", "51-200", "201+"
+  website: varchar("website"),
+
+  // Step 2: Capabilities
+  productFamilies: integer("product_families").array(), // Which families they can produce
+  decorationMethods: text("decoration_methods").array(), // sublimation, embroidery, etc.
+  monthlyCapacity: integer("monthly_capacity"), // Units per month
+  leadTimedays: integer("lead_time_days"), // Average lead time
+  equipmentList: text("equipment_list"),
+  specializations: text("specializations").array(),
+
+  // Step 3: Documentation URLs
+  businessLicenseUrl: text("business_license_url"),
+  taxDocumentUrl: text("tax_document_url"),
+  qualityCertifications: text("quality_certifications").array(),
+  portfolioUrls: text("portfolio_urls").array(),
+  bankInfoUrl: text("bank_info_url"),
+
+  // Step 4: Pricing & Terms
+  preferredPaymentTerms: varchar("preferred_payment_terms"), // "net30", "net60", "prepaid"
+  minOrderQuantity: integer("min_order_quantity"),
+  pricingNotes: text("pricing_notes"), // General pricing info
+  shippingPreferences: text("shipping_preferences"),
+
+  // Review fields
+  submittedAt: timestamp("submitted_at"),
+  reviewedBy: varchar("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  rejectionReason: text("rejection_reason"),
+  infoRequestMessage: text("info_request_message"),
+
+  // If approved, link to created manufacturer
+  createdManufacturerId: integer("created_manufacturer_id").references(() => manufacturers.id),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_manufacturer_applications_code").on(table.applicationCode),
+  index("idx_manufacturer_applications_status").on(table.status),
+  index("idx_manufacturer_applications_email").on(table.contactEmail),
+]);
+
+// =============================================================================
+// PHASE 6: MANUFACTURER FINANCIAL TABLES
+// =============================================================================
+
+// Manufacturer Invoices - track invoices from manufacturers for work completed
+export const manufacturerInvoices = pgTable("manufacturer_invoices", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  invoiceNumber: varchar("invoice_number").notNull(), // Unique per manufacturer
+  manufacturerId: integer("manufacturer_id").references(() => manufacturers.id).notNull(),
+
+  // Dates
+  invoiceDate: date("invoice_date").notNull(),
+  dueDate: date("due_date").notNull(),
+
+  // Amounts
+  subtotal: decimal("subtotal", { precision: 12, scale: 2 }).notNull(),
+  taxAmount: decimal("tax_amount", { precision: 12, scale: 2 }).default("0"),
+  totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).notNull(),
+  amountPaid: decimal("amount_paid", { precision: 12, scale: 2 }).default("0"),
+  balanceDue: decimal("balance_due", { precision: 12, scale: 2 }).notNull(),
+  currency: varchar("currency").default("USD"),
+
+  // Status
+  status: varchar("status").notNull().$type<
+    "draft" | "submitted" | "approved" | "partially_paid" | "paid" | "disputed" | "void"
+  >().default("draft"),
+
+  // Metadata
+  notes: text("notes"),
+  attachmentUrl: text("attachment_url"), // PDF copy from manufacturer
+  disputeReason: text("dispute_reason"),
+
+  // Workflow timestamps
+  submittedAt: timestamp("submitted_at"),
+  approvedAt: timestamp("approved_at"),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  paidAt: timestamp("paid_at"),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_manufacturer_invoices_manufacturer_id").on(table.manufacturerId),
+  index("idx_manufacturer_invoices_status").on(table.status),
+  index("idx_manufacturer_invoices_due_date").on(table.dueDate),
+  index("idx_manufacturer_invoices_invoice_number").on(table.invoiceNumber),
+]);
+
+// Manufacturer Invoice Line Items - individual items on an invoice
+export const manufacturerInvoiceItems = pgTable("manufacturer_invoice_items", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  invoiceId: integer("invoice_id").references(() => manufacturerInvoices.id, { onDelete: 'cascade' }).notNull(),
+  manufacturerJobId: integer("manufacturer_job_id").references(() => manufacturerJobs.id),
+
+  // Line item details
+  description: text("description").notNull(),
+  quantity: integer("quantity").default(1),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 2 }).notNull(),
+  lineTotal: decimal("line_total", { precision: 10, scale: 2 }).notNull(),
+
+  // Category for reporting
+  category: varchar("category").$type<
+    "manufacturing" | "shipping" | "rush_fee" | "sample" | "adjustment" | "credit" | "other"
+  >().default("manufacturing"),
+
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_manufacturer_invoice_items_invoice_id").on(table.invoiceId),
+  index("idx_manufacturer_invoice_items_job_id").on(table.manufacturerJobId),
+]);
+
+// Manufacturer Payments - payments made to manufacturers
+export const manufacturerPayments = pgTable("manufacturer_payments", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  manufacturerId: integer("manufacturer_id").references(() => manufacturers.id).notNull(),
+
+  // Payment details
+  paymentDate: date("payment_date").notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  paymentMethod: varchar("payment_method").$type<
+    "wire" | "ach" | "check" | "paypal" | "credit" | "other"
+  >().notNull(),
+  referenceNumber: varchar("reference_number"), // Check #, wire confirmation, etc.
+  notes: text("notes"),
+
+  // Void tracking
+  isVoid: boolean("is_void").default(false),
+  voidedAt: timestamp("voided_at"),
+  voidedBy: varchar("voided_by").references(() => users.id),
+  voidReason: text("void_reason"),
+
+  // Audit
+  createdBy: varchar("created_by").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_manufacturer_payments_manufacturer_id").on(table.manufacturerId),
+  index("idx_manufacturer_payments_payment_date").on(table.paymentDate),
+  index("idx_manufacturer_payments_is_void").on(table.isVoid),
+]);
+
+// Payment Allocations - track which invoices a payment was applied to
+export const manufacturerPaymentAllocations = pgTable("manufacturer_payment_allocations", {
+  id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+  paymentId: integer("payment_id").references(() => manufacturerPayments.id, { onDelete: 'cascade' }).notNull(),
+  invoiceId: integer("invoice_id").references(() => manufacturerInvoices.id).notNull(),
+  amountApplied: decimal("amount_applied", { precision: 12, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_payment_allocations_payment_id").on(table.paymentId),
+  index("idx_payment_allocations_invoice_id").on(table.invoiceId),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   salesperson: one(salespersons, { fields: [users.id], references: [salespersons.userId] }),
@@ -2338,13 +2870,29 @@ export const leadsRelations = relations(leads, ({ one, many }) => ({
   orders: many(orders),
 }));
 
-export const categoriesRelations = relations(categories, ({ many }) => ({
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
   products: many(products),
+  productFamily: one(productFamilies, { fields: [categories.productFamilyId], references: [productFamilies.id] }),
 }));
 
 export const productsRelations = relations(products, ({ one, many }) => ({
   category: one(categories, { fields: [products.categoryId], references: [categories.id] }),
+  productFamily: one(productFamilies, { fields: [products.productFamilyId], references: [productFamilies.id] }),
+  defaultManufacturer: one(manufacturers, { fields: [products.defaultManufacturerId], references: [manufacturers.id] }),
   variants: many(productVariants),
+}));
+
+// Product Family Relations
+export const productFamiliesRelations = relations(productFamilies, ({ one, many }) => ({
+  defaultManufacturer: one(manufacturers, { fields: [productFamilies.defaultManufacturerId], references: [manufacturers.id] }),
+  manufacturerAssignments: many(productFamilyManufacturers),
+  categories: many(categories),
+  products: many(products),
+}));
+
+export const productFamilyManufacturersRelations = relations(productFamilyManufacturers, ({ one }) => ({
+  productFamily: one(productFamilies, { fields: [productFamilyManufacturers.productFamilyId], references: [productFamilies.id] }),
+  manufacturer: one(manufacturers, { fields: [productFamilyManufacturers.manufacturerId], references: [manufacturers.id] }),
 }));
 
 export const productVariantsRelations = relations(productVariants, ({ one, many }) => ({
@@ -2370,6 +2918,7 @@ export const manufacturersRelations = relations(manufacturers, ({ many }) => ({
   manufacturing: many(manufacturing),
   manufacturingUpdates: many(manufacturingUpdates),
   userAssociations: many(userManufacturerAssociations),
+  productFamilyAssignments: many(productFamilyManufacturers),
 }));
 
 export const userManufacturerAssociationsRelations = relations(userManufacturerAssociations, ({ one }) => ({
@@ -2507,8 +3056,38 @@ export const insertUserSchema = createInsertSchema(users).omit({
   updatedAt: true,
 });
 
+export const insertApiKeySchema = createInsertSchema(apiKeys, {
+  name: z.string().min(1, "Name is required").max(100),
+  scopes: z.array(z.enum([
+    "read:customers",
+    "write:customers",
+    "read:orders",
+    "write:orders",
+    "read:design-jobs",
+    "write:design-jobs",
+    "read:events",
+    "write:events",
+    "read:messages",
+    "write:messages",
+    "read:products",
+  ])).min(1, "At least one scope is required"),
+  description: z.string().max(500).optional(),
+}).omit({
+  id: true,
+  keyHash: true,
+  keyPrefix: true,
+  lastUsedAt: true,
+  lastUsedIp: true,
+  revokedAt: true,
+  revokedBy: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertOrganizationSchema = createInsertSchema(organizations, {
   name: z.string().min(1, "Name is required"),
+  tier: z.enum(["standard", "wholesale", "vip"]).optional(),
+  discountPercentage: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid percentage").optional(),
 });
 
 export const insertLeadSchema = createInsertSchema(leads, {
@@ -2592,9 +3171,45 @@ export const insertDesignJobCommentSchema = createInsertSchema(designJobComments
   isInternal: z.boolean().optional(),
 });
 
+// Product Family Schemas
+export const insertProductFamilySchema = createInsertSchema(productFamilies, {
+  code: z.string().min(1, "Code is required").max(20, "Code must be 20 characters or less"),
+  name: z.string().min(1, "Name is required").max(100, "Name must be 100 characters or less"),
+  description: z.string().optional(),
+  decorationMethods: z.array(z.string()).optional(),
+  defaultLeadTimeDays: z.number().int().positive().optional(),
+  defaultMinOrderQty: z.number().int().positive().optional(),
+  defaultManufacturerId: z.number().int().positive().optional(),
+  isActive: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+}).omit({ createdAt: true, updatedAt: true });
+
+export const insertProductFamilyManufacturerSchema = createInsertSchema(productFamilyManufacturers, {
+  productFamilyId: z.number().int().positive("Product family ID is required"),
+  manufacturerId: z.number().int().positive("Manufacturer ID is required"),
+  priority: z.number().int().positive().optional(),
+  isActive: z.boolean().optional(),
+  leadTimeDays: z.number().int().positive().optional(),
+  minOrderQty: z.number().int().positive().optional(),
+  costPerUnit: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
+  canDoRush: z.boolean().optional(),
+  canDoSamples: z.boolean().optional(),
+  monthlyCapacity: z.number().int().positive().optional(),
+}).omit({ createdAt: true, updatedAt: true });
+
 export const insertManufacturerSchema = createInsertSchema(manufacturers, {
   name: z.string().min(1, "Name is required"),
   logoUrl: z.string().optional(),
+  country: z.string().optional(),
+  timezone: z.string().optional(),
+  zone: z.enum(["domestic", "nearshore", "offshore"]).optional(),
+  capabilities: z.array(z.string()).optional(),
+  qualityRating: z.number().int().min(1).max(5).optional(),
+  isActive: z.boolean().optional(),
+  acceptingNewOrders: z.boolean().optional(),
+  maxConcurrentJobs: z.number().int().positive().optional(),
+  paymentTerms: z.enum(["prepaid", "net15", "net30", "net60"]).optional(),
+  creditLimit: z.string().regex(/^\d+(\.\d{1,2})?$/, "Must be a valid amount").optional(),
 });
 
 export const insertManufacturingSchema = createInsertSchema(manufacturing, {
@@ -2888,6 +3503,13 @@ export type DesignJob = typeof designJobs.$inferSelect;
 export type InsertDesignJob = z.infer<typeof insertDesignJobSchema>;
 export type DesignJobComment = typeof designJobComments.$inferSelect;
 export type InsertDesignJobComment = z.infer<typeof insertDesignJobCommentSchema>;
+
+// Product Family Types
+export type ProductFamily = typeof productFamilies.$inferSelect;
+export type InsertProductFamily = z.infer<typeof insertProductFamilySchema>;
+export type ProductFamilyManufacturer = typeof productFamilyManufacturers.$inferSelect;
+export type InsertProductFamilyManufacturer = z.infer<typeof insertProductFamilyManufacturerSchema>;
+
 export type Manufacturer = typeof manufacturers.$inferSelect;
 export type InsertManufacturer = z.infer<typeof insertManufacturerSchema>;
 export type Manufacturing = typeof manufacturing.$inferSelect;
@@ -3833,6 +4455,70 @@ export const insertDesignStylePresetSchema = createInsertSchema(designStylePrese
 
 export type DesignStylePreset = typeof designStylePresets.$inferSelect;
 export type InsertDesignStylePreset = z.infer<typeof insertDesignStylePresetSchema>;
+
+// ==================== 3PL SCHEMAS ====================
+
+// Fulfillment Centers
+export type FulfillmentCenter = typeof fulfillmentCenters.$inferSelect;
+export type InsertFulfillmentCenter = typeof fulfillmentCenters.$inferInsert;
+
+// Inbound Shipments
+export type InboundShipment = typeof inboundShipments.$inferSelect;
+export type InsertInboundShipment = typeof inboundShipments.$inferInsert;
+
+// Inbound Shipment Items
+export type InboundShipmentItem = typeof inboundShipmentItems.$inferSelect;
+export type InsertInboundShipmentItem = typeof inboundShipmentItems.$inferInsert;
+
+// QC Inspections
+export type QcInspection = typeof qcInspections.$inferSelect;
+export type InsertQcInspection = typeof qcInspections.$inferInsert;
+
+// QC Inspection Items
+export type QcInspectionItem = typeof qcInspectionItems.$inferSelect;
+export type InsertQcInspectionItem = typeof qcInspectionItems.$inferInsert;
+
+// Inventory
+export type Inventory = typeof inventory.$inferSelect;
+export type InsertInventory = typeof inventory.$inferInsert;
+
+// Inventory Transactions
+export type InventoryTransaction = typeof inventoryTransactions.$inferSelect;
+export type InsertInventoryTransaction = typeof inventoryTransactions.$inferInsert;
+
+// Outbound Shipments
+export type OutboundShipment = typeof outboundShipments.$inferSelect;
+export type InsertOutboundShipment = typeof outboundShipments.$inferInsert;
+
+// Outbound Shipment Items
+export type OutboundShipmentItem = typeof outboundShipmentItems.$inferSelect;
+export type InsertOutboundShipmentItem = typeof outboundShipmentItems.$inferInsert;
+
+// ==================== MANUFACTURER ONBOARDING TYPES ====================
+
+// Manufacturer Invites
+export type ManufacturerInvite = typeof manufacturerInvites.$inferSelect;
+export type InsertManufacturerInvite = typeof manufacturerInvites.$inferInsert;
+
+// Manufacturer Applications
+export type ManufacturerApplication = typeof manufacturerApplications.$inferSelect;
+export type InsertManufacturerApplication = typeof manufacturerApplications.$inferInsert;
+
+// Manufacturer Invoices
+export type ManufacturerInvoice = typeof manufacturerInvoices.$inferSelect;
+export type InsertManufacturerInvoice = typeof manufacturerInvoices.$inferInsert;
+
+// Manufacturer Invoice Items
+export type ManufacturerInvoiceItem = typeof manufacturerInvoiceItems.$inferSelect;
+export type InsertManufacturerInvoiceItem = typeof manufacturerInvoiceItems.$inferInsert;
+
+// Manufacturer Payments
+export type ManufacturerPayment = typeof manufacturerPayments.$inferSelect;
+export type InsertManufacturerPayment = typeof manufacturerPayments.$inferInsert;
+
+// Manufacturer Payment Allocations
+export type ManufacturerPaymentAllocation = typeof manufacturerPaymentAllocations.$inferSelect;
+export type InsertManufacturerPaymentAllocation = typeof manufacturerPaymentAllocations.$inferInsert;
 
 // AI Chat models (used by OpenAI integration)
 export * from "./models/chat";

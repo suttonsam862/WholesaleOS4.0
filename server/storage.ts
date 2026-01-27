@@ -294,6 +294,12 @@ import {
   type InsertDesignAiTrainingImage,
   type DesignStylePreset,
   type InsertDesignStylePreset,
+  productFamilies,
+  productFamilyManufacturers,
+  type ProductFamily,
+  type InsertProductFamily,
+  type ProductFamilyManufacturer,
+  type InsertProductFamilyManufacturer,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, asc, like, or, and, sql, count, getTableColumns, gte, lte, lt, inArray, isNotNull, isNull } from "drizzle-orm";
@@ -509,6 +515,19 @@ export interface IStorage {
   getManufacturer(id: number): Promise<Manufacturer | undefined>;
   createManufacturer(manufacturer: InsertManufacturer): Promise<Manufacturer>;
   updateManufacturer(id: number, manufacturer: Partial<InsertManufacturer>): Promise<Manufacturer>;
+
+  // Product Family operations
+  getProductFamilies(includeInactive?: boolean): Promise<ProductFamily[]>;
+  getProductFamily(id: number): Promise<ProductFamily | undefined>;
+  getProductFamilyByCode(code: string): Promise<ProductFamily | undefined>;
+  createProductFamily(family: InsertProductFamily): Promise<ProductFamily>;
+  updateProductFamily(id: number, family: Partial<InsertProductFamily>): Promise<ProductFamily | undefined>;
+
+  // Product Family Manufacturer assignments
+  getProductFamilyManufacturers(productFamilyId: number): Promise<(ProductFamilyManufacturer & { manufacturer: Manufacturer })[]>;
+  createProductFamilyManufacturer(assignment: InsertProductFamilyManufacturer): Promise<ProductFamilyManufacturer>;
+  updateProductFamilyManufacturer(id: number, assignment: Partial<InsertProductFamilyManufacturer>): Promise<ProductFamilyManufacturer | undefined>;
+  deleteProductFamilyManufacturer(id: number): Promise<void>;
 
   // Invitation operations
   getInvitations(): Promise<Invitation[]>;
@@ -3189,6 +3208,88 @@ export class DatabaseStorage implements IStorage {
       .where(eq(manufacturers.id, id))
       .returning();
     return updated;
+  }
+
+  // Product Family operations
+  async getProductFamilies(includeInactive: boolean = false): Promise<ProductFamily[]> {
+    if (includeInactive) {
+      return await db.select().from(productFamilies).orderBy(asc(productFamilies.sortOrder));
+    }
+    return await db
+      .select()
+      .from(productFamilies)
+      .where(eq(productFamilies.isActive, true))
+      .orderBy(asc(productFamilies.sortOrder));
+  }
+
+  async getProductFamily(id: number): Promise<ProductFamily | undefined> {
+    const [family] = await db.select().from(productFamilies).where(eq(productFamilies.id, id));
+    return family;
+  }
+
+  async getProductFamilyByCode(code: string): Promise<ProductFamily | undefined> {
+    const [family] = await db.select().from(productFamilies).where(eq(productFamilies.code, code));
+    return family;
+  }
+
+  async createProductFamily(family: InsertProductFamily): Promise<ProductFamily> {
+    const [created] = await db.insert(productFamilies).values(family).returning();
+    return created;
+  }
+
+  async updateProductFamily(id: number, family: Partial<InsertProductFamily>): Promise<ProductFamily | undefined> {
+    const [updated] = await db
+      .update(productFamilies)
+      .set({ ...family, updatedAt: new Date() })
+      .where(eq(productFamilies.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Product Family Manufacturer assignments
+  async getProductFamilyManufacturers(productFamilyId: number): Promise<(ProductFamilyManufacturer & { manufacturer: Manufacturer })[]> {
+    const results = await db
+      .select({
+        id: productFamilyManufacturers.id,
+        productFamilyId: productFamilyManufacturers.productFamilyId,
+        manufacturerId: productFamilyManufacturers.manufacturerId,
+        priority: productFamilyManufacturers.priority,
+        isActive: productFamilyManufacturers.isActive,
+        leadTimeDays: productFamilyManufacturers.leadTimeDays,
+        minOrderQty: productFamilyManufacturers.minOrderQty,
+        costPerUnit: productFamilyManufacturers.costPerUnit,
+        canDoRush: productFamilyManufacturers.canDoRush,
+        canDoSamples: productFamilyManufacturers.canDoSamples,
+        monthlyCapacity: productFamilyManufacturers.monthlyCapacity,
+        currentMonthLoad: productFamilyManufacturers.currentMonthLoad,
+        createdAt: productFamilyManufacturers.createdAt,
+        updatedAt: productFamilyManufacturers.updatedAt,
+        manufacturer: manufacturers,
+      })
+      .from(productFamilyManufacturers)
+      .innerJoin(manufacturers, eq(productFamilyManufacturers.manufacturerId, manufacturers.id))
+      .where(eq(productFamilyManufacturers.productFamilyId, productFamilyId))
+      .orderBy(asc(productFamilyManufacturers.priority));
+
+    return results;
+  }
+
+  async createProductFamilyManufacturer(assignment: InsertProductFamilyManufacturer): Promise<ProductFamilyManufacturer> {
+    const [created] = await db.insert(productFamilyManufacturers).values(assignment).returning();
+    return created;
+  }
+
+  async updateProductFamilyManufacturer(id: number, assignment: Partial<InsertProductFamilyManufacturer>): Promise<ProductFamilyManufacturer | undefined> {
+    const [updated] = await db
+      .update(productFamilyManufacturers)
+      .set({ ...assignment, updatedAt: new Date() })
+      .where(eq(productFamilyManufacturers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteProductFamilyManufacturer(id: number): Promise<void> {
+    await db.delete(productFamilyManufacturers).where(eq(productFamilyManufacturers.id, id));
   }
 
   // Invitation operations
@@ -6866,7 +6967,7 @@ export class DatabaseStorage implements IStorage {
   async updateManufacturerJob(id: number, job: Partial<InsertManufacturerJob>): Promise<ManufacturerJob> {
     const [updated] = await db
       .update(manufacturerJobs)
-      .set({ ...job, updatedAt: new Date() })
+      .set({ ...job, updatedAt: new Date() } as any)
       .where(eq(manufacturerJobs.id, id))
       .returning();
     if (!updated) throw new Error(`Manufacturer job with id ${id} not found`);
@@ -7232,7 +7333,7 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(designAiTrainingSets)
-      .where(eq(designAiTrainingSets.isActive, true))
+      .where(eq(designAiTrainingSets.status, 'active'))
       .orderBy(desc(designAiTrainingSets.createdAt));
   }
 
@@ -7253,9 +7354,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateDesignAiTrainingSet(id: number, data: Partial<InsertDesignAiTrainingSet>): Promise<DesignAiTrainingSet | undefined> {
+    // Build update object with proper typing
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    if (data.name !== undefined) updateData.name = data.name;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.category !== undefined) updateData.category = data.category;
+    if (data.status !== undefined) updateData.status = data.status as "active" | "inactive" | "processing";
+    if (data.createdBy !== undefined) updateData.createdBy = data.createdBy;
+    if (data.tags !== undefined) updateData.tags = data.tags;
+
     const [updated] = await db
       .update(designAiTrainingSets)
-      .set({ ...data, updatedAt: new Date() })
+      .set(updateData as any)
       .where(eq(designAiTrainingSets.id, id))
       .returning();
     return updated;
@@ -7264,7 +7374,7 @@ export class DatabaseStorage implements IStorage {
   async deleteDesignAiTrainingSet(id: number): Promise<boolean> {
     await db
       .update(designAiTrainingSets)
-      .set({ isActive: false, updatedAt: new Date() })
+      .set({ status: 'inactive', updatedAt: new Date() })
       .where(eq(designAiTrainingSets.id, id));
     return true;
   }

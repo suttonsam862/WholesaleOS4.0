@@ -134,6 +134,195 @@ export const MANUFACTURING_STATUS_TRANSITIONS: Record<ManufacturingStatus, Manuf
 export const MANUFACTURING_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const;
 export type ManufacturingPriority = typeof MANUFACTURING_PRIORITIES[number];
 
+// ==================== SIMPLIFIED MANUFACTURER JOB STATUS (6-stage) ====================
+// This is the NEW simplified workflow for the manufacturer portal
+export const MANUFACTURER_JOB_STATUSES = [
+  'new',
+  'accepted',
+  'in_production',
+  'qc',
+  'ready_to_ship',
+  'shipped'
+] as const;
+export type ManufacturerJobStatus = typeof MANUFACTURER_JOB_STATUSES[number];
+
+export const MANUFACTURER_JOB_STATUS_LABELS: Record<ManufacturerJobStatus, string> = {
+  new: 'New',
+  accepted: 'Accepted',
+  in_production: 'In Production',
+  qc: 'Quality Check',
+  ready_to_ship: 'Ready to Ship',
+  shipped: 'Shipped',
+};
+
+export const MANUFACTURER_JOB_STATUS_CONFIG: Record<ManufacturerJobStatus, {
+  color: string;
+  bgColor: string;
+  icon: string;
+  description: string;
+  order: number;
+}> = {
+  new: {
+    color: '#f59e0b',
+    bgColor: 'bg-amber-500/10',
+    icon: 'Inbox',
+    description: 'Awaiting manufacturer acceptance',
+    order: 1
+  },
+  accepted: {
+    color: '#3b82f6',
+    bgColor: 'bg-blue-500/10',
+    icon: 'CheckCircle',
+    description: 'Job accepted, preparing to start',
+    order: 2
+  },
+  in_production: {
+    color: '#8b5cf6',
+    bgColor: 'bg-purple-500/10',
+    icon: 'Factory',
+    description: 'Manufacturing in progress',
+    order: 3
+  },
+  qc: {
+    color: '#06b6d4',
+    bgColor: 'bg-cyan-500/10',
+    icon: 'ClipboardCheck',
+    description: 'Quality control inspection',
+    order: 4
+  },
+  ready_to_ship: {
+    color: '#10b981',
+    bgColor: 'bg-emerald-500/10',
+    icon: 'Package',
+    description: 'Packed and ready for shipping',
+    order: 5
+  },
+  shipped: {
+    color: '#22c55e',
+    bgColor: 'bg-green-500/10',
+    icon: 'Truck',
+    description: 'Shipped to fulfillment center',
+    order: 6
+  },
+};
+
+// Valid manufacturer job status transitions
+export const MANUFACTURER_JOB_STATUS_TRANSITIONS: Record<ManufacturerJobStatus, ManufacturerJobStatus[]> = {
+  new: ['accepted'],
+  accepted: ['in_production', 'new'], // Can reject back to new
+  in_production: ['qc'],
+  qc: ['ready_to_ship', 'in_production'], // Can fail QC back to production
+  ready_to_ship: ['shipped'],
+  shipped: [], // Terminal state
+};
+
+// Check if manufacturer job status transition is valid
+export function isValidManufacturerJobStatusTransition(from: ManufacturerJobStatus, to: ManufacturerJobStatus): boolean {
+  return MANUFACTURER_JOB_STATUS_TRANSITIONS[from]?.includes(to) ?? false;
+}
+
+// Type guard for manufacturer job status
+export function isManufacturerJobStatus(value: string): value is ManufacturerJobStatus {
+  return MANUFACTURER_JOB_STATUSES.includes(value as ManufacturerJobStatus);
+}
+
+// ==================== PRODUCT FAMILIES ====================
+export const PRODUCT_FAMILY_CODES = [
+  'CCS', // Custom Cut & Sew Sublimation
+  'STOCK-SUB', // Stock Sublimation
+  'STOCK-SP', // Stock Screen Print
+  'CCS-SP', // Custom Cut & Sew Screen Print
+  'EMB', // Embroidery
+  'ACC', // Accessories
+] as const;
+export type ProductFamilyCode = typeof PRODUCT_FAMILY_CODES[number];
+
+export const PRODUCT_FAMILY_NAMES: Record<ProductFamilyCode, string> = {
+  'CCS': 'Custom Cut & Sew Sublimation',
+  'STOCK-SUB': 'Stock Sublimation',
+  'STOCK-SP': 'Stock Screen Print',
+  'CCS-SP': 'Custom Cut & Sew Screen Print',
+  'EMB': 'Embroidery',
+  'ACC': 'Accessories',
+};
+
+export const PRODUCT_FAMILY_DESCRIPTIONS: Record<ProductFamilyCode, string> = {
+  'CCS': 'Fully custom cut and sew garments with all-over sublimation printing',
+  'STOCK-SUB': 'Pre-made blank garments with sublimation decoration',
+  'STOCK-SP': 'Pre-made blank garments with screen print decoration',
+  'CCS-SP': 'Custom cut and sew garments with screen print decoration',
+  'EMB': 'Garments or accessories with embroidered logos/designs',
+  'ACC': 'Bags, caps, socks, and other accessories',
+};
+
+// ==================== DECORATION METHODS ====================
+export const DECORATION_METHODS = [
+  'sublimation',
+  'screen_print',
+  'embroidery',
+  'dtg',
+  'heat_transfer',
+  'cut_sew',
+] as const;
+export type DecorationMethod = typeof DECORATION_METHODS[number];
+
+export const DECORATION_METHOD_LABELS: Record<DecorationMethod, string> = {
+  sublimation: 'Sublimation',
+  screen_print: 'Screen Print',
+  embroidery: 'Embroidery',
+  dtg: 'DTG (Direct to Garment)',
+  heat_transfer: 'Heat Transfer',
+  cut_sew: 'Cut & Sew',
+};
+
+// ==================== MANUFACTURER ZONES ====================
+export const MANUFACTURER_ZONES = ['domestic', 'nearshore', 'offshore'] as const;
+export type ManufacturerZone = typeof MANUFACTURER_ZONES[number];
+
+export const MANUFACTURER_ZONE_LABELS: Record<ManufacturerZone, string> = {
+  domestic: 'Domestic (USA)',
+  nearshore: 'Nearshore (Mexico/Central America)',
+  offshore: 'Offshore (Asia/Other)',
+};
+
+export const MANUFACTURER_ZONE_CONFIG: Record<ManufacturerZone, {
+  defaultLeadTimeDays: number;
+  shippingDays: number;
+  color: string;
+}> = {
+  domestic: { defaultLeadTimeDays: 10, shippingDays: 3, color: '#22c55e' },
+  nearshore: { defaultLeadTimeDays: 14, shippingDays: 5, color: '#f59e0b' },
+  offshore: { defaultLeadTimeDays: 21, shippingDays: 14, color: '#ef4444' },
+};
+
+// ==================== MANUFACTURER CAPABILITIES ====================
+export const MANUFACTURER_CAPABILITIES = [
+  'sublimation',
+  'screen_print',
+  'embroidery',
+  'dtg',
+  'cut_sew',
+  'heat_transfer',
+  'custom_patterns',
+  'rush_orders',
+  'samples',
+  'large_volume',
+] as const;
+export type ManufacturerCapability = typeof MANUFACTURER_CAPABILITIES[number];
+
+export const MANUFACTURER_CAPABILITY_LABELS: Record<ManufacturerCapability, string> = {
+  sublimation: 'Sublimation Printing',
+  screen_print: 'Screen Printing',
+  embroidery: 'Embroidery',
+  dtg: 'DTG Printing',
+  cut_sew: 'Cut & Sew',
+  heat_transfer: 'Heat Transfer',
+  custom_patterns: 'Custom Pattern Making',
+  rush_orders: 'Rush Order Capability',
+  samples: 'Sample Production',
+  large_volume: 'Large Volume Orders',
+};
+
 // ==================== MANUFACTURER FUNNEL STATUSES (Fine-grained) ====================
 // These are internal statuses used only by manufacturer role
 export const MANUFACTURER_FUNNEL_STATUSES = [
