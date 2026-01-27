@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
 import { LandingHub, hubColors, type HubCardConfig } from "@/components/LandingHub";
-import { User, Bell, Laptop, Link, Shield, Factory } from "lucide-react";
+import { User, Bell, Laptop, Link, Shield, Factory, Key } from "lucide-react";
 
 const settingsCards: HubCardConfig[] = [
   {
@@ -40,6 +40,15 @@ const settingsCards: HubCardConfig[] = [
     ...hubColors.orange,
     count: 0,
     href: "/settings/integrations",
+  },
+  {
+    id: "api-keys",
+    label: "API Keys",
+    description: "Manage API keys for external integrations (Hydrogen, etc.)",
+    icon: Key,
+    ...hubColors.pink,
+    count: 0,
+    href: "/settings/api-keys",
   },
   {
     id: "permissions",

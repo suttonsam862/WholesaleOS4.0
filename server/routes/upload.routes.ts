@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../storage";
-import { isAuthenticated, loadUserData, type AuthenticatedRequest } from "./shared/middleware";
+import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
 import { ObjectStorageService, ObjectNotFoundError } from "../objectStorage";
 import { FileUploadSecurityService } from "../fileUploadSecurity";
 
@@ -178,7 +178,7 @@ export function registerUploadRoutes(app: Express): void {
   });
 
   // Update order line item image
-  app.patch('/api/order-line-items/:id/image', isAuthenticated, loadUserData, async (req, res) => {
+  app.patch('/api/order-line-items/:id/image', isAuthenticated, loadUserData, requirePermission('orders', 'write'), async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const { imageUrl } = req.body;

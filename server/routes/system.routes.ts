@@ -2,60 +2,14 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { isAuthenticated, loadUserData, requirePermission, type AuthenticatedRequest } from "./shared/middleware";
 import { stripFinancialData } from "./shared/utils";
-import { db } from "../db";
 
+/**
+ * System Routes - Dashboard, Search, and Activity
+ *
+ * NOTE: Health check endpoints (/api/health, /api/ready) are in health.routes.ts
+ * These endpoints provide core system functionality for authenticated users.
+ */
 export function registerSystemRoutes(app: Express): void {
-  // Health check endpoint (no auth required)
-  app.get('/api/health', async (req, res) => {
-    try {
-      // Test database connection
-      await db.execute('SELECT 1');
-      
-      res.json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime(),
-        environment: process.env.NODE_ENV,
-        version: '1.0.0'
-      });
-    } catch (error) {
-      console.error('Health check failed:', error);
-      res.status(503).json({
-        status: 'unhealthy',
-        timestamp: new Date().toISOString(),
-        error: 'Database connection failed'
-      });
-    }
-  });
-
-  // Readiness check (more comprehensive)
-  app.get('/api/ready', async (req, res) => {
-    try {
-      // Test database
-      await db.execute('SELECT 1');
-      
-      // Test that critical tables exist
-      const checks = {
-        database: true,
-        session: true,
-        auth: true
-      };
-      
-      res.json({
-        status: 'ready',
-        timestamp: new Date().toISOString(),
-        checks
-      });
-    } catch (error) {
-      console.error('Readiness check failed:', error);
-      res.status(503).json({
-        status: 'not_ready',
-        timestamp: new Date().toISOString(),
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-    }
-  });
-
   // Dashboard stats
   app.get('/api/dashboard/stats', isAuthenticated, loadUserData, requirePermission('dashboard', 'read'), async (req, res) => {
     try {

@@ -1,8 +1,10 @@
 import type { Express, Request, Response } from "express";
 import { processAIInteraction, AIInteractionRequest } from "../services/gemini";
+import { isAuthenticated, loadUserData } from "./shared/middleware";
 
 export function registerAIRoutes(app: Express): void {
-  app.post("/api/ai/interactions", async (req: Request, res: Response) => {
+  // AI interaction endpoint - requires authentication
+  app.post("/api/ai/interactions", isAuthenticated, loadUserData, async (req: Request, res: Response) => {
     try {
       const { actionId, hubId, context } = req.body as AIInteractionRequest;
 
@@ -35,7 +37,8 @@ export function registerAIRoutes(app: Express): void {
     }
   });
 
-  app.get("/api/ai/status", (req: Request, res: Response) => {
+  // AI status endpoint - requires authentication
+  app.get("/api/ai/status", isAuthenticated, (req: Request, res: Response) => {
     const apiKey = process.env.GOOGLE_API_KEY || process.env.GEMINI_API_KEY;
     res.json({
       available: !!apiKey,

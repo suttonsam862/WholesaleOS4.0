@@ -21,47 +21,8 @@ import { ObjectStorageService } from "../objectStorage";
 import { cleanupLineItemName, type VariantInfo } from "../services/ai-name-cleanup.service";
 
 export function registerOrdersRoutes(app: Express): void {
-  // Bulk order reassignment (first occurrence - appears early in routes.ts)
-  app.put('/api/orders/bulk-reassign', isAuthenticated, loadUserData, requirePermission('orders', 'write'), async (req, res) => {
-    try {
-      const { orderIds, salespersonId } = req.body;
-
-      if (!Array.isArray(orderIds) || orderIds.length === 0) {
-        return res.status(400).json({ message: "Order IDs are required" });
-      }
-
-      let updatedCount = 0;
-      for (const orderId of orderIds) {
-        try {
-          await storage.updateOrder(orderId, {
-            salespersonId: salespersonId || null
-          });
-          updatedCount++;
-        } catch (error) {
-          console.error(`Error updating order ${orderId}:`, error);
-        }
-      }
-
-      // Log activity for bulk operation
-      await storage.logActivity(
-        (req as AuthenticatedRequest).user.userData!.id,
-        'order',
-        0, // Bulk operation
-        'bulk_reassigned',
-        { orderIds, previousSalesperson: 'various' },
-        { orderIds, newSalesperson: salespersonId || 'unassigned', count: updatedCount }
-      );
-
-      res.json({
-        message: `Successfully reassigned ${updatedCount} orders`,
-        updated: updatedCount,
-        total: orderIds.length
-      });
-    } catch (error) {
-      console.error("Error in bulk reassignment:", error);
-      res.status(500).json({ message: "Failed to reassign orders" });
-    }
-  });
+  // NOTE: Bulk order reassignment moved to line ~1058 with better validation
+  // The endpoint is: PUT /api/orders/bulk-reassign
 
   // Get all orders (with role-based filtering)
   app.get('/api/orders', isAuthenticated, loadUserData, requirePermission('orders', 'read'), async (req, res) => {
