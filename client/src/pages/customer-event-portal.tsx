@@ -158,7 +158,7 @@ export default function CustomerEventPortal() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-obsidian via-carbon to-obsidian flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
           <p className="text-white/70">Loading event details...</p>
@@ -169,8 +169,8 @@ export default function CustomerEventPortal() {
 
   if (error || !portalData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full bg-slate-800/80 border-slate-700">
+      <div className="min-h-screen bg-gradient-to-br from-obsidian via-carbon to-obsidian flex items-center justify-center p-4">
+        <Card className="max-w-md w-full bg-carbon/80 border-graphite">
           <CardContent className="pt-6 text-center">
             <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
             <h2 className="text-xl font-bold text-white mb-2">Event Not Found</h2>
@@ -187,18 +187,18 @@ export default function CustomerEventPortal() {
   const primaryColor = event.brandingConfig?.primaryColor || '#3b82f6';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-obsidian via-carbon to-obsidian">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="max-w-5xl mx-auto p-4 md:p-8"
       >
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/50 shadow-2xl mb-8">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-carbon to-obsidian border border-graphite/50 shadow-2xl mb-8">
           {event.thumbnailUrl && (
             <div className="absolute inset-0 opacity-20">
               <img src={event.thumbnailUrl} alt="" className="w-full h-full object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/80 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-obsidian via-obsidian/80 to-transparent" />
             </div>
           )}
           
@@ -264,7 +264,7 @@ export default function CustomerEventPortal() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="bg-slate-800/80 border border-slate-700 p-1 w-full justify-start overflow-x-auto flex-nowrap">
+          <TabsList className="bg-carbon/80 border border-graphite p-1 w-full justify-start overflow-x-auto flex-nowrap">
             <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-white" data-testid="tab-overview">
               Overview
             </TabsTrigger>
@@ -297,7 +297,7 @@ export default function CustomerEventPortal() {
 
           <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="bg-slate-800/80 border-slate-700">
+              <Card className="bg-carbon/80 border-graphite">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
                     <Sparkles className="h-5 w-5 text-primary" />
@@ -309,14 +309,14 @@ export default function CustomerEventPortal() {
                     <div className="text-sm text-white/50">Event Type</div>
                     <div className="text-white">{event.eventType?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
                   </div>
-                  <Separator className="bg-slate-700" />
+                  <Separator className="bg-graphite" />
                   <div className="space-y-2">
                     <div className="text-sm text-white/50">Timezone</div>
                     <div className="text-white">{event.timezone}</div>
                   </div>
                   {venues.length > 0 && (
                     <>
-                      <Separator className="bg-slate-700" />
+                      <Separator className="bg-graphite" />
                       <div className="space-y-2">
                         <div className="text-sm text-white/50">Primary Venue</div>
                         <div className="text-white">{venues[0].venueName}</div>
@@ -333,7 +333,7 @@ export default function CustomerEventPortal() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-slate-800/80 border-slate-700">
+              <Card className="bg-carbon/80 border-graphite">
                 <CardHeader>
                   <CardTitle className="text-white flex items-center gap-2">
                     <Users className="h-5 w-5 text-primary" />
@@ -365,7 +365,7 @@ export default function CustomerEventPortal() {
           </TabsContent>
 
           <TabsContent value="schedule" className="space-y-4">
-            <Card className="bg-slate-800/80 border-slate-700">
+            <Card className="bg-carbon/80 border-graphite">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
                   <Clock className="h-5 w-5 text-primary" />
@@ -380,7 +380,7 @@ export default function CustomerEventPortal() {
                   {schedules.map((session) => (
                     <div
                       key={session.id}
-                      className="flex flex-col md:flex-row md:items-center gap-4 p-4 bg-white/5 rounded-lg border border-slate-700/50"
+                      className="flex flex-col md:flex-row md:items-center gap-4 p-4 bg-white/5 rounded-lg border border-graphite/50"
                       data-testid={`schedule-item-${session.id}`}
                     >
                       <div className="flex-shrink-0 w-full md:w-32 text-center md:text-left">
@@ -430,7 +430,7 @@ export default function CustomerEventPortal() {
           <TabsContent value="venues" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {venues.map((venue) => (
-                <Card key={venue.id} className="bg-slate-800/80 border-slate-700" data-testid={`venue-card-${venue.id}`}>
+                <Card key={venue.id} className="bg-carbon/80 border-graphite" data-testid={`venue-card-${venue.id}`}>
                   <CardHeader>
                     <CardTitle className="text-white flex items-center gap-2">
                       <Building2 className="h-5 w-5 text-primary" />
@@ -463,7 +463,7 @@ export default function CustomerEventPortal() {
           <TabsContent value="tickets" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {ticketTiers.map((tier) => (
-                <Card key={tier.id} className="bg-slate-800/80 border-slate-700 overflow-hidden" data-testid={`ticket-tier-${tier.id}`}>
+                <Card key={tier.id} className="bg-carbon/80 border-graphite overflow-hidden" data-testid={`ticket-tier-${tier.id}`}>
                   <div className="h-2 bg-gradient-to-r from-primary to-blue-400" />
                   <CardHeader>
                     <CardTitle className="text-white flex items-center justify-between">
@@ -510,12 +510,12 @@ export default function CustomerEventPortal() {
                         className="max-h-16 max-w-full object-contain"
                       />
                     ) : (
-                      <div className="h-16 w-16 rounded-full bg-slate-200 flex items-center justify-center">
-                        <Trophy className="h-8 w-8 text-slate-400" />
+                      <div className="h-16 w-16 rounded-full bg-mist flex items-center justify-center">
+                        <Trophy className="h-8 w-8 text-fog" />
                       </div>
                     )}
                     <div className="text-center">
-                      <div className="font-medium text-slate-800">{sponsor.name}</div>
+                      <div className="font-medium text-carbon">{sponsor.name}</div>
                       {sponsor.tier && (
                         <Badge variant="outline" className="mt-1 capitalize">
                           {sponsor.tier}
@@ -529,7 +529,7 @@ export default function CustomerEventPortal() {
           </TabsContent>
 
           <TabsContent value="gallery" className="space-y-4">
-            <Card className="bg-slate-800/80 border-slate-700">
+            <Card className="bg-carbon/80 border-graphite">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
                   <ImageIcon className="h-5 w-5 text-primary" />
@@ -541,7 +541,7 @@ export default function CustomerEventPortal() {
                   {graphics.map((graphic) => (
                     <div
                       key={graphic.id}
-                      className="relative aspect-square bg-slate-900 rounded-lg overflow-hidden group cursor-pointer"
+                      className="relative aspect-square bg-obsidian rounded-lg overflow-hidden group cursor-pointer"
                       data-testid={`gallery-item-${graphic.id}`}
                     >
                       {graphic.fileUrl ? (
@@ -566,7 +566,7 @@ export default function CustomerEventPortal() {
                         </>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <ImageIcon className="h-12 w-12 text-slate-600" />
+                          <ImageIcon className="h-12 w-12 text-smoke" />
                         </div>
                       )}
                     </div>

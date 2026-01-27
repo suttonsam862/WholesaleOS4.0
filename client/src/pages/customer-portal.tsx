@@ -429,7 +429,7 @@ export default function CustomerPortal() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-obsidian via-carbon to-obsidian flex items-center justify-center">
         <motion.div
           animate={{ rotate: 360 }}
           transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -441,7 +441,7 @@ export default function CustomerPortal() {
 
   if (error || !portalData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-gradient-to-br from-obsidian via-carbon to-obsidian flex items-center justify-center p-4">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-md">
           <div className="w-20 h-20 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="w-10 h-10 text-red-400" />
@@ -457,7 +457,7 @@ export default function CustomerPortal() {
   const manufacturingStageIndex = portalData.manufacturing ? getManufacturingStageIndex(portalData.manufacturing.status) : -1;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-obsidian via-carbon to-obsidian">
       {/* Background Effects */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-neon-blue/10 rounded-full blur-3xl" />
@@ -1207,7 +1207,7 @@ export default function CustomerPortal() {
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.95, opacity: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-slate-900 border border-white/10 rounded-xl w-full max-w-lg"
+                className="bg-obsidian border border-white/10 rounded-xl w-full max-w-lg"
               >
                 <div className="p-6 border-b border-white/10">
                   <div className="flex items-center gap-3">
@@ -1313,7 +1313,7 @@ function FormWizardModal({
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-slate-900 border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
+        className="bg-obsidian border border-white/10 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
