@@ -94,8 +94,11 @@ jobs:
       
       - name: Start server in background
         run: |
-          npm run dev &
-          sleep 10
+          npm run dev > server.log 2>&1 &
+          echo "Waiting for server to start..."
+          sleep 20
+          echo "Checking if server is running..."
+          curl -s http://localhost:5001/api/health || echo "Server health check failed"
         env:
           NODE_ENV: test
           DATABASE_URL: postgresql://test:test@localhost:5432/test
@@ -112,6 +115,12 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/test
           SESSION_SECRET: test-secret
           ENABLE_REPLIT_AUTH: false
+
+      - name: Show server logs on failure
+        if: failure()
+        run: |
+          echo "=== Server Logs ==="
+          cat server.log || echo "No server log found"
 
   build:
     name: Build Application
