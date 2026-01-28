@@ -46,6 +46,12 @@ import { registerFulfillmentRoutes } from "./fulfillment.routes";
 import { registerManufacturerOnboardingRoutes } from "./manufacturer-onboarding.routes";
 import { registerManufacturerPaymentsRoutes } from "./manufacturer-payments.routes";
 
+// V6 Routes
+import v6FilesRoutes from "./v6-files.routes";
+import v6NotificationsRoutes from "./v6-notifications.routes";
+import v6ValidationRoutes from "./v6-validation.routes";
+import v6ActivityRoutes from "./v6-activity.routes";
+
 import { csrfProtection } from '../middleware/csrf.middleware';
 import { apiRateLimiter } from '../middleware/rateLimit.middleware';
 
@@ -149,6 +155,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Sales Map routes (mounted as router)
   app.use("/api/sales-map", salesMapRoutes);
+
+  // V6 Routes
+  app.use("/api/v6/files", v6FilesRoutes);
+  app.use("/api/v6/notifications", v6NotificationsRoutes);
+  app.use("/api/v6/validation", v6ValidationRoutes);
+  app.use("/api/v6/activity", v6ActivityRoutes);
 
   const httpServer = createServer(app);
   return httpServer;

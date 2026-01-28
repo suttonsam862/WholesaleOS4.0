@@ -102,6 +102,21 @@ const FulfillmentAdmin = lazy(() => import("@/pages/fulfillment-admin"));
 const ManufacturerOnboardingAdmin = lazy(() => import("@/pages/manufacturer-onboarding-admin"));
 const ManufacturerFinanceAdmin = lazy(() => import("@/pages/manufacturer-finance-admin"));
 
+// V6 Pages
+const OrderListV6 = lazy(() => import("@/pages/v6/OrderListV6"));
+const OrderDetailV6 = lazy(() => import("@/pages/v6/OrderDetailV6"));
+const DesignJobListV6 = lazy(() => import("@/pages/v6/DesignJobListV6"));
+const DesignJobDetailV6 = lazy(() => import("@/pages/v6/DesignJobDetailV6"));
+const ManufacturingDashboardV6 = lazy(() => import("@/pages/v6/ManufacturingDashboardV6"));
+const PackageBuilderV6 = lazy(() => import("@/pages/v6/PackageBuilderV6"));
+
+// V6 Role Dashboards
+const FrontendOpsDashboardV6 = lazy(() => import("@/pages/v6/FrontendOpsDashboardV6"));
+const BackendOpsDashboardV6 = lazy(() => import("@/pages/v6/BackendOpsDashboardV6"));
+const SalesDashboardV6 = lazy(() => import("@/pages/v6/SalesDashboardV6"));
+const DesignerDashboardV6 = lazy(() => import("@/pages/v6/DesignerDashboardV6"));
+const FinanceDashboardV6 = lazy(() => import("@/pages/v6/FinanceDashboardV6"));
+
 const OrdersActions = lazy(() => import("@/pages/actions/orders-actions"));
 const OrdersActionDetail = lazy(() => import("@/pages/actions/action-detail").then(m => ({ default: m.OrdersActionDetail })));
 const SalesAnalyticsActions = lazy(() => import("@/pages/actions/sales-analytics-actions"));
@@ -275,6 +290,21 @@ export const authenticatedRoutes: RouteConfig[] = [
   { path: "/fulfillment", title: "Fulfillment", component: FulfillmentAdmin, requiresAuth: true, requiresLayout: true, roles: ["admin", "ops"], resource: "manufacturing" },
   { path: "/manufacturer-onboarding", title: "Manufacturer Onboarding", component: ManufacturerOnboardingAdmin, requiresAuth: true, requiresLayout: true, roles: ["admin", "ops"], resource: "manufacturerManagement" },
   { path: "/manufacturer-finance", title: "Manufacturer Finance", component: ManufacturerFinanceAdmin, requiresAuth: true, requiresLayout: true, roles: ["admin", "finance"], resource: "finance" },
+
+  // V6 Routes
+  { path: "/v6/orders", title: "Orders V6", component: OrderListV6, requiresAuth: true, requiresLayout: false, resource: "orders" },
+  { path: "/v6/orders/:id", title: "Order Detail V6", component: OrderDetailV6, requiresAuth: true, requiresLayout: false, resource: "orders" },
+  { path: "/v6/design-jobs", title: "Design Jobs V6", component: DesignJobListV6, requiresAuth: true, requiresLayout: false, resource: "designJobs" },
+  { path: "/v6/design-jobs/:id", title: "Design Job V6", component: DesignJobDetailV6, requiresAuth: true, requiresLayout: false, resource: "designJobs" },
+  { path: "/v6/manufacturing", title: "Manufacturing V6", component: ManufacturingDashboardV6, requiresAuth: true, requiresLayout: false, resource: "manufacturing" },
+  { path: "/v6/manufacturing/package-builder", title: "Package Builder", component: PackageBuilderV6, requiresAuth: true, requiresLayout: false, resource: "manufacturing" },
+
+  // V6 Role Dashboards
+  { path: "/v6/dashboard/frontend-ops", title: "Front-End Ops Dashboard", component: FrontendOpsDashboardV6, requiresAuth: true, requiresLayout: false, roles: ["admin", "ops"] },
+  { path: "/v6/dashboard/backend-ops", title: "Back-End Ops Dashboard", component: BackendOpsDashboardV6, requiresAuth: true, requiresLayout: false, roles: ["admin", "ops"] },
+  { path: "/v6/dashboard/sales", title: "Sales Dashboard", component: SalesDashboardV6, requiresAuth: true, requiresLayout: false, roles: ["admin", "sales"] },
+  { path: "/v6/dashboard/designer", title: "Designer Dashboard", component: DesignerDashboardV6, requiresAuth: true, requiresLayout: false, roles: ["admin", "designer"] },
+  { path: "/v6/dashboard/finance", title: "Finance Dashboard", component: FinanceDashboardV6, requiresAuth: true, requiresLayout: false, roles: ["admin", "finance"] },
 ];
 
 export const notFoundRoute: RouteConfig = {

@@ -67,9 +67,24 @@ export const users = pgTable("users", {
   invitedBy: varchar("invited_by").references((): any => users.id),
   // Feature flags
   salesMapEnabled: boolean("sales_map_enabled").default(false),
+  // V6: Notification Preferences
+  notificationDigestTime: varchar("notification_digest_time", { length: 5 }).default("09:00"), // HH:MM format
+  notificationTimezone: varchar("notification_timezone", { length: 50 }).default("America/New_York"),
+  notificationQuietHoursStart: varchar("notification_quiet_hours_start", { length: 5 }), // HH:MM format
+  notificationQuietHoursEnd: varchar("notification_quiet_hours_end", { length: 5 }), // HH:MM format
+  lastNotificationReadAt: timestamp("last_notification_read_at"),
+  unreadNotificationCount: integer("unread_notification_count").default(0),
+  // V6: Email Status
+  emailVerified: boolean("email_verified").default(false),
+  emailBounced: boolean("email_bounced").default(false),
+  emailBounceReason: text("email_bounce_reason"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_users_role").on(table.role),
+  index("idx_users_email").on(table.email),
+  index("idx_users_is_active").on(table.isActive),
+]);
 
 // API Keys for external integrations (Hydrogen storefront, etc.)
 export const apiKeys = pgTable("api_keys", {
@@ -225,9 +240,18 @@ export const organizations = pgTable("organizations", {
   archived: boolean("archived").default(false),
   archivedAt: timestamp("archived_at"),
   archivedBy: varchar("archived_by").references(() => users.id),
+  // V6: Asset Library
+  assetLibraryEnabled: boolean("asset_library_enabled").default(true),
+  storageQuotaBytes: integer("storage_quota_bytes").default(10737418240), // 10 GB default
+  fileCount: integer("file_count").default(0),
+  totalStorageBytes: integer("total_storage_bytes").default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_organizations_name").on(table.name),
+  index("idx_organizations_archived").on(table.archived),
+  index("idx_organizations_tier").on(table.tier),
+]);
 
 // Contacts within organizations
 export const contacts = pgTable("contacts", {
@@ -265,9 +289,19 @@ export const leads = pgTable("leads", {
   archived: boolean("archived").default(false),
   archivedAt: timestamp("archived_at"),
   archivedBy: varchar("archived_by").references(() => users.id),
+  // V6: File Storage and Activity Tracking
+  fileCount: integer("file_count").default(0),
+  lastActivityAt: timestamp("last_activity_at"),
+  activityCount: integer("activity_count").default(0),
+  staleWarningSentAt: timestamp("stale_warning_sent_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_leads_owner").on(table.ownerUserId),
+  index("idx_leads_stage").on(table.stage),
+  index("idx_leads_archived").on(table.archived),
+  index("idx_leads_last_activity").on(table.lastActivityAt),
+]);
 
 // Categories for products
 export const categories = pgTable("categories", {
@@ -366,9 +400,25 @@ export const designJobs = pgTable("design_jobs", {
   archived: boolean("archived").default(false),
   archivedAt: timestamp("archived_at"),
   statusChangedAt: timestamp("status_changed_at").defaultNow(),
+  // V6: File Storage
+  assetLibraryLinked: boolean("asset_library_linked").default(false),
+  linkedAssetIds: text("linked_asset_ids").array(),
+  fileCount: integer("file_count").default(0),
+  // V6: Versioning
+  currentVersionNumber: integer("current_version_number").default(1),
+  totalRevisions: integer("total_revisions").default(0),
+  // V6: Customer Feedback
+  lastCustomerFeedbackAt: timestamp("last_customer_feedback_at"),
+  feedbackAddressed: boolean("feedback_addressed").default(true),
+  // V6: Validation
+  validationStatus: varchar("validation_status", { length: 20 }).default("not_run"), // not_run, pass, warning, error
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_design_jobs_validation_status").on(table.validationStatus),
+  index("idx_design_jobs_assigned_designer").on(table.assignedDesignerId),
+  index("idx_design_jobs_status").on(table.status),
+]);
 
 // Design job comments
 export const designJobComments = pgTable("design_job_comments", {
@@ -504,9 +554,27 @@ export const orders = pgTable("orders", {
   contactName: varchar("contact_name"),
   contactEmail: varchar("contact_email"),
   contactPhone: varchar("contact_phone"),
+  // V6: File Storage
+  fileCount: integer("file_count").default(0),
+  // V6: Validation
+  validationStatus: varchar("validation_status", { length: 20 }).default("not_run"), // not_run, pass, warning, error
+  validationLastRunAt: timestamp("validation_last_run_at"),
+  hasUnresolvedWarnings: boolean("has_unresolved_warnings").default(false),
+  // V6: Ownership
+  ownerUserId: varchar("owner_user_id").references(() => users.id, { onDelete: 'set null' }),
+  secondaryOwnerUserId: varchar("secondary_owner_user_id").references(() => users.id, { onDelete: 'set null' }),
+  // V6: Customer Portal
+  customerPortalToken: varchar("customer_portal_token", { length: 64 }),
+  customerPortalEnabled: boolean("customer_portal_enabled").default(true),
+  sizeSheetUploaded: boolean("size_sheet_uploaded").default(false),
+  sizeSheetValidated: boolean("size_sheet_validated").default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("idx_orders_owner").on(table.ownerUserId),
+  index("idx_orders_validation_status").on(table.validationStatus),
+  index("idx_orders_customer_portal_token").on(table.customerPortalToken),
+]);
 
 // Order line items with size grid
 export const orderLineItems = pgTable("order_line_items", {
@@ -2834,6 +2902,360 @@ export const manufacturerPaymentAllocations = pgTable("manufacturer_payment_allo
   index("idx_payment_allocations_invoice_id").on(table.invoiceId),
 ]);
 
+// =============================================================================
+// V6: FILE STORAGE SYSTEM
+// =============================================================================
+
+// Files - Central registry of all files in the system
+export const files = pgTable("files", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: integer("organization_id").references(() => organizations.id, { onDelete: 'set null' }),
+  originalFilename: varchar("original_filename", { length: 255 }).notNull(),
+  storagePath: varchar("storage_path", { length: 500 }).notNull(),
+  fileSizeBytes: integer("file_size_bytes").notNull(),
+  mimeType: varchar("mime_type", { length: 100 }).notNull(),
+  fileExtension: varchar("file_extension", { length: 20 }).notNull(),
+  checksumSha256: varchar("checksum_sha256", { length: 64 }).notNull(),
+  thumbnailPathSm: varchar("thumbnail_path_sm", { length: 500 }),
+  thumbnailPathMd: varchar("thumbnail_path_md", { length: 500 }),
+  thumbnailPathLg: varchar("thumbnail_path_lg", { length: 500 }),
+  folder: varchar("folder", { length: 50 }).notNull().default("misc"), // logos, brand_guidelines, design_files, misc, customer_uploads, size_sheets, invoices, mockups, production_files, revision_history, customer_feedback, tech_packs, spec_sheets, artwork
+  description: text("description"),
+  tags: text("tags").array(),
+  isArchived: boolean("is_archived").notNull().default(false),
+  archivedAt: timestamp("archived_at"),
+  archivedByUserId: varchar("archived_by_user_id").references(() => users.id, { onDelete: 'set null' }),
+  uploadedByUserId: varchar("uploaded_by_user_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_files_organization_id").on(table.organizationId),
+  index("idx_files_folder").on(table.folder),
+  index("idx_files_checksum").on(table.checksumSha256),
+  index("idx_files_extension").on(table.fileExtension),
+  index("idx_files_created_at").on(table.createdAt),
+  index("idx_files_uploaded_by").on(table.uploadedByUserId),
+]);
+
+// File Links - Many-to-many association linking files to entities
+export const fileLinks = pgTable("file_links", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fileId: varchar("file_id").references(() => files.id, { onDelete: 'cascade' }).notNull(),
+  entityType: varchar("entity_type", { length: 50 }).notNull(), // order, design_job, organization, manufacturing_package, lead, event
+  entityId: varchar("entity_id").notNull(),
+  linkType: varchar("link_type", { length: 50 }).notNull().default("attachment"), // attachment, customer_upload, system_generated, linked_from_library, proof, production_file
+  folder: varchar("folder", { length: 50 }),
+  isPrimary: boolean("is_primary").notNull().default(false),
+  isCustomerVisible: boolean("is_customer_visible").notNull().default(false),
+  sortOrder: integer("sort_order").notNull().default(0),
+  versionNumber: integer("version_number"),
+  isCurrentVersion: boolean("is_current_version").notNull().default(true),
+  replacedByLinkId: varchar("replaced_by_link_id").references((): any => fileLinks.id, { onDelete: 'set null' }),
+  approvalStatus: varchar("approval_status", { length: 20 }), // pending, approved, rejected
+  approvedBy: varchar("approved_by", { length: 255 }),
+  approvedAt: timestamp("approved_at"),
+  linkedByUserId: varchar("linked_by_user_id").references(() => users.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
+}, (table) => [
+  index("idx_file_links_file_id").on(table.fileId),
+  index("idx_file_links_entity").on(table.entityType, table.entityId),
+  index("idx_file_links_entity_folder").on(table.entityType, table.entityId, table.folder),
+]);
+
+// Bulk Upload Sessions - Tracks multi-file upload batches
+export const bulkUploadSessions = pgTable("bulk_upload_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contextType: varchar("context_type", { length: 50 }).notNull(),
+  contextId: varchar("context_id").notNull(),
+  targetFolder: varchar("target_folder", { length: 50 }).notNull(),
+  totalFiles: integer("total_files").notNull(),
+  completedFiles: integer("completed_files").notNull().default(0),
+  failedFiles: integer("failed_files").notNull().default(0),
+  totalBytes: integer("total_bytes").notNull(),
+  receivedBytes: integer("received_bytes").notNull().default(0),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, in_progress, complete, partial, failed, cancelled
+  uploadedByUserId: varchar("uploaded_by_user_id").references(() => users.id).notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_bulk_upload_sessions_user").on(table.uploadedByUserId),
+  index("idx_bulk_upload_sessions_status").on(table.status),
+  index("idx_bulk_upload_sessions_context").on(table.contextType, table.contextId),
+]);
+
+// File Uploads - Tracks individual file upload sessions
+export const fileUploads = pgTable("file_uploads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  fileId: varchar("file_id").references(() => files.id, { onDelete: 'set null' }),
+  bulkSessionId: varchar("bulk_session_id").references(() => bulkUploadSessions.id, { onDelete: 'set null' }),
+  contextType: varchar("context_type", { length: 50 }).notNull(),
+  contextId: varchar("context_id").notNull(),
+  targetFolder: varchar("target_folder", { length: 50 }).notNull(),
+  originalFilename: varchar("original_filename", { length: 255 }).notNull(),
+  expectedSizeBytes: integer("expected_size_bytes").notNull(),
+  receivedBytes: integer("received_bytes").notNull().default(0),
+  expectedChecksum: varchar("expected_checksum", { length: 64 }),
+  tempPath: varchar("temp_path", { length: 500 }),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, in_progress, processing, complete, failed, cancelled
+  failureReason: text("failure_reason"),
+  retryCount: integer("retry_count").notNull().default(0),
+  lastActivityAt: timestamp("last_activity_at").defaultNow().notNull(),
+  uploadedByUserId: varchar("uploaded_by_user_id").references(() => users.id).notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+}, (table) => [
+  index("idx_file_uploads_status").on(table.status),
+  index("idx_file_uploads_user").on(table.uploadedByUserId),
+  index("idx_file_uploads_bulk_session").on(table.bulkSessionId),
+  index("idx_file_uploads_context").on(table.contextType, table.contextId),
+]);
+
+// ZIP Jobs - Tracks asynchronous ZIP file generation
+export const zipJobs = pgTable("zip_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requestedByUserId: varchar("requested_by_user_id").references(() => users.id).notNull(),
+  contextType: varchar("context_type", { length: 50 }).notNull(),
+  contextId: varchar("context_id").notNull(),
+  folder: varchar("folder", { length: 50 }),
+  fileIds: text("file_ids").array(),
+  zipFilename: varchar("zip_filename", { length: 255 }).notNull(),
+  zipPath: varchar("zip_path", { length: 500 }),
+  zipSizeBytes: integer("zip_size_bytes"),
+  filesIncluded: integer("files_included"),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, processing, complete, failed, expired
+  progressPercent: integer("progress_percent").notNull().default(0),
+  failureReason: text("failure_reason"),
+  downloadCount: integer("download_count").notNull().default(0),
+  lastDownloadedAt: timestamp("last_downloaded_at"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+}, (table) => [
+  index("idx_zip_jobs_user").on(table.requestedByUserId),
+  index("idx_zip_jobs_status").on(table.status),
+  index("idx_zip_jobs_context").on(table.contextType, table.contextId),
+]);
+
+// Organization Storage - Tracks storage usage and quotas per organization
+export const organizationStorage = pgTable("organization_storage", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: integer("organization_id").references(() => organizations.id, { onDelete: 'cascade' }).notNull().unique(),
+  quotaBytes: integer("quota_bytes").notNull().default(10737418240), // 10 GB default
+  usedBytes: integer("used_bytes").notNull().default(0),
+  fileCount: integer("file_count").notNull().default(0),
+  lastCalculatedAt: timestamp("last_calculated_at").defaultNow().notNull(),
+  warningSentAt: timestamp("warning_sent_at"),
+  limitReachedAt: timestamp("limit_reached_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_organization_storage_org").on(table.organizationId),
+  index("idx_organization_storage_usage").on(table.usedBytes),
+]);
+
+// =============================================================================
+// V6: ENHANCED NOTIFICATION SYSTEM
+// =============================================================================
+
+// Notifications V6 - Enhanced notification system with rich metadata
+export const notificationsV6 = pgTable("notifications_v6", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // order_status, design_update, assignment, mention, deadline, alert, payment, manufacturing, comment, system
+  category: varchar("category", { length: 50 }).notNull(), // system, user_generated, assignment, deadline, alert, digest
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body"),
+  priority: varchar("priority", { length: 20 }).notNull().default("normal"), // low, normal, urgent
+  entityType: varchar("entity_type", { length: 50 }),
+  entityId: varchar("entity_id"),
+  actionUrl: varchar("action_url", { length: 255 }),
+  metadata: jsonb("metadata"),
+  readAt: timestamp("read_at"),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  archivedAt: timestamp("archived_at"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdByUserId: varchar("created_by_user_id").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_notifications_v6_user_created").on(table.userId, table.createdAt),
+  index("idx_notifications_v6_entity").on(table.entityType, table.entityId),
+  index("idx_notifications_v6_type").on(table.type),
+]);
+
+// Notification Preferences - User-specific notification delivery preferences
+export const notificationPreferences = pgTable("notification_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  notificationType: varchar("notification_type", { length: 50 }).notNull(),
+  inAppEnabled: boolean("in_app_enabled").notNull().default(true),
+  emailPreference: varchar("email_preference", { length: 20 }).notNull().default("off"), // off, immediate, daily, weekly
+  pushEnabled: boolean("push_enabled").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_notification_preferences_user").on(table.userId),
+  index("idx_notification_preferences_user_type").on(table.userId, table.notificationType),
+]);
+
+// User Push Tokens - Mobile push notification tokens for V7 readiness
+export const userPushTokens = pgTable("user_push_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  token: text("token").notNull().unique(),
+  platform: varchar("platform", { length: 20 }).notNull(), // ios, android, web
+  deviceName: varchar("device_name", { length: 255 }),
+  appVersion: varchar("app_version", { length: 50 }),
+  lastUsedAt: timestamp("last_used_at"),
+  isActive: boolean("is_active").notNull().default(true),
+  failedCount: integer("failed_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_user_push_tokens_user").on(table.userId, table.isActive),
+  index("idx_user_push_tokens_platform").on(table.platform),
+]);
+
+// Email Delivery Logs - Tracks email notification delivery status
+export const emailDeliveryLogs = pgTable("email_delivery_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  notificationId: varchar("notification_id").references(() => notificationsV6.id, { onDelete: 'set null' }),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  emailAddress: varchar("email_address", { length: 255 }).notNull(),
+  templateId: varchar("template_id", { length: 100 }).notNull(),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("queued"), // queued, sent, delivered, opened, clicked, bounced, complained, failed
+  serviceMessageId: varchar("service_message_id", { length: 255 }),
+  bounceType: varchar("bounce_type", { length: 50 }), // hard, soft
+  bounceReason: text("bounce_reason"),
+  openedAt: timestamp("opened_at"),
+  clickedAt: timestamp("clicked_at"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  sentAt: timestamp("sent_at"),
+  deliveredAt: timestamp("delivered_at"),
+}, (table) => [
+  index("idx_email_delivery_logs_user").on(table.userId),
+  index("idx_email_delivery_logs_notification").on(table.notificationId),
+  index("idx_email_delivery_logs_status").on(table.status),
+  index("idx_email_delivery_logs_created").on(table.createdAt),
+]);
+
+// =============================================================================
+// V6: DATA VALIDATION LAYER
+// =============================================================================
+
+// Validation Results - Caches validation check results for entities
+export const validationResults = pgTable("validation_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityType: varchar("entity_type", { length: 50 }).notNull(), // order, design_job, line_item
+  entityId: varchar("entity_id").notNull(),
+  checkType: varchar("check_type", { length: 100 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull(), // pass, warning, error, skipped, unable
+  severity: varchar("severity", { length: 20 }).notNull().default("warning"), // info, warning, error
+  message: text("message").notNull(),
+  details: jsonb("details"),
+  suggestedAction: text("suggested_action"),
+  relatedEntityType: varchar("related_entity_type", { length: 50 }),
+  relatedEntityId: varchar("related_entity_id"),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  acknowledgedByUserId: varchar("acknowledged_by_user_id").references(() => users.id, { onDelete: 'set null' }),
+  acknowledgmentNote: text("acknowledgment_note"),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdByUserId: varchar("created_by_user_id").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_validation_results_entity").on(table.entityType, table.entityId),
+  index("idx_validation_results_entity_check").on(table.entityType, table.entityId, table.checkType),
+  index("idx_validation_results_status").on(table.status),
+  index("idx_validation_results_expires").on(table.expiresAt),
+  index("idx_validation_results_created").on(table.createdAt),
+]);
+
+// Validation Summaries - Aggregate validation status per entity
+export const validationSummaries = pgTable("validation_summaries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityType: varchar("entity_type", { length: 50 }).notNull(),
+  entityId: varchar("entity_id").notNull(),
+  totalChecks: integer("total_checks").notNull().default(0),
+  passed: integer("passed").notNull().default(0),
+  warnings: integer("warnings").notNull().default(0),
+  errors: integer("errors").notNull().default(0),
+  skipped: integer("skipped").notNull().default(0),
+  overallStatus: varchar("overall_status", { length: 20 }).notNull().default("pass"), // pass, warning, error
+  validatedAt: timestamp("validated_at").defaultNow().notNull(),
+  validUntil: timestamp("valid_until").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_validation_summaries_entity").on(table.entityType, table.entityId),
+  index("idx_validation_summaries_status").on(table.overallStatus),
+  index("idx_validation_summaries_valid_until").on(table.validUntil),
+]);
+
+// =============================================================================
+// V6: ACTIVITY LOGS
+// =============================================================================
+
+// Activity Logs - Enhanced audit trail for all significant system events
+export const activityLogs = pgTable("activity_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  entityType: varchar("entity_type", { length: 50 }).notNull(), // order, design_job, lead, organization, event, manufacturing_package, invoice
+  entityId: varchar("entity_id").notNull(),
+  activityType: varchar("activity_type", { length: 50 }).notNull(), // comment, status_change, field_update, file_upload, file_download, file_delete, assignment, email_sent, payment, manufacturing_update, created, archived
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
+  userName: varchar("user_name", { length: 255 }),
+  content: text("content"),
+  contentHtml: text("content_html"),
+  metadata: jsonb("metadata"),
+  parentId: varchar("parent_id").references((): any => activityLogs.id, { onDelete: 'set null' }),
+  isInternal: boolean("is_internal").notNull().default(false),
+  isSystem: boolean("is_system").notNull().default(false),
+  mentions: text("mentions").array(),
+  editedAt: timestamp("edited_at"),
+  deletedAt: timestamp("deleted_at"),
+  deletedByUserId: varchar("deleted_by_user_id").references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_activity_logs_entity").on(table.entityType, table.entityId, table.createdAt),
+  index("idx_activity_logs_user").on(table.userId, table.createdAt),
+  index("idx_activity_logs_type").on(table.activityType),
+  index("idx_activity_logs_parent").on(table.parentId),
+]);
+
+// =============================================================================
+// V6: SAVED FILTERS
+// =============================================================================
+
+// Saved Filters - User-defined saved filter configurations for list views
+export const savedFilters = pgTable("saved_filters", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
+  entityType: varchar("entity_type", { length: 50 }).notNull(), // orders, design_jobs, leads, manufacturing, organizations, events, invoices, products
+  filterConfig: jsonb("filter_config").notNull(),
+  sortConfig: jsonb("sort_config"),
+  columnConfig: jsonb("column_config"),
+  isDefault: boolean("is_default").notNull().default(false),
+  isPinned: boolean("is_pinned").notNull().default(false),
+  isShared: boolean("is_shared").notNull().default(false),
+  sharedWithRoles: text("shared_with_roles").array(),
+  useCount: integer("use_count").notNull().default(0),
+  lastUsedAt: timestamp("last_used_at"),
+  color: varchar("color", { length: 20 }),
+  icon: varchar("icon", { length: 50 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_saved_filters_user").on(table.userId),
+  index("idx_saved_filters_user_entity").on(table.userId, table.entityType),
+]);
+
 // Relations
 export const usersRelations = relations(users, ({ many, one }) => ({
   salesperson: one(salespersons, { fields: [users.id], references: [salespersons.userId] }),
@@ -3047,6 +3469,78 @@ export const designAiTrainingImagesRelations = relations(designAiTrainingImages,
 
 export const designStylePresetsRelations = relations(designStylePresets, ({ one }) => ({
   createdByUser: one(users, { fields: [designStylePresets.createdBy], references: [users.id] }),
+}));
+
+// V6 File System Relations
+export const filesRelations = relations(files, ({ one, many }) => ({
+  organization: one(organizations, { fields: [files.organizationId], references: [organizations.id] }),
+  uploadedByUser: one(users, { fields: [files.uploadedByUserId], references: [users.id] }),
+  archivedByUser: one(users, { fields: [files.archivedByUserId], references: [users.id] }),
+  fileLinks: many(fileLinks),
+}));
+
+export const fileLinksRelations = relations(fileLinks, ({ one }) => ({
+  file: one(files, { fields: [fileLinks.fileId], references: [files.id] }),
+  linkedByUser: one(users, { fields: [fileLinks.linkedByUserId], references: [users.id] }),
+  replacedByLink: one(fileLinks, { fields: [fileLinks.replacedByLinkId], references: [fileLinks.id] }),
+}));
+
+export const bulkUploadSessionsRelations = relations(bulkUploadSessions, ({ one, many }) => ({
+  uploadedByUser: one(users, { fields: [bulkUploadSessions.uploadedByUserId], references: [users.id] }),
+  fileUploads: many(fileUploads),
+}));
+
+export const fileUploadsRelations = relations(fileUploads, ({ one }) => ({
+  file: one(files, { fields: [fileUploads.fileId], references: [files.id] }),
+  bulkSession: one(bulkUploadSessions, { fields: [fileUploads.bulkSessionId], references: [bulkUploadSessions.id] }),
+  uploadedByUser: one(users, { fields: [fileUploads.uploadedByUserId], references: [users.id] }),
+}));
+
+export const zipJobsRelations = relations(zipJobs, ({ one }) => ({
+  requestedByUser: one(users, { fields: [zipJobs.requestedByUserId], references: [users.id] }),
+}));
+
+export const organizationStorageRelations = relations(organizationStorage, ({ one }) => ({
+  organization: one(organizations, { fields: [organizationStorage.organizationId], references: [organizations.id] }),
+}));
+
+// V6 Notification Relations
+export const notificationsV6Relations = relations(notificationsV6, ({ one, many }) => ({
+  user: one(users, { fields: [notificationsV6.userId], references: [users.id] }),
+  createdByUser: one(users, { fields: [notificationsV6.createdByUserId], references: [users.id] }),
+  emailDeliveryLogs: many(emailDeliveryLogs),
+}));
+
+export const notificationPreferencesRelations = relations(notificationPreferences, ({ one }) => ({
+  user: one(users, { fields: [notificationPreferences.userId], references: [users.id] }),
+}));
+
+export const userPushTokensRelations = relations(userPushTokens, ({ one }) => ({
+  user: one(users, { fields: [userPushTokens.userId], references: [users.id] }),
+}));
+
+export const emailDeliveryLogsRelations = relations(emailDeliveryLogs, ({ one }) => ({
+  notification: one(notificationsV6, { fields: [emailDeliveryLogs.notificationId], references: [notificationsV6.id] }),
+  user: one(users, { fields: [emailDeliveryLogs.userId], references: [users.id] }),
+}));
+
+// V6 Validation Relations
+export const validationResultsRelations = relations(validationResults, ({ one }) => ({
+  acknowledgedByUser: one(users, { fields: [validationResults.acknowledgedByUserId], references: [users.id] }),
+  createdByUser: one(users, { fields: [validationResults.createdByUserId], references: [users.id] }),
+}));
+
+// V6 Activity Log Relations
+export const activityLogsRelations = relations(activityLogs, ({ one, many }) => ({
+  user: one(users, { fields: [activityLogs.userId], references: [users.id] }),
+  deletedByUser: one(users, { fields: [activityLogs.deletedByUserId], references: [users.id] }),
+  parent: one(activityLogs, { fields: [activityLogs.parentId], references: [activityLogs.id] }),
+  replies: many(activityLogs),
+}));
+
+// V6 Saved Filters Relations
+export const savedFiltersRelations = relations(savedFilters, ({ one }) => ({
+  user: one(users, { fields: [savedFilters.userId], references: [users.id] }),
 }));
 
 // Insert schemas
@@ -4455,6 +4949,227 @@ export const insertDesignStylePresetSchema = createInsertSchema(designStylePrese
 
 export type DesignStylePreset = typeof designStylePresets.$inferSelect;
 export type InsertDesignStylePreset = z.infer<typeof insertDesignStylePresetSchema>;
+
+// ==================== V6 FILE STORAGE SCHEMAS ====================
+
+export const insertFileSchema = createInsertSchema(files, {
+  originalFilename: z.string().min(1, "Filename is required"),
+  storagePath: z.string().min(1, "Storage path is required"),
+  fileSizeBytes: z.number().int().positive("File size must be positive"),
+  mimeType: z.string().min(1, "MIME type is required"),
+  fileExtension: z.string().min(1, "File extension is required"),
+  checksumSha256: z.string().length(64, "Checksum must be 64 characters"),
+  folder: z.string().optional(),
+  description: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type File = typeof files.$inferSelect;
+export type InsertFile = z.infer<typeof insertFileSchema>;
+
+export const insertFileLinkSchema = createInsertSchema(fileLinks, {
+  entityType: z.enum(["order", "design_job", "organization", "manufacturing_package", "lead", "event"]),
+  entityId: z.string().min(1, "Entity ID is required"),
+  linkType: z.enum(["attachment", "customer_upload", "system_generated", "linked_from_library", "proof", "production_file"]).optional(),
+  folder: z.string().optional(),
+  isPrimary: z.boolean().optional(),
+  isCustomerVisible: z.boolean().optional(),
+  sortOrder: z.number().int().optional(),
+  versionNumber: z.number().int().positive().optional(),
+  approvalStatus: z.enum(["pending", "approved", "rejected"]).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  deletedAt: true,
+});
+
+export type FileLink = typeof fileLinks.$inferSelect;
+export type InsertFileLink = z.infer<typeof insertFileLinkSchema>;
+
+export const insertBulkUploadSessionSchema = createInsertSchema(bulkUploadSessions, {
+  contextType: z.string().min(1, "Context type is required"),
+  contextId: z.string().min(1, "Context ID is required"),
+  targetFolder: z.string().min(1, "Target folder is required"),
+  totalFiles: z.number().int().positive("Total files must be positive"),
+  totalBytes: z.number().int().nonnegative("Total bytes must be non-negative"),
+  status: z.enum(["pending", "in_progress", "complete", "partial", "failed", "cancelled"]).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type BulkUploadSession = typeof bulkUploadSessions.$inferSelect;
+export type InsertBulkUploadSession = z.infer<typeof insertBulkUploadSessionSchema>;
+
+export const insertFileUploadSchema = createInsertSchema(fileUploads, {
+  contextType: z.string().min(1, "Context type is required"),
+  contextId: z.string().min(1, "Context ID is required"),
+  targetFolder: z.string().min(1, "Target folder is required"),
+  originalFilename: z.string().min(1, "Filename is required"),
+  expectedSizeBytes: z.number().int().positive("Expected size must be positive"),
+  status: z.enum(["pending", "in_progress", "processing", "complete", "failed", "cancelled"]).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+export type FileUpload = typeof fileUploads.$inferSelect;
+export type InsertFileUpload = z.infer<typeof insertFileUploadSchema>;
+
+export const insertZipJobSchema = createInsertSchema(zipJobs, {
+  contextType: z.string().min(1, "Context type is required"),
+  contextId: z.string().min(1, "Context ID is required"),
+  zipFilename: z.string().min(1, "ZIP filename is required"),
+  folder: z.string().optional(),
+  fileIds: z.array(z.string()).optional(),
+  status: z.enum(["pending", "processing", "complete", "failed", "expired"]).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true,
+});
+
+export type ZipJob = typeof zipJobs.$inferSelect;
+export type InsertZipJob = z.infer<typeof insertZipJobSchema>;
+
+export type OrganizationStorage = typeof organizationStorage.$inferSelect;
+export type InsertOrganizationStorage = typeof organizationStorage.$inferInsert;
+
+// ==================== V6 NOTIFICATION SCHEMAS ====================
+
+export const insertNotificationV6Schema = createInsertSchema(notificationsV6, {
+  type: z.enum(["order_status", "design_update", "assignment", "mention", "deadline", "alert", "payment", "manufacturing", "comment", "system"]),
+  category: z.enum(["system", "user_generated", "assignment", "deadline", "alert", "digest"]),
+  title: z.string().min(1, "Title is required"),
+  body: z.string().optional(),
+  priority: z.enum(["low", "normal", "urgent"]).optional(),
+  entityType: z.string().optional(),
+  entityId: z.string().optional(),
+  actionUrl: z.string().optional(),
+  metadata: z.any().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  readAt: true,
+  acknowledgedAt: true,
+  archivedAt: true,
+});
+
+export type NotificationV6 = typeof notificationsV6.$inferSelect;
+export type InsertNotificationV6 = z.infer<typeof insertNotificationV6Schema>;
+
+export const insertNotificationPreferenceSchema = createInsertSchema(notificationPreferences, {
+  notificationType: z.enum(["order_status", "design_job", "assignment", "mention", "deadline", "alert", "comment", "manufacturing", "payment"]),
+  inAppEnabled: z.boolean().optional(),
+  emailPreference: z.enum(["off", "immediate", "daily", "weekly"]).optional(),
+  pushEnabled: z.boolean().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type NotificationPreference = typeof notificationPreferences.$inferSelect;
+export type InsertNotificationPreference = z.infer<typeof insertNotificationPreferenceSchema>;
+
+export const insertUserPushTokenSchema = createInsertSchema(userPushTokens, {
+  token: z.string().min(1, "Token is required"),
+  platform: z.enum(["ios", "android", "web"]),
+  deviceName: z.string().optional(),
+  appVersion: z.string().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UserPushToken = typeof userPushTokens.$inferSelect;
+export type InsertUserPushToken = z.infer<typeof insertUserPushTokenSchema>;
+
+export type EmailDeliveryLog = typeof emailDeliveryLogs.$inferSelect;
+export type InsertEmailDeliveryLog = typeof emailDeliveryLogs.$inferInsert;
+
+// ==================== V6 VALIDATION SCHEMAS ====================
+
+export const insertValidationResultSchema = createInsertSchema(validationResults, {
+  entityType: z.enum(["order", "design_job", "line_item"]),
+  entityId: z.string().min(1, "Entity ID is required"),
+  checkType: z.string().min(1, "Check type is required"),
+  status: z.enum(["pass", "warning", "error", "skipped", "unable"]),
+  severity: z.enum(["info", "warning", "error"]).optional(),
+  message: z.string().min(1, "Message is required"),
+  details: z.any().optional(),
+  suggestedAction: z.string().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ValidationResult = typeof validationResults.$inferSelect;
+export type InsertValidationResult = z.infer<typeof insertValidationResultSchema>;
+
+export const insertValidationSummarySchema = createInsertSchema(validationSummaries, {
+  entityType: z.string().min(1, "Entity type is required"),
+  entityId: z.string().min(1, "Entity ID is required"),
+  overallStatus: z.enum(["pass", "warning", "error"]).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type ValidationSummary = typeof validationSummaries.$inferSelect;
+export type InsertValidationSummary = z.infer<typeof insertValidationSummarySchema>;
+
+// ==================== V6 ACTIVITY LOG SCHEMAS ====================
+
+export const insertActivityLogSchema = createInsertSchema(activityLogs, {
+  entityType: z.enum(["order", "design_job", "lead", "organization", "event", "manufacturing_package", "invoice"]),
+  entityId: z.string().min(1, "Entity ID is required"),
+  activityType: z.enum(["comment", "status_change", "field_update", "file_upload", "file_download", "file_delete", "assignment", "email_sent", "payment", "manufacturing_update", "created", "archived"]),
+  content: z.string().optional(),
+  contentHtml: z.string().optional(),
+  metadata: z.any().optional(),
+  isInternal: z.boolean().optional(),
+  isSystem: z.boolean().optional(),
+  mentions: z.array(z.string()).optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+
+// ==================== V6 SAVED FILTERS SCHEMAS ====================
+
+export const insertSavedFilterSchema = createInsertSchema(savedFilters, {
+  name: z.string().min(1, "Name is required").max(100),
+  description: z.string().optional(),
+  entityType: z.enum(["orders", "design_jobs", "leads", "manufacturing", "organizations", "events", "invoices", "products"]),
+  filterConfig: z.any(),
+  sortConfig: z.any().optional(),
+  columnConfig: z.any().optional(),
+  isDefault: z.boolean().optional(),
+  isPinned: z.boolean().optional(),
+  isShared: z.boolean().optional(),
+  sharedWithRoles: z.array(z.string()).optional(),
+  color: z.string().optional(),
+  icon: z.string().optional(),
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type SavedFilter = typeof savedFilters.$inferSelect;
+export type InsertSavedFilter = z.infer<typeof insertSavedFilterSchema>;
 
 // ==================== 3PL SCHEMAS ====================
 
